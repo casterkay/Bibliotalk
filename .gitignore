@@ -59,6 +59,7 @@ venv/
 dist/
 *.log
 .env*
+!.env.example
 Thumbs.db
 *.tmp
 *.swp
