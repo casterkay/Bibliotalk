@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import httpx
 import pytest
 from bt_common.evermemos_client import EverMemOSClient
 from bt_common.exceptions import EMOSConnectionError, EMOSError, EMOSValidationError
@@ -145,6 +146,23 @@ async def test_connection_error_retry() -> None:
     memories = FakeMemories()
     memories.search_results = [
         APIConnectionError("network down"),
+        {"status": "ok", "result": {"memories": []}},
+    ]
+    client = EverMemOSClient(
+        "https://emos.local", retries=2, sdk_client=FakeSDK(memories)
+    )
+
+    result = await client.search("virtue", user_id="agent")
+
+    assert result["status"] == "ok"
+    assert len(memories.search_calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_httpx_transport_error_retry() -> None:
+    memories = FakeMemories()
+    memories.search_results = [
+        httpx.RemoteProtocolError("peer closed connection"),
         {"status": "ok", "result": {"memories": []}},
     ]
     client = EverMemOSClient(

@@ -1,20 +1,20 @@
-- **Socrates**: Plato's Apology, Crito, Phaedo, Phaedrus, Symposium, Theaetetus; Xenophon' Memorabilia, Apology, Symposium
-- **Confucius**: Analects
-- **Buddha**: Dhammapada, The Diamond Sutra
-- **Marcus Aurelius**: Meditations
-- **Seneca**: Letters from a Stoic
-- **Epictetus**: Discourses
-- **Goethe**: Autobiography, Maxims & Reflections
-- **Leonardo da Vinci**: The Notebooks of Leonardo Da Vinci, Thoughts on Art and Life
-- **Napoleon Bonaparte**: Memoirs of Napoleon Bonaparte, Napoleon's Letters to Josephine
-- **Benjamin Franklin**: Autobiography, Memoirs of Benjamin Franklin
-- **Abraham Lincoln**: Speeches and Letters of Abraham Lincoln
-- **Schopenhauer**: Essays, The World as Will and Idea
-- **Leo Tolstoy**: The Journal of Leo Tolstoi, What Is Art?
-- **Henry Thoreau**: "Walden, and On The Duty Of Civil Disobedience"
-- **鲁迅**: 南腔北調集, 朝花夕拾, 野草
-- **Sigmund Freud**: The Interpretation of Dreams, Introductory lectures on psycho-analysis, Psychopathology of Everyday Life
-- **Carl Jung**: Psychology of the Unconscious, The Theory of Psychoanalysis
+- **Socrates**: Plato's Apology (PG #1656), Crito (PG #1657), Phaedo (PG #1658), Phaedrus (PG #1636), Symposium (PG #1600), Theaetetus (PG #1726); Xenophon' Memorabilia (PG #1177), Apology (PG #1171)
+- **Confucius**: Analects (PG #3330), The Sayings of Confucius (PG #24055)
+- **Buddha**: Dhammapada (PG #2017), Diamond Sutra (PG #64623)
+- **Marcus Aurelius**: Meditations (PG #2680)
+- **Seneca**: Dialogues, etc. (PG #64576, #56075, #3794)
+- **Epictetus**: Epictetus (PG #45109)
+- **Goethe**: Autobiography (PG #52654), Maxims & Reflections (PG #33670)
+- **Leonardo da Vinci**: The Notebooks of Leonardo Da Vinci (PG #5000), Thoughts on Art and Life (PG #29904)
+- **Napoleon Bonaparte**: Memoirs of Napoleon Bonaparte (PG #3567), Napoleon's Letters to Josephine (PG #37499)
+- **Benjamin Franklin**: Autobiography (PG #20203), Memoirs of Benjamin Franklin (PG #36338, #40236)
+- **Abraham Lincoln**: Speeches and Letters of Abraham Lincoln (PG #14721)
+- **Schopenhauer**: Essays (PG #11945), The World as Will and Idea (Vols. 1-3: PG #38427, #40097, #40868)
+- **Leo Tolstoy**: The Journal of Leo Tolstoi (PG #46272), What Is Art? (PG #64908)
+- **Henry Thoreau**: "Walden, and On The Duty Of Civil Disobedience" (PG #205)
+- **鲁迅**: 南腔北調集 (PG #25346), 朝花夕拾 (PG #25271), 野草 (PG #25242)
+- **Sigmund Freud**: The Interpretation of Dreams (PG #66048), Introductory lectures on psycho-analysis (PG #75810), Psychopathology of Everyday Life (PG #67332)
+- **Carl Jung**: Psychology of the Unconscious (PG #65903), The Theory of Psychoanalysis (PG #66041)
 - **J Krishnamurti**: https://www.youtube.com/playlist?list=PL1n30s-LKus6_6oepw2kg1gIp_dg-MGZR, https://www.youtube.com/playlist?list=PL1n30s-LKus4oQ5fCd6MJ17waAMCsgumf
 - **Alan Watts**: https://www.youtube.com/playlist?list=PLqGJSfj5N-pKxwOFjYC6bxQhTEWegGDdZ
 - **Steve Jobs**: https://xibadke9yj127edz.public.blob.vercel-storage.com/Make%20Something%20Wonderful%20-%20Steve%20Jobs-JPwGLMXERzQnb9bjkciA3dXITgbHXC.epub, https://www.youtube.com/playlist?list=PLpP6AHh9my4WdhEt26pRWeYF0pGjHqNC8

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .chunking import ChunkingConfig, chunk_plain_text, chunk_transcript, normalize_text
@@ -28,6 +30,23 @@ logger = logging.getLogger("ingestion_service")
 
 def _now() -> datetime:
     return datetime.now(tz=timezone.utc)
+
+
+def _default_segment_cache_dir() -> Path:
+    return Path.cwd() / ".ingestion_service" / "segment_cache"
+
+
+def _append_segment_cache_record(
+    *,
+    cache_dir: Path,
+    user_id: str,
+    payload: dict[str, Any],
+) -> None:
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    path = cache_dir / f"{user_id}.jsonl"
+
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
 def _source_fingerprint(source_content: SourceContent) -> str:
@@ -144,31 +163,60 @@ async def ingest_source(
     chunking_cfg: ChunkingConfig | None = None,
     include_segment_details: bool = True,
     redact_secrets: list[str] | None = None,
+    segment_cache_dir: Path | None = None,
 ) -> SourceResult:
     redact_secrets = redact_secrets or []
     source = source_content.source
-    group_id = source.group_id or ""
+    default_group_id = source.group_id or ""
+    default_group_name = source.group_name or source.title
+    cache_dir = segment_cache_dir or _default_segment_cache_dir()
+
+    if isinstance(source_content.content, PlainTextContent):
+        segments = chunk_plain_text(
+            source, source_content.content.text, cfg=chunking_cfg
+        )
+    else:
+        segments = chunk_transcript(
+            source, source_content.content.lines, cfg=chunking_cfg
+        )
+
+    # Ensure conversation metadata is saved for every conversation group used
+    # by segments (for chapterized books this can be >1 group per source).
+    group_meta: dict[str, str] = {}
+    for seg in segments:
+        gid = seg.group_id or default_group_id
+        gname = seg.group_name or default_group_name
+        group_meta[gid] = gname
+    if not group_meta:
+        group_meta[default_group_id] = default_group_name
 
     meta_saved = False
     try:
-        if not index.get_source_meta_saved(user_id=source.user_id, group_id=group_id):
+        for gid, gname in group_meta.items():
+            if index.get_source_meta_saved(user_id=source.user_id, group_id=gid):
+                continue
             meta = {
                 "platform": source.platform,
                 "external_id": source.external_id,
                 "title": source.title,
+                "group_name": gname,
                 "canonical_url": source.canonical_url,
                 "author": source.author,
                 "published_at": (
                     source.published_at.isoformat() if source.published_at else None
                 ),
+                "raw_meta": source.raw_meta,
             }
+            if gid != default_group_id:
+                meta["conversation_type"] = "chapter"
+                meta["parent_group_id"] = default_group_id
             await client.save_conversation_meta(
-                group_id=group_id,
+                group_id=gid,
                 source_meta={k: v for k, v in meta.items() if v is not None},
             )
             index.set_source_meta_saved(
                 user_id=source.user_id,
-                group_id=group_id,
+                group_id=gid,
                 source_fingerprint=_source_fingerprint(source_content),
             )
         meta_saved = True
@@ -180,7 +228,7 @@ async def ingest_source(
             external_id=source.external_id,
             title=source.title,
             canonical_url=source.canonical_url,
-            group_id=group_id,
+            group_id=default_group_id,
             status="failed",
             meta_saved=False,
             segments_total=0,
@@ -193,21 +241,14 @@ async def ingest_source(
             segments=[] if include_segment_details else None,
         )
 
-    if isinstance(source_content.content, PlainTextContent):
-        segments = chunk_plain_text(
-            source, source_content.content.text, cfg=chunking_cfg
-        )
-    else:
-        segments = chunk_transcript(
-            source, source_content.content.lines, cfg=chunking_cfg
-        )
-
     seg_results: list[SegmentResult] = []
     ingested = 0
     skipped = 0
     failed = 0
 
     for seg in segments:
+        seg_group_id = seg.group_id or default_group_id
+        seg_group_name = seg.group_name or default_group_name
         existing = index.get_segment(user_id=source.user_id, message_id=seg.message_id)
         if (
             existing
@@ -217,7 +258,7 @@ async def ingest_source(
             skipped += 1
             index.upsert_segment_status(
                 user_id=source.user_id,
-                group_id=group_id,
+                group_id=seg_group_id,
                 message_id=seg.message_id,
                 seq=seg.seq,
                 sha256=seg.sha256,
@@ -232,6 +273,10 @@ async def ingest_source(
                         status="skipped_unchanged",
                         start_ms=seg.start_ms,
                         end_ms=seg.end_ms,
+                        virtual_start_at=seg.virtual_start_at,
+                        virtual_end_at=seg.virtual_end_at,
+                        group_id=seg_group_id,
+                        group_name=seg_group_name,
                     )
                 )
             continue
@@ -240,15 +285,15 @@ async def ingest_source(
             logger.debug(
                 "memorize run_id=%s group_id=%s message_id=%s seq=%s",
                 run_id,
-                group_id,
+                seg_group_id,
                 seg.message_id,
                 seg.seq,
             )
             payload: dict[str, Any] = {
                 "message_id": seg.message_id,
                 "sender": source.user_id,
-                "group_id": group_id,
-                "group_name": source.group_name,
+                "group_id": seg_group_id,
+                "group_name": seg_group_name,
                 "role": "assistant",
                 "content": seg.text,
                 "platform": source.platform,
@@ -262,6 +307,10 @@ async def ingest_source(
                 payload["start_ms"] = seg.start_ms
             if seg.end_ms is not None:
                 payload["end_ms"] = seg.end_ms
+            if seg.virtual_start_at:
+                payload["virtual_start_at"] = seg.virtual_start_at
+            if seg.virtual_end_at:
+                payload["virtual_end_at"] = seg.virtual_end_at
             if seg.speaker:
                 payload["speaker"] = seg.speaker
 
@@ -269,7 +318,7 @@ async def ingest_source(
             ingested += 1
             index.upsert_segment_status(
                 user_id=source.user_id,
-                group_id=group_id,
+                group_id=seg_group_id,
                 message_id=seg.message_id,
                 seq=seg.seq,
                 sha256=seg.sha256,
@@ -284,14 +333,30 @@ async def ingest_source(
                         status="ingested",
                         start_ms=seg.start_ms,
                         end_ms=seg.end_ms,
+                        virtual_start_at=seg.virtual_start_at,
+                        virtual_end_at=seg.virtual_end_at,
+                        group_id=seg_group_id,
+                        group_name=seg_group_name,
                     )
+                )
+            try:
+                _append_segment_cache_record(
+                    cache_dir=cache_dir,
+                    user_id=source.user_id,
+                    payload=payload,
+                )
+            except Exception:  # noqa: BLE001
+                logger.warning(
+                    "segment cache write failed run_id=%s message_id=%s status=ingested",
+                    run_id,
+                    seg.message_id,
                 )
         except Exception as exc:  # noqa: BLE001
             failed += 1
             err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
             index.upsert_segment_status(
                 user_id=source.user_id,
-                group_id=group_id,
+                group_id=seg_group_id,
                 message_id=seg.message_id,
                 seq=seg.seq,
                 sha256=seg.sha256,
@@ -308,6 +373,10 @@ async def ingest_source(
                         status="failed",
                         start_ms=seg.start_ms,
                         end_ms=seg.end_ms,
+                        virtual_start_at=seg.virtual_start_at,
+                        virtual_end_at=seg.virtual_end_at,
+                        group_id=seg_group_id,
+                        group_name=seg_group_name,
                         error=ReportError(
                             code=err.code,
                             message=redact_text(str(err), secrets=redact_secrets),
@@ -326,7 +395,7 @@ async def ingest_source(
         external_id=source.external_id,
         title=source.title,
         canonical_url=source.canonical_url,
-        group_id=group_id,
+        group_id=default_group_id,
         status=status,
         meta_saved=meta_saved,
         segments_total=len(segments),
@@ -345,6 +414,7 @@ async def ingest_sources(
     client: EverMemOSClient,
     include_segment_details: bool = True,
     redact_secrets: list[str] | None = None,
+    segment_cache_dir: Path | None = None,
 ) -> IngestReport:
     started = _now()
     run_id = str(uuid.uuid4())
@@ -359,6 +429,7 @@ async def ingest_sources(
             run_id=run_id,
             include_segment_details=include_segment_details,
             redact_secrets=redact_secrets,
+            segment_cache_dir=segment_cache_dir,
         )
         results.append(result)
         if result.status == "failed":
@@ -391,6 +462,7 @@ async def ingest_manifest(
     client: EverMemOSClient,
     include_segment_details: bool = True,
     redact_secrets: list[str] | None = None,
+    segment_cache_dir: Path | None = None,
 ) -> IngestReport:
     started = _now()
     run_id = str(uuid.uuid4())
@@ -409,6 +481,7 @@ async def ingest_manifest(
                 run_id=run_id,
                 include_segment_details=include_segment_details,
                 redact_secrets=redact_secrets,
+                segment_cache_dir=segment_cache_dir,
             )
         except Exception as exc:  # noqa: BLE001
             err = exc if isinstance(exc, IngestError) else IngestError(str(exc))

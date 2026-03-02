@@ -45,6 +45,10 @@ class Segment(BaseModel):
     speaker: str | None = None
     start_ms: int | None = None
     end_ms: int | None = None
+    virtual_start_at: str | None = None
+    virtual_end_at: str | None = None
+    group_id: str | None = None
+    group_name: str | None = None
 
 
 class PlainTextContent(BaseModel):
@@ -77,6 +81,10 @@ class SegmentResult(BaseModel):
     status: Literal["ingested", "skipped_unchanged", "failed"]
     start_ms: int | None = None
     end_ms: int | None = None
+    virtual_start_at: str | None = None
+    virtual_end_at: str | None = None
+    group_id: str | None = None
+    group_name: str | None = None
     error: ReportError | None = None
 
 
@@ -116,7 +124,20 @@ class IngestReport(BaseModel):
     sources: list[SourceResult]
 
 
-def build_segment(*, source: Source, seq: int, text: str, sha256: str, start_ms: int | None, end_ms: int | None, speaker: str | None) -> Segment:
+def build_segment(
+    *,
+    source: Source,
+    seq: int,
+    text: str,
+    sha256: str,
+    start_ms: int | None,
+    end_ms: int | None,
+    speaker: str | None,
+    virtual_start_at: str | None = None,
+    virtual_end_at: str | None = None,
+    group_id: str | None = None,
+    group_name: str | None = None,
+) -> Segment:
     return Segment(
         seq=seq,
         text=text,
@@ -125,4 +146,8 @@ def build_segment(*, source: Source, seq: int, text: str, sha256: str, start_ms:
         start_ms=start_ms,
         end_ms=end_ms,
         speaker=speaker,
+        virtual_start_at=virtual_start_at,
+        virtual_end_at=virtual_end_at,
+        group_id=group_id,
+        group_name=group_name,
     )

@@ -4,19 +4,20 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Awaitable, Optional, TypeVar
 
 import typer
+from bt_common.evermemos_client import EverMemOSClient
 from rich.console import Console
 
 from .adapters.local_text import load_file_source, load_text_source
 from .domain.errors import ConfigError, IngestError, InvalidInputError
 from .pipeline.index import IngestionIndex
-from .pipeline.ingest import ingest_manifest, ingest_sources
+from .pipeline.ingest import ingest_manifest as ingest_manifest_pipeline
+from .pipeline.ingest import ingest_sources
 from .pipeline.manifest import load_manifest
 from .runtime.config import load_runtime_config
 from .runtime.reporting import redact_text, write_report
-from bt_common.evermemos_client import EverMemOSClient
 
 app = typer.Typer(add_completion=False)
 ingest_app = typer.Typer(add_completion=False)
@@ -57,6 +58,19 @@ def _configure_logging(level: str) -> None:
 
 def _run(coro):
     return asyncio.run(coro)
+
+
+T = TypeVar("T")
+
+
+async def _run_with_client_close(
+    client: EverMemOSClient,
+    operation: Awaitable[T],
+) -> T:
+    try:
+        return await operation
+    finally:
+        await client.aclose()
 
 
 def _report_path(cli: CLIContext, *, run_id: str) -> Path:
@@ -105,14 +119,16 @@ def ingest_text(
             published_at=published_at,
         )
         report = _run(
-            ingest_sources(
-                sources=[source_content],
-                index=index,
-                client=client,
-                redact_secrets=[cfg.emos_api_key or ""],
+            _run_with_client_close(
+                client,
+                ingest_sources(
+                    sources=[source_content],
+                    index=index,
+                    client=client,
+                    redact_secrets=[cfg.emos_api_key or ""],
+                ),
             )
         )
-        _run(client.aclose())
     except (ConfigError, InvalidInputError) as exc:
         raise typer.Exit(code=2) from exc
     except IngestError as exc:
@@ -177,14 +193,16 @@ def ingest_file(
             published_at=published_at,
         )
         report = _run(
-            ingest_sources(
-                sources=[source_content],
-                index=index,
-                client=client,
-                redact_secrets=[cfg.emos_api_key or ""],
+            _run_with_client_close(
+                client,
+                ingest_sources(
+                    sources=[source_content],
+                    index=index,
+                    client=client,
+                    redact_secrets=[cfg.emos_api_key or ""],
+                ),
             )
         )
-        _run(client.aclose())
     except (ConfigError, InvalidInputError) as exc:
         raise typer.Exit(code=2) from exc
     except IngestError as exc:
@@ -210,7 +228,7 @@ def ingest_file(
 
 
 @ingest_app.command("manifest")
-def ingest_manifest(
+def ingest_manifest_cmd(
     ctx: typer.Context,
     path: Path = typer.Option(..., "--path"),
 ) -> None:
@@ -240,14 +258,16 @@ def ingest_manifest(
             retries=cfg.emos_retries,
         )
         report = _run(
-            ingest_manifest(
-                manifest=manifest,
-                index=index,
-                client=client,
-                redact_secrets=[cfg.emos_api_key or ""],
+            _run_with_client_close(
+                client,
+                ingest_manifest_pipeline(
+                    manifest=manifest,
+                    index=index,
+                    client=client,
+                    redact_secrets=[cfg.emos_api_key or ""],
+                ),
             )
         )
-        _run(client.aclose())
     except (ConfigError, InvalidInputError) as exc:
         console.print(f"[red]Invalid input:[/red] {exc}")
         raise typer.Exit(code=2) from exc
@@ -275,3 +295,7 @@ def ingest_manifest(
         f"succeeded={report.summary.sources_succeeded} failed={report.summary.sources_failed}"
     )
     raise typer.Exit(code=0 if report.status == "done" else 1)
+
+
+if __name__ == "__main__":
+    app()

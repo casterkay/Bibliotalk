@@ -120,26 +120,84 @@ class EverMemOSClient:
             )
         )
 
-    async def save_conversation_meta(self, payload: dict[str, Any]) -> dict[str, Any]:
-        created_at = (
-            payload.get("created_at") or datetime.now(tz=timezone.utc).isoformat()
-        )
-        scene = payload.get("scene")
-        if scene is None:
-            raise EMOSValidationError("conversation-meta payload requires 'scene'")
+    async def save_conversation_meta(
+        self,
+        payload: dict[str, Any] | None = None,
+        *,
+        group_id: str | None = None,
+        source_meta: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        # Backward-compatible call styles:
+        # 1) save_conversation_meta(payload={...})
+        # 2) save_conversation_meta(group_id="...", source_meta={...})
+        body: dict[str, Any] = dict(payload or {})
+        if group_id is not None:
+            body["group_id"] = group_id
+        if source_meta is not None:
+            body["source_meta"] = source_meta
+
+        source_meta_obj = body.get("source_meta")
+        source_meta_dict = source_meta_obj if isinstance(source_meta_obj, dict) else {}
+
+        is_group_scope = bool(body.get("group_id"))
+        if not is_group_scope:
+            body.setdefault("version", "1.0.0")
+            body.setdefault("scene", "assistant")
+            body.setdefault(
+                "scene_desc",
+                {
+                    "description": f"Ingested source: {source_meta_dict.get('title') or 'content'}",
+                    "type": "knowledge_ingestion",
+                },
+            )
+            body.setdefault(
+                "name",
+                source_meta_dict.get("title")
+                or "Ingestion Source",
+            )
+        else:
+            body.setdefault(
+                "name",
+                source_meta_dict.get("title")
+                or body.get("group_id")
+                or "Ingestion Source",
+            )
+
+        if "description" not in body:
+            body["description"] = (
+                source_meta_dict.get("canonical_url")
+                or source_meta_dict.get("title")
+                or body.get("group_id")
+                or "Ingestion source metadata"
+            )
+
+        created_at = body.get("created_at") or datetime.now(
+            tz=timezone.utc
+        ).isoformat()
+
+        # Some EMOS deployments reject explicit scene/scene_desc at group scope
+        # and inherit them from global config.
+        scene = body.get("scene") if "scene" in body else (None if is_group_scope else "assistant")
+
+        create_kwargs: dict[str, Any] = {
+            "created_at": created_at,
+            "scene": scene,
+            "extra_headers": self.headers or None,
+            "extra_body": body,
+        }
+        if body.get("description") is not None:
+            create_kwargs["description"] = body.get("description")
+        if body.get("default_timezone") is not None:
+            create_kwargs["default_timezone"] = body.get("default_timezone")
+        if body.get("scene_desc") is not None:
+            create_kwargs["scene_desc"] = body.get("scene_desc")
+        if body.get("tags") is not None:
+            create_kwargs["tags"] = body.get("tags")
+        if body.get("user_details") is not None:
+            create_kwargs["user_details"] = body.get("user_details")
 
         return await self._run_with_retry(
-            lambda: self.client.v0.memories.conversation_meta.create(
-                created_at=created_at,
-                scene=scene,
-                description=payload.get("description"),
-                default_timezone=payload.get("default_timezone"),
-                scene_desc=payload.get("scene_desc"),
-                tags=payload.get("tags"),
-                user_details=payload.get("user_details"),
-                extra_headers=self.headers or None,
-                extra_body=payload,
-            )
+            lambda: self.client.v0.memories.conversation_meta.create(**create_kwargs)
         )
 
     async def _run_with_retry(
@@ -171,6 +229,8 @@ class EverMemOSClient:
         return {"result": result}
 
     def _should_retry(self, exc: Exception) -> bool:
+        if isinstance(exc, httpx.TransportError):
+            return True
         class_name = exc.__class__.__name__
         if class_name in {"APIConnectionError", "APITimeoutError"}:
             return True
@@ -207,6 +267,9 @@ class EverMemOSClient:
     def _raise_mapped_error(self, exc: Exception) -> None:
         class_name = exc.__class__.__name__
         message = self._extract_message(exc)
+
+        if isinstance(exc, httpx.TransportError):
+            raise EMOSConnectionError(message) from exc
 
         if class_name in {"APIConnectionError", "APITimeoutError"}:
             raise EMOSConnectionError(message) from exc
