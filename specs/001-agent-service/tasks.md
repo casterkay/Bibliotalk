@@ -44,17 +44,18 @@ This task list is a living checklist for bringing the implementation in `service
 
 Pending to match `BLUEPRINT.md` behavior:
 
-- [ ] Room classification: enforce “no AI in profile rooms” by checking `profile_rooms` (not just Matrix permissions)
-- [ ] Group room routing: respond only when directly addressed/mentioned (avoid reply storms)
-- [ ] Evidence mapping: use EverMemOS `group_id` → `sources/segments` narrowing before reranking (avoid reranking over all segments)
-- [ ] Citation marker policy: ensure inline markers are emitted in the returned text (not appended as a footer-only artifact)
-- [ ] Matrix send pipeline: replace stub `send_message` with real Matrix client/appservice sender
+- [x] Room classification: enforce “no AI in profile rooms” by checking `profile_rooms` (not just Matrix permissions)
+- [x] Group room routing: respond only when directly addressed/mentioned (avoid reply storms) (DMs allowed when exactly one Ghost is joined)
+- [x] Evidence mapping: use EverMemOS `group_id` → `sources/segments` narrowing before reranking (avoid reranking over all segments)
+- [x] Citation marker policy: ensure inline markers exist (auto-append `[^N]` markers when missing)
+- [x] Matrix send pipeline: send as the Ghost via Matrix CS API using the appservice `as_token`
 
 Tests:
 
 - [x] `bt_common` unit/contract tests exist (`packages/bt_common/tests/`)
 - [x] `agents_service` unit/integration tests exist (`services/agents_service/tests/`)
-- [ ] Add targeted tests for `format_ghost_response` marker behavior and citation payload shape
+- [x] Add targeted tests for appservice routing, marker behavior, and citation payload shape (`services/agents_service/tests/unit/test_matrix_appservice.py`)
+- [x] ADK-backed Gemini provider wired into the agent runtime (`services/agents_service/src/agent/providers/gemini.py`, `services/agents_service/src/agent/agent_factory.py`)
 
 ---
 
@@ -110,7 +111,7 @@ Pending:
 
 ## Proposed Improvements (Non-Blocking)
 
-- [ ] Fix `services/voice_call_service/package.json` to run `src/index.js` via `npm start`
-- [ ] Make `.env` discovery robust (support repo-root `.env` even when running from service directories)
+- [x] Fix `services/voice_call_service/package.json` to run `src/index.js` via `npm start`
+- [x] Make `.env` discovery robust (support repo-root `.env` even when running from service directories)
 - [ ] Clarify EverMemOS API versioning in contracts (v0/v1 path strings) while keeping shape-based tests
 - [ ] Add a dedicated Matrix event contract doc for appservice transactions and message send payloads

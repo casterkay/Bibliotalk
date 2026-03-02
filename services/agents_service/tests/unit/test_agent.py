@@ -206,3 +206,32 @@ async def test_agent_uses_correct_llm_model_from_config() -> None:
 
     assert llm.calls == 1
     assert agent.model == "nova-lite-v2"
+
+
+@pytest.mark.asyncio
+async def test_agent_handles_memory_outage_gracefully() -> None:
+    from agents_service.agent.agent_factory import create_ghost_agent
+
+    supabase = FakeSupabase()
+    registry = FakeRegistry()
+    registry.register("nova-lite-v2", FakeLlm("nova-lite-v2"))
+
+    class _FakeEmosError(Exception):
+        pass
+
+    async def failing_memory_search(query: str, agent_id: str):
+        _ = query
+        _ = agent_id
+        raise _FakeEmosError("down")
+
+    agent = await create_ghost_agent(
+        supabase.agent_id,
+        supabase_helpers=supabase,
+        llm_registry=registry,
+        memory_search_fn=failing_memory_search,
+    )
+
+    response = await agent.run("What did you say about learning?")
+
+    assert "memory" in response["text"].lower()
+    assert response["citations"] == []

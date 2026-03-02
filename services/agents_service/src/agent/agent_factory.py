@@ -14,6 +14,7 @@ from bt_common.exceptions import AgentNotFoundError
 
 from ..database.supabase_helpers import SupabaseHelpers
 from ..models.citation import Evidence
+from .providers.gemini import GeminiConfigurationError
 from .tools.emit_citations import EmitCitationsTool
 from .tools.memory_search import MemorySearchTool
 
@@ -46,12 +47,26 @@ class LLMRegistry:
     @classmethod
     def resolve(cls, model: str) -> Any:
         if model not in cls._models:
-            cls._models[model] = _EchoLLM(model_name=model)
+            if model.startswith("gemini-"):
+                try:
+                    from .providers.gemini import AdkGeminiLLM
+
+                    cls._models[model] = AdkGeminiLLM(model_name=model)
+                except Exception:  # noqa: BLE001
+                    cls._models[model] = _EchoLLM(model_name=model)
+            else:
+                cls._models[model] = _EchoLLM(model_name=model)
         return cls._models[model]
 
     @classmethod
     def init_defaults(cls) -> None:
-        cls._models.setdefault("gemini-2.5-flash", _EchoLLM("gemini-2.5-flash"))
+        # Prefer ADK-backed Gemini when available; fall back to echo for local tests.
+        try:
+            from .providers.gemini import AdkGeminiLLM
+
+            cls._models.setdefault("gemini-2.5-flash", AdkGeminiLLM("gemini-2.5-flash"))
+        except Exception:  # noqa: BLE001
+            cls._models.setdefault("gemini-2.5-flash", _EchoLLM("gemini-2.5-flash"))
         cls._models.setdefault("nova-lite-v2", _EchoLLM("nova-lite-v2"))
 
 
@@ -64,19 +79,42 @@ class GhostAgent:
     llm: Any
     memory_search_fn: MemorySearchFn
     emit_citations_fn: EmitCitationsFn
+    matrix_user_id: str | None = None
+    is_active: bool = True
 
     async def run(self, query: str) -> dict[str, Any]:
-        evidence = await self.memory_search_fn(query, self.id)
+        try:
+            evidence = await self.memory_search_fn(query, self.id)
+        except Exception:  # noqa: BLE001
+            return {
+                "text": "My memory is temporarily unavailable.",
+                "citations": [],
+            }
         if not evidence:
             return {
                 "text": "I have no evidence to answer that right now.",
                 "citations": [],
             }
 
-        text = await self.llm.generate(
-            persona_prompt=self.instruction, query=query, evidence=evidence
-        )
-        citations = await self.emit_citations_fn(evidence, self.id)
+        try:
+            text = await self.llm.generate(
+                persona_prompt=self.instruction, query=query, evidence=evidence
+            )
+        except GeminiConfigurationError:
+            return {
+                "text": "My language model is not configured right now.",
+                "citations": [],
+            }
+        except Exception:  # noqa: BLE001
+            return {
+                "text": "I ran into an error while composing a response.",
+                "citations": [],
+            }
+
+        try:
+            citations = await self.emit_citations_fn(evidence, self.id)
+        except Exception:  # noqa: BLE001
+            citations = []
         return {"text": text, "citations": citations}
 
 
@@ -119,7 +157,13 @@ async def create_ghost_agent(
                 )
                 memory_tool = MemorySearchTool(
                     evermemos_client=evermemos_client,
-                    segments_provider=lambda lookup_agent_id: supabase_helpers.get_segments_for_agent(
+                    sources_by_group_ids_provider=lambda group_ids: supabase_helpers.get_sources_by_emos_group_ids(
+                        group_ids
+                    ),
+                    segments_by_source_ids_provider=lambda source_ids: supabase_helpers.get_segments_by_source_ids(
+                        source_ids
+                    ),
+                    segments_for_agent_provider=lambda lookup_agent_id: supabase_helpers.get_segments_for_agent(
                         UUID(lookup_agent_id)
                     ),
                 )
@@ -149,6 +193,8 @@ async def create_ghost_agent(
         llm=llm,
         memory_search_fn=memory_search_fn,
         emit_citations_fn=emit_citations_fn,
+        matrix_user_id=agent_row.get("matrix_user_id"),
+        is_active=bool(agent_row.get("is_active", True)),
     )
 
     async with _CACHE_LOCK:

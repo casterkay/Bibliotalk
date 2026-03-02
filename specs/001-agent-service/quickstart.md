@@ -16,6 +16,12 @@ cp .env.example .env
 # edit .env (SUPABASE_*, EMOS_*, MATRIX_*, etc.)
 ```
 
+If you want to use Gemini via Google ADK for text generation, set:
+
+```bash
+export GOOGLE_API_KEY="..."
+```
+
 ## 2) Install Python deps (agents_service)
 
 ```bash
@@ -31,6 +37,12 @@ Run from the repo root so `.env` is discovered:
 ```bash
 cd ../..
 python -m agents_service --agent confucius --mock-emos
+```
+
+To exercise Gemini (requires `GOOGLE_API_KEY`):
+
+```bash
+python -m agents_service --agent confucius --mock-emos --model gemini-2.0-flash
 ```
 
 ## 4) Run Tests
@@ -56,8 +68,6 @@ python -m pytest
 cd ../..
 uvicorn agents_service.server:app --host 0.0.0.0 --port 8009
 ```
-
-Note: `agents_service.server` currently uses a stub `send_message` implementation; use the CLI harness for end-to-end behavior until Matrix sending is wired up.
 
 ## 6) Start voice_call_service (Node sidecar)
 

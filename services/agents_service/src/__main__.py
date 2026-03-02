@@ -12,15 +12,18 @@ from .models.citation import Citation, Evidence
 
 
 class _MockSupabase:
-    def __init__(self, agent_id: UUID):
+    def __init__(self, agent_id: UUID, *, model: str):
         self.agent_id = agent_id
+        self.model = model
 
     async def get_agent(self, agent_id: UUID):
         return {
             "id": str(agent_id),
             "display_name": "Confucius (Ghost)",
+            "matrix_user_id": "@btghost_confucius:example",
             "persona_prompt": "You are Confucius.",
-            "llm_model": "nova-lite-v2",
+            "llm_model": self.model,
+            "is_active": True,
         }
 
     async def get_agent_emos_config(self, agent_id: UUID):
@@ -42,6 +45,20 @@ class _MockSupabase:
             }
         ]
 
+    async def get_sources_by_emos_group_ids(self, emos_group_ids: list[str]):
+        _ = emos_group_ids
+        return [
+            {
+                "id": str(uuid4()),
+                "title": "The Analects",
+                "external_url": "https://www.gutenberg.org/ebooks/3330",
+            }
+        ]
+
+    async def get_segments_by_source_ids(self, source_ids: list[str]):
+        _ = source_ids
+        return await self.get_segments_for_agent(self.agent_id)
+
     async def get_segments_by_ids(self, segment_ids):
         return [
             {
@@ -52,12 +69,12 @@ class _MockSupabase:
         ]
 
 
-async def _run(agent_slug: str, mock_emos: bool) -> None:
+async def _run(agent_slug: str, mock_emos: bool, model: str) -> None:
     _ = agent_slug
     _ = mock_emos
     agent_id = uuid4()
     LLMRegistry.init_defaults()
-    supabase = _MockSupabase(agent_id)
+    supabase = _MockSupabase(agent_id, model=model)
 
     memory_search_fn = None
     if mock_emos:
@@ -119,9 +136,14 @@ def main() -> None:
     parser.add_argument(
         "--mock-emos", action="store_true", help="Use mock EMOS responses"
     )
+    parser.add_argument(
+        "--model",
+        default="nova-lite-v2",
+        help="LLM model name (e.g. gemini-2.0-flash).",
+    )
     args = parser.parse_args()
 
-    asyncio.run(_run(args.agent, args.mock_emos))
+    asyncio.run(_run(args.agent, args.mock_emos, args.model))
 
 
 if __name__ == "__main__":

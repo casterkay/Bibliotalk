@@ -10,7 +10,9 @@ requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115.0",
   "uvicorn>=0.30.0",
-  "bt_common @ file:../../packages/bt_common",
+  "google-adk>=1.25.0",
+  "google-genai>=1.0.0",
+  "bt_common>=0.1.0",
 ]
 
 [project.optional-dependencies]
@@ -38,3 +40,6 @@ packages = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.uv.sources]
+bt_common = { path = "../../packages/bt_common" }

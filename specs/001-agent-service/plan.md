@@ -7,7 +7,7 @@
 
 Implement `agents_service`, the Matrix appservice + runtime that powers Ghosts (AI digital twins) with EverMemOS-grounded responses and verifiable citations (**言必有據**). The service also owns multi-agent discussion orchestration (floor control) and coordinates with `voice_call_service` for MatrixRTC voice sessions.
 
-This repository already contains a minimal end-to-end skeleton (CLI harness, FastAPI transaction endpoint, citation/segment models, an EverMemOS client wrapper, and voice scaffolding). The target architecture in `BLUEPRINT.md` uses **Google ADK** for the agent runtime; ADK integration remains planned and should preserve the same tool contracts (`memory_search`, `emit_citations`) and citation validation rules.
+This repository contains an end-to-end text chat loop (Matrix appservice → retrieval → LLM composition → citations → Matrix response). The agent runtime is now wired to **Google ADK** for Gemini-backed text generation (see `services/agents_service/src/agent/providers/gemini.py`). Future work should extend ADK usage to richer tool-calling orchestration, additional providers (Bedrock Nova), and the planned multi-agent floor-control flows, while preserving the tool contracts (`memory_search`, `emit_citations`) and citation validation rules.
 
 ## Technical Context
 
