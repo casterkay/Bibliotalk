@@ -8,9 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .chunking import ChunkingConfig, chunk_plain_text, chunk_transcript, normalize_text
-from .index import IngestionIndex
-from .manifest import Manifest, ResolvedManifestSource, resolve_manifest_sources
+from bt_common.evermemos_client import EverMemOSClient
+
 from ..domain.errors import IngestError, InvalidInputError
 from ..domain.models import (
     IngestReport,
@@ -23,7 +22,9 @@ from ..domain.models import (
     TranscriptContent,
 )
 from ..runtime.reporting import redact_text
-from bt_common.evermemos_client import EverMemOSClient
+from .chunking import ChunkingConfig, chunk_plain_text, chunk_transcript, normalize_text
+from .index import IngestionIndex
+from .manifest import Manifest, ResolvedManifestSource, resolve_manifest_sources
 
 logger = logging.getLogger("ingestion_service")
 
@@ -71,7 +72,7 @@ def _failed_source_result(
         platform=source.platform,
         external_id=source.external_id,
         title=source.title,
-        canonical_url=getattr(source, "canonical_url", None),
+        source_url=getattr(source, "source_url", None),
         group_id=source.group_id or "",
         status="failed",
         meta_saved=False,
@@ -107,7 +108,7 @@ async def _source_content_from_resolved(
             external_id=resolved.source.external_id,
             title=resolved.source.title,
             path=resolved.file_path,
-            canonical_url=resolved.source.canonical_url,
+            source_url=resolved.source.source_url,
             author=resolved.source.author,
             published_at=(
                 resolved.source.published_at.isoformat()
@@ -130,7 +131,7 @@ async def _source_content_from_resolved(
             external_id=resolved.source.external_id,
             title=resolved.source.title,
             gutenberg_id=resolved.gutenberg_id,
-            canonical_url=resolved.source.canonical_url,
+            source_url=resolved.source.source_url,
             author=resolved.source.author,
         )
 
@@ -148,7 +149,7 @@ async def _source_content_from_resolved(
             external_id=resolved.source.external_id,
             title=resolved.source.title,
             video_id=resolved.youtube_video_id,
-            canonical_url=resolved.source.canonical_url,
+            source_url=resolved.source.source_url,
         )
 
     raise InvalidInputError(f"Unsupported manifest source mode: {resolved.mode}")
@@ -200,7 +201,7 @@ async def ingest_source(
                 "external_id": source.external_id,
                 "title": source.title,
                 "group_name": gname,
-                "canonical_url": source.canonical_url,
+                "source_url": source.source_url,
                 "author": source.author,
                 "published_at": (
                     source.published_at.isoformat() if source.published_at else None
@@ -227,7 +228,7 @@ async def ingest_source(
             platform=source.platform,
             external_id=source.external_id,
             title=source.title,
-            canonical_url=source.canonical_url,
+            source_url=source.source_url,
             group_id=default_group_id,
             status="failed",
             meta_saved=False,
@@ -301,8 +302,8 @@ async def ingest_source(
                 "seq": seg.seq,
                 "sha256": seg.sha256,
             }
-            if source.canonical_url:
-                payload["canonical_url"] = source.canonical_url
+            if source.source_url:
+                payload["source_url"] = source.source_url
             if seg.start_ms is not None:
                 payload["start_ms"] = seg.start_ms
             if seg.end_ms is not None:
@@ -394,7 +395,7 @@ async def ingest_source(
         platform=source.platform,
         external_id=source.external_id,
         title=source.title,
-        canonical_url=source.canonical_url,
+        source_url=source.source_url,
         group_id=default_group_id,
         status=status,
         meta_saved=meta_saved,

@@ -27,7 +27,7 @@ This contract defines the machine-readable report written per ingestion run.
 - `platform` (string, required)
 - `external_id` (string, required)
 - `title` (string, required)
-- `canonical_url` (string, optional)
+- `source_url` (string, optional)
 - `group_id` (string, required)
 - `status` (string, required): `done|failed`
 - `meta_saved` (boolean, required)

@@ -49,10 +49,12 @@ async def load_youtube_transcript_source(
     external_id: str,
     title: str,
     video_id: str,
-    canonical_url: str | None = None,
+    source_url: str | None = None,
 ) -> SourceContent:
     try:
-        from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore[import-not-found]
+        from youtube_transcript_api import (
+            YouTubeTranscriptApi,
+        )  # type: ignore[import-not-found]
     except ModuleNotFoundError as exc:  # pragma: no cover
         raise UnsupportedSourceError(
             "youtube-transcript-api is not installed. Install with `pip install 'ingestion_service[ingest]'`."
@@ -98,7 +100,7 @@ async def load_youtube_transcript_source(
         platform="youtube",
         external_id=external_id or video_id,
         title=resolved_title,
-        canonical_url=canonical_url or f"https://www.youtube.com/watch?v={video_id}",
+        source_url=source_url or f"https://www.youtube.com/watch?v={video_id}",
         raw_meta={
             "youtube_video_id": video_id,
             **meta,
@@ -107,4 +109,3 @@ async def load_youtube_transcript_source(
         },
     )
     return SourceContent(source=source, content=TranscriptContent(lines=lines))
-

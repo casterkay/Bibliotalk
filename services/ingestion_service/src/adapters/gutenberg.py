@@ -7,7 +7,6 @@ import httpx
 from ..domain.errors import AdapterError, InvalidInputError
 from ..domain.models import PlainTextContent, Source, SourceContent
 
-
 _START_RE = re.compile(
     r"^\*\*\*\s*START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK",
     flags=re.IGNORECASE,
@@ -52,7 +51,10 @@ def _looks_like_heading(line: str) -> bool:
 
 
 def _normalize_linebreaks(text: str) -> str:
-    lines = [line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    lines = [
+        line.rstrip()
+        for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    ]
     paragraphs: list[str] = []
     buf: list[str] = []
 
@@ -101,7 +103,7 @@ async def load_gutenberg_source(
     external_id: str,
     title: str,
     gutenberg_id: str,
-    canonical_url: str | None = None,
+    source_url: str | None = None,
     author: str | None = None,
 ) -> SourceContent:
     if not gutenberg_id.strip().isdigit():
@@ -109,10 +111,14 @@ async def load_gutenberg_source(
     book_id = gutenberg_id.strip()
 
     url = f"https://www.gutenberg.org/cache/epub/{book_id}/pg{book_id}.txt"
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, trust_env=False) as client:
+    async with httpx.AsyncClient(
+        timeout=30.0, follow_redirects=True, trust_env=False
+    ) as client:
         resp = await client.get(url)
         if resp.status_code != 200:
-            raise AdapterError(f"Failed to download Gutenberg text (HTTP {resp.status_code})")
+            raise AdapterError(
+                f"Failed to download Gutenberg text (HTTP {resp.status_code})"
+            )
         text = resp.text
 
     cleaned = _normalize_linebreaks(_strip_gutenberg_boilerplate(text))
@@ -122,7 +128,7 @@ async def load_gutenberg_source(
         platform="gutenberg",
         external_id=external_id or book_id,
         title=title,
-        canonical_url=canonical_url or f"https://www.gutenberg.org/ebooks/{book_id}",
+        source_url=source_url or f"https://www.gutenberg.org/ebooks/{book_id}",
         author=author,
         raw_meta={
             "gutenberg_id": book_id,
@@ -132,4 +138,3 @@ async def load_gutenberg_source(
         },
     )
     return SourceContent(source=source, content=PlainTextContent(text=cleaned))
-

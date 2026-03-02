@@ -152,8 +152,7 @@ class EverMemOSClient:
             )
             body.setdefault(
                 "name",
-                source_meta_dict.get("title")
-                or "Ingestion Source",
+                source_meta_dict.get("title") or "Ingestion Source",
             )
         else:
             body.setdefault(
@@ -165,19 +164,21 @@ class EverMemOSClient:
 
         if "description" not in body:
             body["description"] = (
-                source_meta_dict.get("canonical_url")
+                source_meta_dict.get("source_url")
                 or source_meta_dict.get("title")
                 or body.get("group_id")
                 or "Ingestion source metadata"
             )
 
-        created_at = body.get("created_at") or datetime.now(
-            tz=timezone.utc
-        ).isoformat()
+        created_at = body.get("created_at") or datetime.now(tz=timezone.utc).isoformat()
 
         # Some EMOS deployments reject explicit scene/scene_desc at group scope
         # and inherit them from global config.
-        scene = body.get("scene") if "scene" in body else (None if is_group_scope else "assistant")
+        scene = (
+            body.get("scene")
+            if "scene" in body
+            else (None if is_group_scope else "assistant")
+        )
 
         create_kwargs: dict[str, Any] = {
             "created_at": created_at,

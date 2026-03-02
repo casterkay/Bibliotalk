@@ -34,7 +34,7 @@ All endpoints are under `/api/v1/memories` (per `/Users/tcai/Projects/Bibliotalk
 - `group_name` (string): human-readable source title
 - `role` (string): default `"assistant"` per blueprint convention
 - Additional metadata fields MAY be included as extra payload fields, for example:
-  - `platform`, `external_id`, `seq`, `sha256`, `canonical_url`
+  - `platform`, `external_id`, `seq`, `sha256`, `source_url`
   - `start_ms`, `end_ms`, `speaker` (for transcripts)
 
 **Idempotency expectation**:

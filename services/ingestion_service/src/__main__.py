@@ -87,7 +87,7 @@ def ingest_text(
     external_id: str = typer.Option(..., "--external-id"),
     title: str = typer.Option(..., "--title"),
     text: str = typer.Option(..., "--text"),
-    canonical_url: Optional[str] = typer.Option(None, "--canonical-url"),
+    source_url: Optional[str] = typer.Option(None, "--canonical-url"),
     author: Optional[str] = typer.Option(None, "--author"),
     published_at: Optional[str] = typer.Option(None, "--published-at"),
 ) -> None:
@@ -114,7 +114,7 @@ def ingest_text(
             external_id=external_id,
             title=title,
             text=text,
-            canonical_url=canonical_url,
+            source_url=source_url,
             author=author,
             published_at=published_at,
         )
@@ -161,7 +161,7 @@ def ingest_file(
     external_id: str = typer.Option(..., "--external-id"),
     title: str = typer.Option(..., "--title"),
     path: Path = typer.Option(..., "--path"),
-    canonical_url: Optional[str] = typer.Option(None, "--canonical-url"),
+    source_url: Optional[str] = typer.Option(None, "--canonical-url"),
     author: Optional[str] = typer.Option(None, "--author"),
     published_at: Optional[str] = typer.Option(None, "--published-at"),
 ) -> None:
@@ -188,7 +188,7 @@ def ingest_file(
             external_id=external_id,
             title=title,
             path=path,
-            canonical_url=canonical_url,
+            source_url=source_url,
             author=author,
             published_at=published_at,
         )

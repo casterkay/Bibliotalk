@@ -14,7 +14,7 @@ def load_text_source(
     external_id: str,
     title: str,
     text: str,
-    canonical_url: str | None = None,
+    source_url: str | None = None,
     author: str | None = None,
     published_at: str | datetime | None = None,
 ) -> SourceContent:
@@ -23,7 +23,7 @@ def load_text_source(
         platform=platform,
         external_id=external_id,
         title=title,
-        canonical_url=canonical_url,
+        source_url=source_url,
         author=author,
         published_at=published_at,
     )
@@ -37,7 +37,7 @@ def load_file_source(
     external_id: str,
     title: str,
     path: Path,
-    canonical_url: str | None = None,
+    source_url: str | None = None,
     author: str | None = None,
     published_at: str | None = None,
 ) -> SourceContent:
@@ -52,7 +52,7 @@ def load_file_source(
         external_id=external_id,
         title=title,
         text=text,
-        canonical_url=canonical_url,
+        source_url=source_url,
         author=author,
         published_at=published_at,
     )

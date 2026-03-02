@@ -17,21 +17,23 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 import httpx
-
+from bt_common.evermemos_client import EverMemOSClient
 from ingestion_service.domain.errors import ConfigError
 from ingestion_service.pipeline.index import IngestionIndex
 from ingestion_service.pipeline.ingest import ingest_manifest
 from ingestion_service.pipeline.manifest import Manifest, ManifestSourceItem
 from ingestion_service.runtime.config import load_runtime_config
 from ingestion_service.runtime.reporting import write_report
-from bt_common.evermemos_client import EverMemOSClient
-
 
 YOUTUBE_DOMAINS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}
-GUTENBERG_ID_RE = re.compile(r"gutenberg\.org/(?:ebooks|files|cache/epub)/(\d+)", re.IGNORECASE)
+GUTENBERG_ID_RE = re.compile(
+    r"gutenberg\.org/(?:ebooks|files|cache/epub)/(\d+)", re.IGNORECASE
+)
 TRAILING_COMMA_RE = re.compile(r",(\s*[}\]])")
 TAG_RE = re.compile(r"<[^>]+>")
-SCRIPT_STYLE_RE = re.compile(r"<(script|style)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
+SCRIPT_STYLE_RE = re.compile(
+    r"<(script|style)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,7 +188,7 @@ def _manifest_items_for_source(
                 "platform": "gutenberg",
                 "external_id": gutenberg_id,
                 "title": f"{figure_name} - Gutenberg {gutenberg_id}",
-                "canonical_url": f"https://www.gutenberg.org/ebooks/{gutenberg_id}",
+                "source_url": f"https://www.gutenberg.org/ebooks/{gutenberg_id}",
                 "author": figure_name,
                 "gutenberg_id": gutenberg_id,
                 "raw_meta": common_meta,
@@ -202,7 +204,7 @@ def _manifest_items_for_source(
                 "platform": "youtube",
                 "external_id": video_id,
                 "title": f"{figure_name} - YouTube {video_id}",
-                "canonical_url": f"https://www.youtube.com/watch?v={video_id}",
+                "source_url": f"https://www.youtube.com/watch?v={video_id}",
                 "youtube_video_id": video_id,
                 "raw_meta": common_meta,
             }
@@ -219,7 +221,7 @@ def _manifest_items_for_source(
                     "platform": "youtube",
                     "external_id": video_id,
                     "title": f"{figure_name} - YouTube {video_id}",
-                    "canonical_url": f"https://www.youtube.com/watch?v={video_id}",
+                    "source_url": f"https://www.youtube.com/watch?v={video_id}",
                     "youtube_video_id": video_id,
                     "raw_meta": {
                         **common_meta,
@@ -236,7 +238,7 @@ def _manifest_items_for_source(
             "platform": "local",
             "external_id": _stable_id(source_url),
             "title": _title_from_url(source_url, fallback=f"{figure_name} - Source"),
-            "canonical_url": source_url,
+            "source_url": source_url,
             "author": figure_name,
             "text": text,
             "raw_meta": common_meta,
@@ -274,7 +276,7 @@ def _append_segment_cache(
                     "external_id": source.external_id,
                     "group_id": source.group_id,
                     "title": source.title,
-                    "canonical_url": source.canonical_url,
+                    "source_url": source.source_url,
                     "figure_name": context.get("figure_name"),
                     "source_url": context.get("source_url"),
                     "segment": seg.model_dump(mode="json"),
@@ -370,7 +372,9 @@ async def _run(args: argparse.Namespace) -> int:
     report_path = args.report_path
     if report_path is None:
         report_path = str(
-            (Path.cwd() / ".ingestion_service" / "reports" / f"{report.run_id}.json").resolve()
+            (
+                Path.cwd() / ".ingestion_service" / "reports" / f"{report.run_id}.json"
+            ).resolve()
         )
     write_report(report, path=Path(report_path), secrets=[cfg.emos_api_key or ""])
 
@@ -404,15 +408,21 @@ def parse_args() -> argparse.Namespace:
         description="Ingest figure JSON sources into EverMemOS and cache segment results as JSONL."
     )
     parser.add_argument("--input", type=Path, required=True, help="Path to JSON file")
-    parser.add_argument("--run-name", default="figures-json-ingest", help="Optional run name")
+    parser.add_argument(
+        "--run-name", default="figures-json-ingest", help="Optional run name"
+    )
     parser.add_argument(
         "--cache-dir",
         type=Path,
         default=Path(".ingestion_service/segment_cache"),
         help="Directory for per-user JSONL segment cache",
     )
-    parser.add_argument("--index-path", default=None, help="Optional ingestion index SQLite path")
-    parser.add_argument("--report-path", default=None, help="Optional ingestion report path")
+    parser.add_argument(
+        "--index-path", default=None, help="Optional ingestion index SQLite path"
+    )
+    parser.add_argument(
+        "--report-path", default=None, help="Optional ingestion report path"
+    )
     parser.add_argument(
         "--max-playlist-items",
         type=int,
@@ -434,4 +444,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

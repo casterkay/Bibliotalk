@@ -29,7 +29,7 @@ Each source item MUST include enough metadata for attribution and stable IDs.
 - `platform` (string, required if not provided in defaults): e.g. `local`, `gutenberg`, `youtube`
 - `external_id` (string, required): stable per platform (file hash, Gutenberg ebook ID, YouTube video ID, etc.)
 - `title` (string, required)
-- `canonical_url` (string, optional but recommended)
+- `source_url` (string, optional but recommended)
 - `author` (string, optional)
 - `published_at` (string/date-time, optional)
 - `raw_meta` (object, optional)
@@ -52,7 +52,7 @@ sources:
   - platform: "local"
     external_id: "walden-ch1"
     title: "Walden — Chapter 1"
-    canonical_url: "https://example.com/walden"
+    source_url: "https://example.com/walden"
     file_path: "/Users/tcai/Documents/walden_ch1.txt"
 
   - platform: "local"
@@ -63,13 +63,13 @@ sources:
   - platform: "gutenberg"
     external_id: "3330"
     title: "The Analects"
-    canonical_url: "https://www.gutenberg.org/ebooks/3330"
+    source_url: "https://www.gutenberg.org/ebooks/3330"
     gutenberg_id: "3330"
 
   - platform: "youtube"
     external_id: "dQw4w9WgXcQ"
     title: "Example Talk"
-    canonical_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    source_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     youtube_video_id: "dQw4w9WgXcQ"
 ```
 

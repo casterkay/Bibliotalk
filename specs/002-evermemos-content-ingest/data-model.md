@@ -20,7 +20,7 @@ One upstream content item to ingest (book, essay, transcript, etc.). All segment
 - **platform** (enum string, required): e.g. `local`, `gutenberg`, `youtube`
 - **external_id** (string, required): platform-specific stable ID (file hash, Gutenberg ebook ID, YouTube video ID, etc.)
 - **title** (string, required)
-- **canonical_url** (string, optional but recommended)
+- **source_url** (string, optional but recommended)
 - **author** (string, optional)
 - **published_at** (string/date-time, optional)
 - **raw_meta** (object, optional): platform-specific metadata
@@ -72,7 +72,7 @@ Local persistence used for idempotency and re-run safety. Default implementation
 
 ## Validation Rules (Derived From Requirements)
 
-- A **Source** must have enough metadata to support citations: `title` and (when available) `canonical_url`.
+- A **Source** must have enough metadata to support citations: `title` and (when available) `source_url`.
 - A **Segment** must retain verbatim text; citations must be exact substrings of `Segment.text`.
 - Chunking must be deterministic for unchanged inputs so `seq`, `message_id`, and `sha256` remain stable across re-runs.
 - Re-runs must not create duplicates: the ingestion index must prevent re-submitting unchanged segments.

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from bt_common.evermemos_client import EverMemOSClient
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -15,8 +16,6 @@ from .pipeline.ingest import ingest_sources
 from .pipeline.manifest import Manifest
 from .runtime.config import RuntimeConfig, load_runtime_config
 from .runtime.reporting import write_report
-from bt_common.evermemos_client import EverMemOSClient
-
 
 app = FastAPI(title="Bibliotalk Ingestion Service", version="0.1.0")
 
@@ -27,7 +26,7 @@ class TextIngestRequest(BaseModel):
     external_id: str
     title: str
     text: str
-    canonical_url: str | None = None
+    source_url: str | None = None
     author: str | None = None
     published_at: str | None = None
     index_path: str | None = None
@@ -40,7 +39,7 @@ class FileIngestRequest(BaseModel):
     external_id: str
     title: str
     path: str
-    canonical_url: str | None = None
+    source_url: str | None = None
     author: str | None = None
     published_at: str | None = None
     index_path: str | None = None
@@ -106,7 +105,7 @@ async def ingest_text(req: TextIngestRequest) -> IngestReport:
                 external_id=req.external_id,
                 title=req.title,
                 text=req.text,
-                canonical_url=req.canonical_url,
+                source_url=req.source_url,
                 author=req.author,
                 published_at=req.published_at,
             )
@@ -140,7 +139,7 @@ async def ingest_file(req: FileIngestRequest) -> IngestReport:
                 external_id=req.external_id,
                 title=req.title,
                 path=Path(req.path),
-                canonical_url=req.canonical_url,
+                source_url=req.source_url,
                 author=req.author,
                 published_at=req.published_at,
             )
@@ -189,4 +188,3 @@ async def ingest_manifest(req: ManifestIngestRequest) -> IngestReport:
 
 def create_app() -> FastAPI:
     return app
-

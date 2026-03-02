@@ -13,7 +13,7 @@ class Source(BaseModel):
     platform: str
     external_id: str
     title: str
-    canonical_url: str | None = None
+    source_url: str | None = None
     author: str | None = None
     published_at: datetime | None = None
     raw_meta: dict[str, Any] | None = None
@@ -24,7 +24,11 @@ class Source(BaseModel):
     @model_validator(mode="after")
     def _derive_ids(self) -> "Source":
         if not self.group_id:
-            self.group_id = build_group_id(user_id=self.user_id, platform=self.platform, external_id=self.external_id)
+            self.group_id = build_group_id(
+                user_id=self.user_id,
+                platform=self.platform,
+                external_id=self.external_id,
+            )
         if not self.group_name:
             self.group_name = self.title
         return self
@@ -93,7 +97,7 @@ class SourceResult(BaseModel):
     platform: str
     external_id: str
     title: str
-    canonical_url: str | None = None
+    source_url: str | None = None
     group_id: str
     status: Literal["done", "failed"]
     meta_saved: bool
@@ -142,7 +146,12 @@ def build_segment(
         seq=seq,
         text=text,
         sha256=sha256,
-        message_id=build_message_id(user_id=source.user_id, platform=source.platform, external_id=source.external_id, seq=seq),
+        message_id=build_message_id(
+            user_id=source.user_id,
+            platform=source.platform,
+            external_id=source.external_id,
+            seq=seq,
+        ),
         start_ms=start_ms,
         end_ms=end_ms,
         speaker=speaker,
