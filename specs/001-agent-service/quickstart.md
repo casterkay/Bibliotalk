@@ -105,8 +105,8 @@ services/agents_service/src/                   # Core agent service
 │       ├── nova_sonic.py   # Nova Sonic backend
 │       └── gemini_live.py  # Gemini Live backend
 └── discussion/
-    ├── orchestrator.py     # Multi-agent LoopAgent
-    └── a2a_server.py       # Per-Ghost A2A endpoint
+    ├── orchestrator.py     # Multi-agent discussion flow
+    └── floor_controller.py # Floor manager + scheduler
 
 services/voice_call_service/src/           # Node.js voice bridge
 ├── index.js                # Entry point

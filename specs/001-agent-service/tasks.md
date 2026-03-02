@@ -3,7 +3,7 @@
 **Input**: Design documents from `/specs/001-agent-service/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
 
-**Tests**: Included — plan.md constitution check explicitly requires unit tests for all business logic and contract tests for EMOS/Matrix/A2A boundaries.
+**Tests**: Included — plan.md constitution check explicitly requires unit tests for all business logic and contract tests for EMOS/Matrix/floor-control boundaries.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -85,9 +85,9 @@
 
 ## Phase 4: User Story 2 — Multi-Agent Text Discussion (Priority: P2)
 
-**Goal**: Users create discussion rooms with multiple Ghosts. Ghosts take turns responding to a topic, each citing only from their own memory. Users can observe, interject, and stop the discussion.
+**Goal**: Users create discussion rooms with multiple Ghosts. Ghosts autonomously request floor and respond one-at-a-time under controller enforcement, each citing only from their own memory. Users can observe, interject, interrupt, and stop the discussion.
 
-**Independent Test**: Start a discussion with two Ghosts (e.g., Confucius and Aristotle) on a topic via A2A client, verify each Ghost responds in turn with citations from its own memory only, and the discussion stops after the configured turn count.
+**Independent Test**: Start a discussion with two Ghosts (e.g., Confucius and Aristotle) on a topic, verify floor grants are serialized, `REQUEST_FLOOR(force=true)` can preempt only active Ghost output (never user speech), citations are isolated, and discussion stops after configured turn count.
 
 **Depends on**: US1 (agent_factory, memory_search, emit_citations, citation validation)
 
@@ -95,14 +95,14 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T025 [P] [US2] Write contract test for A2A protocol in tests/contract/test_a2a_protocol.py: test Agent Card JSON at /.well-known/agent.json matches a2a-ghost.md schema, test tasks/send JSON-RPC request format, test response with task status completed + artifacts containing text + citations data part, test task lifecycle states (submitted → working → completed)
+- [X] T025 [P] [US2] Write contract test for floor-control protocol in tests/contract/test_discussion_floor_control.py: test `REQUEST_FLOOR` schema matches contracts/discussion-floor-control.md, test `force=true` preempts only active Ghost speaker, test user-speech state rejects force requests, test mention-priority scoring, test cancellation lifecycle (granted → canceled/completed)
 
 ### Implementation for User Story 2
 
-- [X] T026 [P] [US2] Implement per-Ghost A2A HTTP server in services/agents_service/src/discussion/a2a_server.py: JSON-RPC 2.0 endpoint handling tasks/send method, Agent Card at /.well-known/agent.json with ghost name/description/skills, invoke ghost agent via agent_factory, return Task with artifacts containing text response + citations DataPart per contracts/a2a-ghost.md
-- [X] T027 [US2] Implement discussion orchestrator in services/agents_service/src/discussion/orchestrator.py: ADK LoopAgent that acts as A2A client, accepts topic + list of ghost agent_ids + max_turns + turn_order (round-robin or LLM-decided), for each turn sends accumulated context to next Ghost via A2A tasks/send, collects response + citations, posts to Matrix room, handles user interjections as context additions, respects stop command, enforces citation isolation (each Ghost only cites own memory)
+- [X] T026 [P] [US2] Implement per-room floor controller in services/agents_service/src/discussion/floor_controller.py: authoritative state machine (`IDLE`, `USER_SPEAKING`, `AGENT_SPEAKING`), queue/score `REQUEST_FLOOR`, support `force` preemption of active Ghost only, issue cancellation tokens, and enforce per-agent cooldown/interrupt rate limits per contracts/discussion-floor-control.md
+- [X] T027 [US2] Implement discussion orchestrator in services/agents_service/src/discussion/orchestrator.py: coordinate topic + participant Ghosts + max_turns, ingest Matrix and voice-normalized events, collect `REQUEST_FLOOR` intents, invoke selected Ghost runner, stream response + citations to Matrix, handle user interjections and stop command, enforce citation isolation (each Ghost only cites own memory)
 
-**Checkpoint**: User Story 2 complete — Multi-agent discussions work with turn-taking, citation isolation, configurable turn count, and user interjection support.
+**Checkpoint**: User Story 2 complete — Multi-agent discussions work with floor control, citation isolation, configurable turn count, and user interruption support.
 
 ---
 
@@ -133,15 +133,15 @@
 
 **Goal**: Users start voice calls with multiple Ghosts for "agentic podcast" discussions. Ghosts speak in turn, each grounded in their own memory. Text transcript captures all participants' citations.
 
-**Independent Test**: Start a voice session with two Ghosts and a topic, verify both Ghosts produce distinct audio turns, turn-taking is enforced (no simultaneous speech), and the text transcript contains citations from each Ghost's sources.
+**Independent Test**: Start a voice session with two Ghosts and a topic, verify only the floor holder emits audio at a time, user barge-in cancels Ghost audio immediately, and transcript contains citations from each Ghost's sources.
 
-**Depends on**: US2 (discussion orchestrator, A2A), US3 (voice session manager, voice backends, sidecar)
+**Depends on**: US2 (discussion orchestrator + floor controller), US3 (voice session manager, voice backends, sidecar)
 
 ### Implementation for User Story 4
 
 - [X] T036 [P] [US4] Implement audio mixer in services/voice_call_service/src/mixer.js: mix multiple Ghost audio streams for user playback, mute non-speaking Ghosts during turn-taking, support N virtual MatrixRTC participants (one per Ghost)
-- [X] T037 [US4] Extend voice session manager for multi-agent sessions in services/agents_service/src/voice/session_manager.py: manage multiple concurrent VoiceBackend instances (one per Ghost), coordinate with discussion orchestrator for turn order, route audio to active speaker's backend only, enforce turn-taking (< 5% simultaneous speech per SC-007)
-- [X] T038 [US4] Extend discussion orchestrator for voice mode in services/agents_service/src/discussion/orchestrator.py: add voice_mode flag to discussion config, when voice_mode=true route Ghost responses through voice session manager instead of text posting, coordinate audio turn handoffs, post transcript entries to text thread per turn via transcript.py
+- [X] T037 [US4] Extend voice session manager for multi-agent sessions in services/agents_service/src/voice/session_manager.py: manage multiple concurrent VoiceBackend instances (one per Ghost), integrate with floor controller grants/cancellation, route audio to active speaker backend only, enforce zero overlap >250ms per SC-007
+- [X] T038 [US4] Extend discussion orchestrator for voice mode in services/agents_service/src/discussion/orchestrator.py: add voice_mode flag to discussion config, consume VAD events, enforce user barge-in preemption, route Ghost responses through voice session manager, post transcript entries to text thread per turn via transcript.py
 
 **Checkpoint**: User Story 4 complete — Multi-agent voice discussions work with turn-taking, per-Ghost audio streams, and full transcript with citations.
 
@@ -153,7 +153,7 @@
 
 - [X] T039 [P] Write integration test for Ghost text chat E2E in tests/integration/test_chat_e2e.py: start Docker Compose with EMOS, memorize sample segments, send question via InMemoryRunner, verify response contains valid citations referencing memorized segments
 - [X] T040 [P] Write integration test for citation round-trip in tests/integration/test_citation_roundtrip.py: memorize segment via EMOS client, search for it, create Citation from Evidence, validate citation against segments table, verify full round-trip integrity
-- [X] T041 [P] Write integration test for multi-agent discussion in tests/integration/test_discussion.py: start two Ghost A2A servers, run discussion orchestrator with 3 turns, verify each Ghost responded, citations are isolated (no cross-Ghost citations), turn count respected
+- [X] T041 [P] Write integration test for multi-agent discussion in tests/integration/test_discussion.py: run orchestrator with two Ghost runners and 3 turns, verify each Ghost responded, `REQUEST_FLOOR(force)` semantics are respected, user barge-in cancels active Ghost output, citations are isolated, and turn count is respected
 - [X] T042 Run quickstart.md validation: execute all quickstart steps (setup, CLI harness with --mock-emos, unit tests, contract tests), verify all pass end-to-end
 
 ---
@@ -202,7 +202,7 @@ Phase 7: Polish
 **Phase 1**: T002, T003, T004 can run in parallel (after T001)
 **Phase 2**: T005, T006 can run in parallel; T009-T012 (tests) can run in parallel
 **Phase 3**: T013-T015 (tests) in parallel; T016-T017 (tools) in parallel; T020-T021 (guards, formatting) in parallel
-**Phase 4**: T025 (test) and T026 (A2A server) in parallel
+**Phase 4**: T025 (test) and T026 (floor controller) in parallel
 **Phase 5**: T030 and T033-T035 (sidecar) can overlap with T029 once ABC is done
 **Phase 6**: T036 (mixer) can run in parallel with T037-T038 (agent-side changes)
 **Phase 7**: T039-T041 (integration tests) all in parallel
@@ -232,8 +232,8 @@ Task: "Implement Matrix formatting in bt_common/matrix_helpers.py"        # T021
 # After US1 is complete, US2 and US3 can start in parallel:
 
 # Developer A works on US2:
-Task: "Write contract test for A2A protocol"                              # T025
-Task: "Implement A2A server in services/agents_service/src/discussion/a2a_server.py"         # T026
+Task: "Write contract test for floor-control protocol"                              # T025
+Task: "Implement floor controller in services/agents_service/src/discussion/floor_controller.py"         # T026
 Task: "Implement orchestrator in services/agents_service/src/discussion/orchestrator.py"     # T027
 
 # Developer B works on US3:
@@ -290,4 +290,4 @@ With multiple developers:
 - Research.md R1: CLI-first testing, defer Matrix infrastructure
 - Research.md R2: Use ADK InMemoryRunner + before_model_callback for mock LLM tests
 - Research.md R3: httpx.AsyncClient for EMOS with respx mocks in tests
-- Research.md R5: A2A is JSON-RPC 2.0 over HTTP — test locally with multiple processes
+- Research.md R5: floor-control protocol with `REQUEST_FLOOR(force)` and cancellation

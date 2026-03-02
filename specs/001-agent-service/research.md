@@ -37,7 +37,7 @@ harness and pytest-driven testing first.
 2. Ghost agent with ADK — InMemoryRunner + mock EMOS
 3. bt_cli test harness — stdin/stdout end-to-end grounding validation
 4. Matrix appservice layer (agents_service proper)
-5. Multi-agent discussions (A2A)
+5. Multi-agent discussions (streaming floor control)
 6. Voice (voice_call_service + voice backends)
 
 ## R2: Google ADK Agent Testing
@@ -124,32 +124,40 @@ Bedrock's `InvokeModelWithBidirectionalStreamCommand`.
 - Test tool-use flow: send audio → model requests memory_search →
   return mock evidence → model generates grounded voice response.
 
-## R5: A2A Protocol for Multi-Agent Discussions
+## R5: Floor-Control Protocol for Multi-Agent Discussions
 
-**Decision**: Each Ghost exposes an A2A server (in-process HTTP). The
-discussion orchestrator uses ADK's A2A toolset as client.
+**Decision**: Use a per-room in-process Discussion Controller in
+`agents_service` as the single authority for turn-taking, interruption,
+and streaming. Ghost runners never post directly; they submit
+`REQUEST_FLOOR` intents. The controller grants one speaker at a time and
+can cancel in-flight output immediately.
 
 **Rationale**:
-- A2A is JSON-RPC 2.0 over HTTP with SSE for streaming. Tasks are the
-  core lifecycle unit: `submitted → working → completed`.
-- Each Ghost's A2A server publishes an AgentCard at
-  `/.well-known/agent.json` describing its capabilities.
-- ADK provides built-in A2A integration:
-  - `A2aTool` / `A2aToolset` — client-side, wraps remote A2A agents
-    as ADK tools callable by the orchestrator.
-  - A2A server wrapper — exposes an ADK agent as an A2A-compliant
-    HTTP endpoint.
-- For Bibliotalk: the discussion orchestrator (LoopAgent) is the A2A
-  client. Each Ghost runs an in-process A2A server on a unique port
-  (or uses path-based routing behind a single HTTP server).
+- Matrix is the shared transcript, but room observation alone is
+  insufficient for live streaming discussions with interruption.
+- A single authority is required to prevent reply storms, enforce
+  deterministic ordering, and support hard preemption (especially user
+  barge-in for voice).
+- `REQUEST_FLOOR(force: bool)` is simpler than separate interrupt APIs:
+  - `force=true` can preempt only an active **agent** speaker.
+  - Agents may request while a user speaks, but must use `force=false`.
+- Scheduler quality improves when scoring includes mention priority and
+  evidence readiness, not only static turn order.
+
+**Protocol Shape**:
+- Inputs normalized to `UtteranceEvent` from Matrix + VAD/ASR.
+- Floor state machine: `IDLE`, `USER_SPEAKING`, `AGENT_SPEAKING`.
+- User speech has absolute priority; on user start, controller cancels
+  active agent generation/TTS immediately.
+- Scheduler selects next speaker using weighted score:
+  mention boost + relevance + urgency + fairness + evidence.
+  Topic coherence is part of relevance.
 
 **Testing**:
-- All HTTP-based — test locally with multiple processes or in-process
-  mock servers.
-- No external infrastructure required. Each A2A server is a standard
-  HTTP endpoint.
-- Test multi-agent flow: orchestrator sends topic → Ghost A responds
-  → Ghost B responds → verify turn-taking and citation isolation.
+- Unit tests for state transitions, force rules, and cancellation.
+- Contract tests for `REQUEST_FLOOR` and controller decisions.
+- Integration tests for text and voice barge-in behavior:
+  user interruption stops agent output with bounded latency.
 
 ## R6: LLM Backend Swapping
 

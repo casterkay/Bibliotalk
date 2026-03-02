@@ -7,7 +7,7 @@
 
 Build the core Bibliotalk agent service: Ghost agents powered by Google
 ADK with EverMemOS memory grounding, citation validation, multi-agent
-discussions via A2A protocol, and voice chat via Nova Sonic / Gemini
+discussions via streaming floor control, and voice chat via Nova Sonic / Gemini
 Live backends. Matrix integration is deferred after agent core is
 validated via a CLI test harness (see research.md R1).
 
@@ -30,8 +30,8 @@ validated via a CLI test harness (see research.md R1).
 | Principle                        | Gate                                                                             | Status                      |
 | -------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
 | I. Design-First Architecture     | spec.md + plan.md exist before coding                                            | PASS                        |
-| II. Test-Driven Quality          | Unit tests for all business logic, contract tests for EMOS/Matrix/A2A boundaries | PASS — test plan defined    |
-| III. Contract-Driven Integration | Pydantic schemas for EMOS, citations, Matrix events, A2A messages                | PASS — contracts/ defined   |
+| II. Test-Driven Quality          | Unit tests for all business logic, contract tests for EMOS/Matrix/floor-control boundaries | PASS — test plan defined    |
+| III. Contract-Driven Integration | Pydantic schemas for EMOS, citations, Matrix events, floor-control messages              | PASS — contracts/ defined   |
 | IV. Incremental Delivery         | P1 (text chat) works before P2 (multi-agent) before P3 (voice)                   | PASS — phased by user story |
 | V. Observable Systems            | Structured logging with correlation IDs on all service entry points              | PASS — included in plan     |
 | VI. Principled Simplicity        | CLI-first testing defers Matrix infrastructure; reuse ADK primitives             | PASS                        |
@@ -52,7 +52,7 @@ specs/001-agent-service/
 │   ├── emos-client.md   # EMOS HTTP API contract
 │   ├── citation-schema.md # Citation object schema
 │   ├── voice-backend.md # VoiceBackend ABC contract
-│   └── a2a-ghost.md     # A2A server per Ghost
+│   └── discussion-floor-control.md # Discussion controller protocol
 └── tasks.md             # Phase 2 output (/speckit.tasks)
 ```
 
@@ -85,8 +85,8 @@ services/agents_service/src/                   # Core agent service (FastAPI app
 │   │   └── gemini_live.py  # Gemini Live API WebSocket
 │   └── transcript.py       # Voice transcript → text thread posting
 ├── discussion/
-│   ├── orchestrator.py     # LoopAgent + A2A client
-│   └── a2a_server.py       # Per-Ghost A2A HTTP server
+│   ├── orchestrator.py     # Discussion flow orchestration
+│   └── floor_controller.py # Floor Manager + scheduler + cancellation
 └── guards.py               # Rate limiter
 	
 services/voice_call_service/src/           # Node.js MatrixRTC audio bridge
@@ -110,7 +110,7 @@ tests/
 ├── contract/
 │   ├── test_emos_api.py    # Mock EMOS responses, verify parsing
 │   ├── test_matrix_events.py # Matrix event schema compliance
-│   └── test_a2a_protocol.py  # A2A request/response format
+│   └── test_discussion_floor_control.py  # REQUEST_FLOOR and preemption rules
 └── integration/
     ├── test_chat_e2e.py    # Ghost text chat end-to-end
     ├── test_citation_roundtrip.py # Memorize → search → cite → validate
@@ -128,4 +128,3 @@ architecture while keeping shared logic in one place.
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | 4 packages (bt_common, agents_service, voice_call_service, bt_cli) | Python and Node.js runtimes are incompatible; CLI harness enables rapid testing without Matrix infrastructure | Single Python package would still need a separate Node.js sidecar for WebRTC; CLI harness pays for itself in iteration speed |
 | VoiceBackend abstraction                                           | Two voice backends (Nova Sonic, Gemini Live) with same interface                                              | Direct implementation would duplicate session management, tool-use routing, and transcript handling                          |
-
