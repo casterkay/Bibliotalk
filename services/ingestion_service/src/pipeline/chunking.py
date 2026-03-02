@@ -38,7 +38,7 @@ _CHAPTER_HEADING_RE = re.compile(
     r"^(chapter|book|part|section)\s+([ivxlcdm]+|\d+)\b.*$",
     flags=re.IGNORECASE,
 )
-_SENTENCE_END_RE = re.compile(r'[.!?。！？]["\')\]]*$')
+_SENTENCE_END_RE = re.compile(r'[.!?。！？]["\')\]’”）】]*$')
 
 
 def _split_long(text: str, max_chars: int) -> list[str]:
@@ -69,10 +69,6 @@ def _looks_like_chapter_heading(paragraph: str) -> bool:
     if collapsed.isupper() and 1 <= len(collapsed.split()) <= 10:
         return True
     return False
-
-
-def _slug(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-") or "section"
 
 
 def _chapterized_paragraphs(paragraphs: list[str]) -> list[tuple[str, str]]:
@@ -156,7 +152,7 @@ def _chunk_plain_text_gutenberg(source: Source, text: str, cfg: ChunkingConfig) 
     segments: list[Segment] = []
     chapter_count = len(chapter_blocks)
     for chapter_idx, (chapter_title, chapter_text) in enumerate(chapter_blocks, start=1):
-        chapter_group_id = f"{source.group_id}:chapter:{chapter_idx:03d}:{_slug(chapter_title)}"
+        chapter_group_id = f"{source.group_id}:chapter:{chapter_idx:03d}"
         chapter_group_name = f"{source.title} — {chapter_title}"
 
         for paragraph in [p.strip() for p in _PARA_SPLIT_RE.split(chapter_text) if p.strip()]:
@@ -238,8 +234,7 @@ def _merge_transcript_messages(lines: list[TranscriptLine], cfg: ChunkingConfig)
         cur_end = line.end_ms
         cur_text_parts.append(text)
 
-        merged_len = sum(len(p) for p in cur_text_parts) + max(0, len(cur_text_parts) - 1)
-        if _SENTENCE_END_RE.search(text) or merged_len >= cfg.max_chars:
+        if _SENTENCE_END_RE.search(text):
             flush()
 
     flush()
@@ -303,7 +298,7 @@ def chunk_transcript(source: Source, lines: list[TranscriptLine], *, cfg: Chunki
     segments: list[Segment] = []
     for message in messages:
         rendered = f"{message.speaker}: {message.text}" if message.speaker else message.text
-        for piece in _split_long(rendered, cfg.max_chars):
+        for piece in [rendered]:
             piece = piece.strip()
             if not piece:
                 continue

@@ -24,8 +24,10 @@ class FakeMemories:
     def __init__(self):
         self.add_calls: list[dict] = []
         self.search_calls: list[dict] = []
+        self.delete_calls: list[dict] = []
         self.add_results: list = []
         self.search_results: list = []
+        self.delete_results: list = []
 
     async def add(self, **kwargs):
         self.add_calls.append(kwargs)
@@ -37,6 +39,13 @@ class FakeMemories:
     async def search(self, **kwargs):
         self.search_calls.append(kwargs)
         value = self.search_results.pop(0)
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    async def delete(self, **kwargs):
+        self.delete_calls.append(kwargs)
+        value = self.delete_results.pop(0)
         if isinstance(value, Exception):
             raise value
         return value
@@ -88,6 +97,30 @@ async def test_search_with_rrf_retrieve_method() -> None:
 
     call = memories.search_calls[-1]
     assert call["extra_body"]["retrieve_method"] == "rrf"
+
+
+@pytest.mark.asyncio
+async def test_delete_memories_request_serialization() -> None:
+    memories = FakeMemories()
+    memories.delete_results = [{"status": "ok", "result": {"count": 10}}]
+    client = EverMemOSClient(
+        "https://emos.local",
+        api_key="k",
+        sdk_client=FakeSDK(memories),
+    )
+
+    result = await client.delete_memories(
+        user_id="u1",
+        group_id="g1",
+        payload={"custom_filter": "x"},
+    )
+
+    assert result["result"]["count"] == 10
+    call = memories.delete_calls[-1]
+    assert call["user_id"] == "u1"
+    assert call["group_id"] == "g1"
+    assert call["extra_body"]["custom_filter"] == "x"
+    assert call["extra_headers"]["Authorization"] == "Bearer k"
 
 
 @pytest.mark.asyncio

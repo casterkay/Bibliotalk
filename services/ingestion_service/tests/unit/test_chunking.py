@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import re
+
 from ingestion_service.domain.models import Source, TranscriptLine
-from ingestion_service.pipeline.chunking import chunk_plain_text, chunk_transcript
+from ingestion_service.pipeline.chunking import (
+    chunk_plain_text,
+    chunk_transcript,
+)
 
 
 def test_chunk_plain_text_is_deterministic() -> None:
@@ -54,3 +59,31 @@ def test_chunk_plain_text_gutenberg_chapter_conversations() -> None:
     assert len(segments) == 3
     assert len({s.group_id for s in segments}) == 2
     assert all(s.group_id for s in segments)
+    assert all(
+        re.match(r"^u1:gutenberg:3330:chapter:\d{3}$", s.group_id or "")
+        for s in segments
+    )
+
+
+def test_chunk_transcript_does_not_split_on_internal_punctuation() -> None:
+    src = Source(
+        user_id="u1",
+        platform="youtube",
+        external_id="vid1",
+        title="Talk",
+    )
+    lines = [
+        TranscriptLine(
+            text=(
+                "First sentence has enough words to create length pressure but ends properly. "
+                "Second sentence should also remain complete when split. "
+                "Third sentence ends cleanly."
+            ),
+            start_ms=0,
+            end_ms=3000,
+        )
+    ]
+    segments = chunk_transcript(src, lines)
+
+    assert len(segments) == 1
+    assert all(re.search(r'[.!?]["\')\]’”）】]*$', s.text) for s in segments)

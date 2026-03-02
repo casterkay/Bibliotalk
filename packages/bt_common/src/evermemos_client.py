@@ -112,6 +112,40 @@ class EverMemOSClient:
             )
         )
 
+    async def delete_memories(
+        self,
+        payload: dict[str, Any] | None = None,
+        *,
+        id: str | None = None,
+        event_id: str | None = None,
+        group_id: str | None = None,
+        memory_id: str | None = None,
+        user_id: str | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = dict(payload or {})
+        if id is not None:
+            body["id"] = id
+        if event_id is not None:
+            body["event_id"] = event_id
+        if group_id is not None:
+            body["group_id"] = group_id
+        if memory_id is not None:
+            body["memory_id"] = memory_id
+        if user_id is not None:
+            body["user_id"] = user_id
+
+        known_keys = {"id", "event_id", "group_id", "memory_id", "user_id"}
+        known = {key: body[key] for key in known_keys if key in body}
+        extra_body = {key: value for key, value in body.items() if key not in known_keys}
+
+        return await self._run_with_retry(
+            lambda: self.client.v0.memories.delete(
+                **known,
+                extra_headers=self.headers or None,
+                extra_body=extra_body or None,
+            )
+        )
+
     async def get_conversation_meta(self, group_id: str) -> dict[str, Any]:
         return await self._run_with_retry(
             lambda: self.client.v0.memories.conversation_meta.get(
