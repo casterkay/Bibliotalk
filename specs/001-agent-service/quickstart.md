@@ -45,7 +45,7 @@ python -m agents_service --agent confucius --mock-emos
 To exercise Gemini (requires `GOOGLE_API_KEY`):
 
 ```bash
-python -m agents_service --agent confucius --mock-emos --model gemini-2.0-flash
+python -m agents_service --agent confucius --mock-emos --model gemini-2.5-flash
 ```
 
 ## 3B) Local E2E: Synapse + Element Web + PocketBase

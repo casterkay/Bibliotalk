@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
@@ -23,6 +25,7 @@ EmitCitationsFn = Callable[[list[Evidence], str], Awaitable[list]]
 
 _CACHE: dict[str, tuple[float, "GhostAgent"]] = {}
 _CACHE_LOCK = asyncio.Lock()
+logger = logging.getLogger("agents_service.agent")
 
 
 @dataclass
@@ -86,6 +89,7 @@ class GhostAgent:
         try:
             evidence = await self.memory_search_fn(query, self.id)
         except Exception:  # noqa: BLE001
+            logger.exception("memory_search failed agent_id=%s", self.id)
             return {
                 "text": "My memory is temporarily unavailable.",
                 "citations": [],
@@ -105,9 +109,16 @@ class GhostAgent:
                 "text": "My language model is not configured right now.",
                 "citations": [],
             }
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("llm.generate failed agent_id=%s model=%s", self.id, self.model)
+            if os.getenv("LOG_LEVEL", "").upper() == "DEBUG":
+                detail = str(exc).strip() or type(exc).__name__
+                return {
+                    "text": f"I ran into an error while composing a response. ({type(exc).__name__}: {detail})",
+                    "citations": [],
+                }
             return {
-                "text": "I ran into an error while composing a response.",
+                "text": "I ran into an error while composing a response. (Set LOG_LEVEL=DEBUG to see details.)",
                 "citations": [],
             }
 

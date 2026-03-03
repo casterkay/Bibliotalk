@@ -4,17 +4,25 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
+import os
+from dataclasses import dataclass
+from typing import Any
 from uuid import UUID, uuid4
 
+from bt_common.config import get_settings
+
 from .agent.agent_factory import LLMRegistry, create_ghost_agent
+from .database.pocketbase_store import PocketBaseConfig, PocketBaseStore
 from .matrix.appservice import format_ghost_response
 from .models.citation import Citation, Evidence
 
 
-class _MockSupabase:
-    def __init__(self, agent_id: UUID, *, model: str):
-        self.agent_id = agent_id
-        self.model = model
+@dataclass
+class _MockStore:
+    agent_id: UUID
+    tenant_prefix: str
+    model: str
 
     async def get_agent(self, agent_id: UUID):
         return {
@@ -27,7 +35,8 @@ class _MockSupabase:
         }
 
     async def get_agent_emos_config(self, agent_id: UUID):
-        return {"agent_id": str(agent_id), "emos_base_url": "https://emos.local"}
+        # For the CLI, default to env-backed EMOS settings with a stable tenant_prefix.
+        return {"agent_id": str(agent_id), "tenant_prefix": self.tenant_prefix}
 
     async def get_segments_for_agent(self, agent_id: UUID):
         return [
@@ -69,18 +78,66 @@ class _MockSupabase:
         ]
 
 
+async def _resolve_agent_id_and_store(
+    *, agent_slug: str, model: str, mock_emos: bool
+) -> tuple[UUID, Any]:
+    if mock_emos:
+        agent_id = uuid4()
+        return agent_id, _MockStore(
+            agent_id=agent_id, tenant_prefix=agent_slug, model=model
+        )
+
+    settings = get_settings()
+    if not settings.POCKETBASE_URL:
+        raise RuntimeError(
+            "PocketBase is required for non-mock CLI runs. Set POCKETBASE_URL and seed ghosts:\n"
+            "  python -m agents_service.bootstrap seed-ghosts"
+        )
+    if (
+        not settings.POCKETBASE_SUPERUSER_EMAIL
+        or not settings.POCKETBASE_SUPERUSER_PASSWORD
+    ):
+        raise RuntimeError("POCKETBASE_SUPERUSER_EMAIL/PASSWORD not set")
+
+    pb = PocketBaseStore(
+        config=PocketBaseConfig(
+            url=settings.POCKETBASE_URL,
+            email=settings.POCKETBASE_SUPERUSER_EMAIL,
+            password=settings.POCKETBASE_SUPERUSER_PASSWORD,
+        )
+    )
+    agent = await pb.get_agent_by_tenant_prefix(agent_slug)
+    if not agent:
+        await pb.aclose()
+        raise RuntimeError(
+            f"Unknown agent tenant_prefix={agent_slug}. Seed via:\n"
+            "  python -m agents_service.bootstrap seed-ghosts"
+        )
+    agent_id = UUID(str(agent["id"]))
+    return agent_id, pb
+
+
 async def _run(agent_slug: str, mock_emos: bool, model: str) -> None:
-    _ = agent_slug
-    _ = mock_emos
-    agent_id = uuid4()
+    # Avoid requiring fully-valid Settings for mock runs (mock mode should be runnable
+    # without PocketBase config).
+    if mock_emos:
+        level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
+        logging.basicConfig(level=level)
+    else:
+        settings = get_settings()
+        logging.basicConfig(
+            level=getattr(logging, str(settings.LOG_LEVEL).upper(), logging.INFO)
+        )
     LLMRegistry.init_defaults()
-    supabase = _MockSupabase(agent_id, model=model)
+    agent_id, store = await _resolve_agent_id_and_store(
+        agent_slug=agent_slug, model=model, mock_emos=mock_emos
+    )
 
     memory_search_fn = None
     if mock_emos:
 
         async def _mock_memory_search(_query: str, _agent_id: str):
-            row = (await supabase.get_segments_for_agent(agent_id))[0]
+            row = (await store.get_segments_for_agent(agent_id))[0]
             return [
                 Evidence.model_validate(
                     {
@@ -107,39 +164,47 @@ async def _run(agent_slug: str, mock_emos: bool, model: str) -> None:
     else:
         emit_citations_fn = None
 
-    agent = await create_ghost_agent(
-        agent_id,
-        store=supabase,
-        llm_registry=LLMRegistry,
-        memory_search_fn=memory_search_fn,
-        emit_citations_fn=emit_citations_fn,
-    )
+    try:
+        agent = await create_ghost_agent(
+            agent_id,
+            store=store,
+            llm_registry=LLMRegistry,
+            memory_search_fn=memory_search_fn,
+            emit_citations_fn=emit_citations_fn,
+        )
 
-    print("Type messages, Ctrl-D to exit.")
-    while True:
-        try:
-            prompt = input("> ").strip()
-        except EOFError:
-            print()
-            break
-        if not prompt:
-            continue
+        print("Type messages, Ctrl-D to exit.")
+        while True:
+            try:
+                prompt = input("> ").strip()
+            except EOFError:
+                print()
+                break
+            if not prompt:
+                continue
 
-        response = await agent.run(prompt)
-        payload = format_ghost_response(response["text"], response["citations"])
-        print(payload["body"])
+            response = await agent.run(prompt)
+            payload = format_ghost_response(response["text"], response["citations"])
+            print(payload["body"])
+    finally:
+        if hasattr(store, "aclose"):
+            await store.aclose()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bibliotalk CLI harness")
-    parser.add_argument("--agent", required=True, help="Agent slug")
+    parser.add_argument(
+        "--agent",
+        required=True,
+        help="Agent tenant_prefix (PocketBase local dev) or slug (mock mode).",
+    )
     parser.add_argument(
         "--mock-emos", action="store_true", help="Use mock EMOS responses"
     )
     parser.add_argument(
         "--model",
         default="nova-lite-v2",
-        help="LLM model name (e.g. gemini-2.0-flash).",
+        help="LLM model name (e.g. gemini-2.5-flash).",
     )
     args = parser.parse_args()
 

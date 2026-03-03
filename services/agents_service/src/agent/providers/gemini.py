@@ -19,6 +19,14 @@ class GeminiConfigurationError(RuntimeError):
     pass
 
 
+def _uses_socks_proxy() -> bool:
+    for key in ("ALL_PROXY", "all_proxy", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
+        value = (os.getenv(key) or "").strip().lower()
+        if value.startswith("socks5://") or value.startswith("socks5h://") or value.startswith("socks4://") or value.startswith("socks://"):
+            return True
+    return False
+
+
 def _truncate(text: str, *, max_chars: int) -> str:
     text = (text or "").strip()
     if len(text) <= max_chars:
@@ -67,6 +75,16 @@ class AdkGeminiLLM:
             raise GeminiConfigurationError(
                 "Missing GOOGLE_API_KEY for Gemini via ADK."
             )
+
+        if _uses_socks_proxy():
+            try:
+                import socksio  # noqa: F401
+            except Exception as exc:  # noqa: BLE001
+                raise GeminiConfigurationError(
+                    "SOCKS proxy detected but dependencies are missing. "
+                    "Install httpx socks support (e.g. `uv sync` after adding `httpx[socks]`) "
+                    "or unset ALL_PROXY/HTTP_PROXY/HTTPS_PROXY."
+                ) from exc
 
         try:
             from google.adk.agents import Agent

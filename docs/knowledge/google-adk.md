@@ -610,7 +610,7 @@ Agents can be defined in YAML using the `AgentConfig` schema. The `agent_class` 
 agent_class: LlmAgent  # or SequentialAgent, ParallelAgent, LoopAgent
 name: my_agent
 description: Agent description
-model: gemini-2.0-flash
+model: gemini-2.5-flash
 instruction: You are a helpful assistant.
 tools:
   - name: google_search
