@@ -179,7 +179,7 @@ async def _on_startup(app: Litestar) -> None:
     app.state.store = store
     app.state.matrix_client = matrix_client
     app.state.handler = handler
-    logger.info("startup complete db=%s", database_url)
+    logger.info("startup complete db=%s", store.database_url)
 
 
 async def _on_shutdown(app: Litestar) -> None:
@@ -193,6 +193,8 @@ async def _on_shutdown(app: Litestar) -> None:
 
 app = Litestar(
     route_handlers=[
+        index,
+        favicon,
         health,
         transaction,
         appservice_user_query,

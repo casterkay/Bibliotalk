@@ -31,9 +31,9 @@ Environment configuration:
 
 ## Admin Panel (agents_service)
 
-- URL: `http://localhost:8009/admin`
 - Enable: set `ADMIN_PASSWORD` (otherwise `/admin` returns 404 with a short message)
-- Start server: `uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
+- Start server: `uv --directory services/agents_service run --package agents_service -m uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
+- Admin Panel URL: `http://localhost:8009/admin`
 - Login:
   - Username: `ADMIN_USERNAME` (default: `admin`)
   - Password: `ADMIN_PASSWORD`

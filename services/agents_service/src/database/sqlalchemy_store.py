@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import Select, select
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -47,6 +48,39 @@ def default_sqlite_url() -> str:
     return f"sqlite+aiosqlite:///{db_path}"
 
 
+def normalize_database_url(database_url: str) -> str:
+    """Normalize DB URLs for local-dev ergonomics.
+
+    If a SQLite URL uses a *relative* file path (e.g. `sqlite+aiosqlite:///./.agents_service/db.sqlite`),
+    interpret it as repo-root relative (based on `AGENTS.md` discovery) and ensure its parent directory
+    exists. This avoids footguns when running from `services/*` subdirectories.
+    """
+
+    try:
+        url = make_url(database_url)
+    except Exception:
+        return database_url
+
+    if url.get_backend_name() != "sqlite":
+        return database_url
+
+    database = url.database
+    if not database or database == ":memory:":
+        return database_url
+
+    # sqlite can also accept database="file:..." URIs, which we don't attempt to rewrite.
+    if database.startswith("file:"):
+        return database_url
+
+    db_path = Path(database)
+    if not db_path.is_absolute():
+        db_path = _repo_root() / db_path
+        url = url.set(database=str(db_path))
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return url.render_as_string(hide_password=False)
+
+
 @dataclass(frozen=True)
 class SQLAlchemyStoreConfig:
     database_url: str
@@ -64,8 +98,9 @@ class SQLAlchemyStore:
         session_maker: async_sessionmaker[AsyncSession] | None = None,
     ) -> None:
         self._config = config
+        self._database_url = normalize_database_url(config.database_url)
         self._engine = engine or create_async_engine(
-            config.database_url,
+            self._database_url,
             pool_pre_ping=True,
         )
         self._session_maker = session_maker or async_sessionmaker(
@@ -77,6 +112,10 @@ class SQLAlchemyStore:
     @property
     def engine(self) -> AsyncEngine:
         return self._engine
+
+    @property
+    def database_url(self) -> str:
+        return self._database_url
 
     async def init(self) -> None:
         if self._initialized:
