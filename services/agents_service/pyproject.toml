@@ -9,6 +9,7 @@ description = "Bibliotalk agents service"
 requires-python = ">=3.11"
 dependencies = [
   "httpx[socks]>=0.27.0",
+  "itsdangerous>=2.2.0",
   "litestar>=2.0.0",
   "pydantic>=2.8.0",
   "pydantic-settings>=2.4.0",
@@ -36,6 +37,7 @@ dev = [
 [tool.setuptools]
 packages = [
   "agents_service",
+  "agents_service.admin",
   "agents_service.agent",
   "agents_service.agent.providers",
   "agents_service.agent.tools",

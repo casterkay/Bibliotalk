@@ -74,6 +74,10 @@ class SQLAlchemyStore:
         self._init_lock = asyncio.Lock()
         self._initialized = False
 
+    @property
+    def engine(self) -> AsyncEngine:
+        return self._engine
+
     async def init(self) -> None:
         if self._initialized:
             return

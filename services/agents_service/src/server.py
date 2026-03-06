@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+import os
 from uuid import UUID, uuid4
 
 import httpx
 from bt_common.config import get_settings
 from bt_common.logging import get_request_logger, set_correlation_id
-from litestar import Litestar, Request, get, post, put
+from litestar import HttpMethod, Litestar, Request, Response, asgi, get, route
 from litestar.exceptions import ClientException, NotAuthorizedException, NotFoundException
 from litestar.openapi import OpenAPIConfig
 from litestar.status_codes import HTTP_400_BAD_REQUEST
+from litestar.types import Receive, Scope, Send
 from pydantic import ValidationError
+from starlette.responses import PlainTextResponse
 
+from .admin.sqladmin_app import create_admin_app
 from .agent.agent_factory import LLMRegistry, create_ghost_agent
 from .database.sqlalchemy_store import SQLAlchemyStore, SQLAlchemyStoreConfig, default_sqlite_url
 from .database.store import Store
@@ -21,6 +25,8 @@ from .matrix.client import MatrixClient
 from .matrix.events import AppserviceTransaction
 
 logger = get_request_logger("agents_service.server")
+
+_admin_app: object | None = None
 
 
 def _require_hs_token(request: Request, *, hs_token: str) -> None:
@@ -33,13 +39,34 @@ def _require_hs_token(request: Request, *, hs_token: str) -> None:
         raise NotAuthorizedException(detail="invalid access token")
 
 
+@get("/")
+async def index() -> dict[str, object]:
+    return {
+        "service": "bibliotalk-agents-service",
+        "status": "ok",
+        "links": {
+            "health": "/health",
+            "admin": "/admin",
+            "openapi_schema": "/schema",
+            "openapi_docs": "/docs",
+        },
+    }
+
+
+@get("/favicon.ico")
+async def favicon() -> Response[None]:
+    return Response(None, status_code=204)
+
+
 @get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@put("/_matrix/app/v1/transactions/{txn_id:str}")
-@post("/_matrix/app/v1/transactions/{txn_id:str}")
+@route(
+    path="/_matrix/app/v1/transactions/{txn_id:str}",
+    http_method=[HttpMethod.PUT, HttpMethod.POST],
+)
 async def transaction(txn_id: str, request: Request, data: dict[str, object]) -> dict[str, object]:
     settings = get_settings()
     _require_hs_token(request, hs_token=settings.MATRIX_HS_TOKEN)
@@ -94,6 +121,19 @@ async def appservice_user_query(user_id: str, request: Request) -> dict[str, obj
     return {}
 
 
+@asgi("/admin", is_mount=True, copy_scope=True)
+async def admin_asgi(scope: Scope, receive: Receive, send: Send) -> None:
+    # Mounted under `/admin`. Returns 404 when not configured.
+    if _admin_app is None:
+        resp = PlainTextResponse(
+            "Admin is not configured (set ADMIN_PASSWORD).",
+            status_code=404,
+        )
+        await resp(scope, receive, send)
+        return
+    await _admin_app(scope, receive, send)  # type: ignore[misc]
+
+
 async def _on_startup(app: Litestar) -> None:
     settings = get_settings()
     LLMRegistry.init_defaults()
@@ -103,6 +143,10 @@ async def _on_startup(app: Litestar) -> None:
         config=SQLAlchemyStoreConfig(database_url=database_url, create_all=True)
     )
     await store.init()
+
+    global _admin_app
+    if os.getenv("ADMIN_PASSWORD"):
+        _admin_app = create_admin_app(engine=store.engine)
 
     matrix_http = httpx.AsyncClient(timeout=15.0)
     matrix_client = MatrixClient(
@@ -148,7 +192,12 @@ async def _on_shutdown(app: Litestar) -> None:
 
 
 app = Litestar(
-    route_handlers=[health, transaction, appservice_user_query],
+    route_handlers=[
+        health,
+        transaction,
+        appservice_user_query,
+        admin_asgi,
+    ],
     on_startup=[_on_startup],
     on_shutdown=[_on_shutdown],
     openapi_config=OpenAPIConfig(

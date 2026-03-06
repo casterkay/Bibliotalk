@@ -24,6 +24,17 @@ docs/                    # Reference knowledge docs
   - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 
+## Admin Panel (agents_service)
+
+- URL: `http://localhost:8009/admin`
+- Enable: set `ADMIN_PASSWORD` (otherwise `/admin` returns 404 with a short message)
+- Start server: `uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
+- Login:
+  - Username: `ADMIN_USERNAME` (default: `admin`)
+  - Password: `ADMIN_PASSWORD`
+- Session secret: set `ADMIN_SECRET_KEY` (fallbacks: `MATRIX_HS_TOKEN` → `dev-secret-key`)
+- Database (default): `.agents_service/bibliotalk.sqlite` (override with `DATABASE_URL`)
+
 ## One-Shot Local E2E Setup
 
 To bootstrap a full local “chat with ghosts” environment (Synapse + Element Web + SQLite + `agents_service` + ingestion into EverMemOS), run from the repo root:

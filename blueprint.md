@@ -205,7 +205,7 @@ rate_limited: false
 > The relational schema below is the *logical* data model. The codebase accesses it via
 > SQLAlchemy ORM.
 > - Local end-to-end development uses **SQLite** (async `aiosqlite` driver).
-> - Production targets **Postgres** (self-hosted or Supabase), using the same ORM models.
+> - Production targets **Postgres** (self-hosted or managed), using the same ORM models.
 
 ### agents
 
@@ -1010,7 +1010,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 
 | Component          | Deployment                                                                 |
 | ------------------ | -------------------------------------------------------------------------- |
-| Synapse            | ECS Fargate or EC2, with Postgres backend (RDS or Supabase)                |
+| Synapse            | ECS Fargate or EC2, with Postgres backend (RDS or self-hosted)             |
 | agents_service     | ECS Fargate                                                                |
 | voice_call_service | ECS Fargate (same task definition as agents_service, or sidecar container) |
 | ingestion_service  | ECS Fargate                                                                |

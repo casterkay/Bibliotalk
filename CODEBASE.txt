@@ -19,39 +19,7 @@
 │       └── synapse
 │           ├── appservice
 │           │   └── bibliotalk-appservice.example.yaml
-│           ├── data
-│           │   ├── appservices
-│           │   ├── homeserver.db
-│           │   ├── homeserver.db-shm
-│           │   ├── homeserver.db-wal
-│           │   ├── homeserver.yaml
-│           │   ├── localhost.macaroon.key
-│           │   ├── localhost.registration.key
-│           │   ├── localhost.signing.key
-│           │   ├── localhost.tls.crt
-│           │   ├── localhost.tls.key
-│           │   ├── log.config
-│           │   └── media
 │           └── README.md
-├── docs
-│   └── knowledge
-│       ├── evermemos-api.md
-│       ├── evermemos.md
-│       ├── google-a2a.md
-│       ├── google-adk.md
-│       ├── google-gemini-live-guide.md
-│       ├── google-gemini-live.md
-│       ├── matrix-synapse.md
-│       ├── matrix-webrtc.md
-│       ├── nova-act-browser-automation.md
-│       ├── nova-act-overview.md
-│       ├── nova-act.md
-│       ├── nova-sonic-example.md
-│       ├── nova-sonic.md
-│       ├── openclaw-custom-plugin.md
-│       ├── openclaw-extension.md
-│       ├── openclaw-overview.md
-│       └── youtube-transcript-api.md
 ├── packages
 │   └── bt_common
 │       ├── pyproject.toml
@@ -76,6 +44,8 @@
 │   │   ├── alembic.ini
 │   │   ├── pyproject.toml
 │   │   └── src
+│   │       ├── admin
+│   │       │   └── sqladmin_app.py
 │   │       ├── agent
 │   │       │   ├── agent_factory.py
 │   │       │   ├── orchestrator.py
@@ -169,4 +139,5 @@
 │       └── tasks.md
 └── uv.lock
 
-46 directories, 124 files
+42 directories, 98 files
+
