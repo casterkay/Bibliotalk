@@ -1,6 +1,4 @@
 synapse/data/
-pocketbase/pb_data/
 *.log
 .env.local
 state.json
-

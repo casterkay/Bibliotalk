@@ -33,18 +33,3 @@ services:
       - synapse
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
-  pocketbase:
-    build:
-      context: ./pocketbase
-      args:
-        PB_VERSION: "0.36.5"
-    container_name: bibliotalk-pocketbase
-    restart: unless-stopped
-    volumes:
-      - ./pocketbase/pb_data:/pb/pb_data
-      - ./pocketbase/pb_migrations:/pb/pb_migrations:ro
-    ports:
-      - "8090:8090"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"

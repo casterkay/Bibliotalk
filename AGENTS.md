@@ -15,6 +15,7 @@
 ## Active Technologies
 
 - Python 3.11+ + `evermemos` (EverMemOS SDK), `httpx`, `pydantic`, `typer`, `rich`, `tenacity` (002-evermemos-content-ingest)
+- Python 3.11+ + `litestar`, `sqlalchemy` (async), `aiosqlite` (local dev), `alembic` (migrations), `sqladmin` (admin UI) (001-agent-service)
 
 ## Project Structure
 
@@ -25,7 +26,7 @@ services/
       agent/             # agent factory, orchestration, tools, providers
       matrix/            # Matrix appservice handling + response formatting
       models/            # citation + segment domain models
-      database/          # Supabase access helpers
+      database/          # SQLAlchemy ORM + Store adapters (SQLite local / Postgres prod)
       voice/             # voice session + backend adapters
   ingestion_service/     # Python — content ingestion pipelines + CLI
     src/
@@ -69,6 +70,10 @@ Python 3.11+: Follow standard conventions
 
 - Standalone EverMemOS ingestion library + CLI (see `specs/002-evermemos-content-ingest/`).
 - Local artifacts (gitignored): `.ingestion_service/` (SQLite index + JSON reports).
+
+### agents_service (local dev)
+
+- Local artifacts (gitignored): `.agents_service/` (SQLite DB + reports/caches as needed).
 
 ### Common Commands
 

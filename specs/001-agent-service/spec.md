@@ -2,15 +2,15 @@
 
 **Feature**: `001-agent-service`  
 **Created**: 2026-02-28  
-**Last Updated**: 2026-03-03  
+**Last Updated**: 2026-03-06  
 **Status**: Draft (implementation in progress; synced to `BLUEPRINT.md`)  
 **Input**: User description: "agent service with ADK, EverMemOS, voice chat capability"
 
 **Source of truth**: `BLUEPRINT.md`. If this spec conflicts with the current repository tree, follow the tree (per `BLUEPRINT.md`).
 
-## Local E2E Note (PocketBase)
+## Local E2E Note (SQLite + SQLAlchemy)
 
-`BLUEPRINT.md` models the platform storage layer as Supabase Postgres. For local end-to-end development (“let me chat with ghosts”), this repo’s implementation plan uses PocketBase as a localhost backend that stores the same logical entities (`agents`, `profile_rooms`, `sources`, `segments`, `chat_history`, etc.). This does not change the user-facing behavior or contracts; it only changes the dev storage backend.
+`BLUEPRINT.md` models the platform storage layer as a relational database. For local end-to-end development (“let me chat with ghosts”), this repo uses **SQLite** behind a **SQLAlchemy ORM** store, holding the same logical entities (`agents`, `profile_rooms`, `sources`, `segments`, `chat_history`, etc.). This does not change the user-facing behavior or contracts; it only changes the dev storage backend.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -155,8 +155,8 @@ A user starts a voice call in a discussion room with multiple Ghosts. The Ghosts
 
 - For production, the chat platform (Matrix/Synapse) and appservice registration are deployed and operational before this feature is used.
 - For local end-to-end development, the repo provides `deploy/local/*` assets to run Synapse + Element Web, and the appservice registration is generated locally.
-- For production, the database schema for agents, agent configurations, and related tables is provisioned (blueprint target: Supabase Postgres).
-- For local end-to-end development, the logical schema is provisioned in PocketBase via repo migrations (`deploy/local/pocketbase/pb_migrations/`).
+- For production, the relational database schema for agents, agent configurations, and related tables is provisioned (blueprint target: Postgres, accessed via SQLAlchemy).
+- For local end-to-end development, the logical schema is provisioned in SQLite (via SQLAlchemy ORM metadata / migrations as needed).
 - Content ingestion pipelines (Podwise, Gutenberg, YouTube) are a separate feature — this specification assumes source material already exists in each Ghost's memory when the agent service processes a conversation.
 - The voice sidecar (audio bridge between the chat platform's voice protocol and the agent service) is treated as part of this feature's scope, since voice chat capability is explicitly requested.
 - Unencrypted voice calls are acceptable for MVP. End-to-end encrypted voice is deferred.

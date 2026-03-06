@@ -64,6 +64,7 @@ venv/
 dist/
 *.log
 .ingestion_service/
+.agents_service/
 .evermemos_ingest/
 .env*
 !.env.example

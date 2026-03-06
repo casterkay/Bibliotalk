@@ -118,13 +118,13 @@ Pending:
 
 ---
 
-## Local E2E (Dev UX): Synapse + Element Web + PocketBase
+## Local E2E (Dev UX): Synapse + Element Web + SQLite
 
 **Goal**: A single-command-ish local workflow that provisions Matrix + Ghosts + rooms + profile timelines so you can chat with Ghosts in Element.
 
 Pending:
 
-- [x] Add a DB abstraction and implement PocketBase backend for `agents_service` (replacing Supabase for local dev)
+- [x] Add a DB abstraction and implement SQLAlchemy + SQLite backend for `agents_service`
 - [x] Add appservice user query endpoint `GET /_matrix/app/v1/users/{userId}` for virtual user resolution
 - [x] Add `agents_service.bootstrap` CLI:
   - [x] `seed-ghosts` (agents + agent_emos_config)
@@ -132,5 +132,5 @@ Pending:
   - [x] `provision-matrix` (Space + rooms + invites + power levels)
   - [x] `post-profile-timeline` (threads from canonical segments)
   - [x] `smoke-test` (DM → reply → citations)
-- [x] Add `deploy/local/docker-compose.yml` for Synapse + Element Web + PocketBase
-- [x] Add PocketBase migrations under `deploy/local/pocketbase/pb_migrations/`
+- [x] Add `deploy/local/docker-compose.yml` for Synapse + Element Web
+- [x] Add SQLAlchemy ORM schema under `services/agents_service/src/database/sqlalchemy_models.py`

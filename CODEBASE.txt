@@ -1,0 +1,98 @@
+packages/
+└── bt_common
+    ├── pyproject.toml
+    ├── src
+    │   ├── __init__.py
+    │   ├── config.py
+    │   ├── evermemos_client.py
+    │   ├── exceptions.py
+    │   └── logging.py
+    └── uv.lock
+
+3 directories, 7 files
+services/
+├── agents_service
+│   ├── alembic
+│   │   ├── env.py
+│   │   └── versions
+│   │       └── 20260306_0001_init_schema.py
+│   ├── alembic.ini
+│   ├── pyproject.toml
+│   ├── src
+│   │   ├── __init__.py
+│   │   ├── __main__.py
+│   │   ├── agent
+│   │   │   ├── __init__.py
+│   │   │   ├── agent_factory.py
+│   │   │   ├── orchestrator.py
+│   │   │   ├── providers
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── aws_nova.py
+│   │   │   │   └── gemini.py
+│   │   │   └── tools
+│   │   │       ├── __init__.py
+│   │   │       ├── emit_citations.py
+│   │   │       └── memory_search.py
+│   │   ├── bootstrap.py
+│   │   ├── database
+│   │   │   ├── sqlalchemy_models.py
+│   │   │   ├── sqlalchemy_store.py
+│   │   │   └── store.py
+│   │   ├── matrix
+│   │   │   ├── appservice.py
+│   │   │   ├── client.py
+│   │   │   └── guards.py
+│   │   ├── models
+│   │   │   ├── citation.py
+│   │   │   └── segment.py
+│   │   ├── server.py
+│   │   └── voice
+│   │       ├── __init__.py
+│   │       ├── backends
+│   │       │   ├── __init__.py
+│   │       │   ├── base.py
+│   │       │   ├── gemini_live.py
+│   │       │   └── nova_sonic.py
+│   │       ├── session_manager.py
+│   │       └── transcript.py
+│   └── uv.lock
+├── ingestion_service
+│   ├── pyproject.toml
+│   ├── README.md
+│   ├── scripts
+│   │   └── ingest_from_figures_json.py
+│   ├── src
+│   │   ├── __init__.py
+│   │   ├── __main__.py
+│   │   ├── adapters
+│   │   │   ├── __init__.py
+│   │   │   ├── base.py
+│   │   │   ├── gutenberg.py
+│   │   │   ├── local_text.py
+│   │   │   └── youtube_transcript.py
+│   │   ├── domain
+│   │   │   ├── __init__.py
+│   │   │   ├── errors.py
+│   │   │   ├── ids.py
+│   │   │   └── models.py
+│   │   ├── pipeline
+│   │   │   ├── __init__.py
+│   │   │   ├── chunking.py
+│   │   │   ├── index.py
+│   │   │   ├── ingest.py
+│   │   │   └── manifest.py
+│   │   ├── runtime
+│   │   │   ├── __init__.py
+│   │   │   ├── config.py
+│   │   │   └── reporting.py
+│   │   └── server.py
+│   └── uv.lock
+└── voice_call_service
+    ├── package.json
+    └── src
+        ├── audio_bridge.js
+        ├── index.js
+        ├── matrixrtc.js
+        └── mixer.js
+
+22 directories, 62 files

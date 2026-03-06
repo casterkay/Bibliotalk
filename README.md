@@ -6,7 +6,7 @@ Bibliotalk is a Python monorepo for the Bibliotalk agent system (see `BLUEPRINT.
 
 ```text
 services/
-  agents_service/        # FastAPI agent service (Matrix appservice, orchestration)
+  agents_service/        # Litestar agent service (Matrix appservice, orchestration)
   ingestion_service/     # Standalone EverMemOS ingestion library + CLI
   voice_call_service/    # Node sidecar for MatrixRTC/WebRTC
 packages/
@@ -48,7 +48,7 @@ Local outputs (gitignored by default):
 
 ## Local End-to-End: “Chat With Ghosts”
 
-The local E2E dev flow (Synapse + Element Web + PocketBase + `agents_service`) is specified in:
+The local E2E dev flow (Synapse + Element Web + SQLite + `agents_service`) is specified in:
 - `specs/001-agent-service/plan.md`
 
 At a high level:
@@ -56,6 +56,6 @@ At a high level:
 - Generate + enable the Synapse appservice (`deploy/local/bin/setup-appservice.sh`)
 - Run `agents_service` on port 8009
 - Use `ingestion_service` to ingest sources into EverMemOS and emit a segment cache
-- Import the segment cache into PocketBase (canonical segments for citations)
+- Import the segment cache into SQLite (canonical segments for citations)
 - Provision Matrix Space + rooms via the `agents_service.bootstrap` CLI
 See `QUICKSTART.md` for a runnable step-by-step.

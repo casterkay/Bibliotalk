@@ -2,18 +2,18 @@
 
 **Feature**: `001-agent-service`  
 **Created**: 2026-02-28  
-**Last Updated**: 2026-03-03  
+**Last Updated**: 2026-03-06  
 **Source**: `BLUEPRINT.md` sections 2–4 and 9
 
 This document summarizes the database entities `agents_service` reads/writes for Ghost chat, citations, and (eventually) discussion/voice transcripts.
 
 ## Storage Backends (Blueprint vs Local Dev)
 
-`BLUEPRINT.md` defines the logical schema in **Supabase Postgres**. For local end-to-end development (“let me chat with ghosts”), the repository plan uses **PocketBase** as a localhost backend that stores the same logical entities.
+`BLUEPRINT.md` defines the logical schema in **Postgres dialect**. For local end-to-end development (“let me chat with ghosts”), the repository uses **SQLite** behind a **SQLAlchemy ORM** store that holds the same logical entities.
 
 **Important**: EverMemOS is a *retrieval* system. It is not treated as the canonical store of verbatim segments needed for citation verification and profile-room timeline posting. Canonical segments must exist in a database (`sources` / `segments`), and are mirrored into EverMemOS via ingestion.
 
-This doc uses “tables” as logical names; in local dev these map 1:1 to PocketBase collections.
+This doc uses “tables” as logical names; in local dev these are SQLite tables defined by `services/agents_service/src/database/sqlalchemy_models.py`.
 
 ## Core Tables
 

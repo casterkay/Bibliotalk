@@ -2,7 +2,7 @@
 - **Confucius**: Analects (PG #3330), The Sayings of Confucius (PG #24055)
 - **Buddha**: Dhammapada (PG #2017), Diamond Sutra (PG #64623)
 - **Marcus Aurelius**: Meditations (PG #2680)
-- **Seneca**: Dialogues, etc. (PG #64576, #56075, #3794)
+- **Seneca**: https://ws-export.wmcloud.org/?format=epub&lang=en&page=Moral_letters_to_Lucilius
 - **Epictetus**: Epictetus (PG #45109)
 - **Goethe**: Autobiography (PG #52654), Maxims & Reflections (PG #33670)
 - **Leonardo da Vinci**: The Notebooks of Leonardo Da Vinci (PG #5000), Thoughts on Art and Life (PG #29904)

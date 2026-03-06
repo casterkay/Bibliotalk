@@ -64,7 +64,7 @@ If any section below conflicts with the current tree, follow the tree.
                        │
           ┌────────────▼─────────────┐
           │    agents_service        │
-          │  (Python — FastAPI)      │
+          │  (Python — Litestar)     │
           │                          │
           │  ┌────────────────────┐  │
           │  │ Appservice Handler │  │  ← receives all Matrix events
@@ -105,8 +105,9 @@ If any section below conflicts with the current tree, follow the tree.
           └──────────────────────────┘
 
           ┌──────────────────────────┐
-          │    Supabase (Postgres)   │  ← agents, figures, ingestion_jobs,
-          │                          │     citations, provider configs
+          │  Relational DB (SQL)     │  ← agents, sources/segments,
+          │  SQLite (local)          │     rooms, chat_history, configs
+          │  Postgres (prod)         │
           └──────────────────────────┘
 
           ┌──────────────────────────┐
@@ -198,7 +199,13 @@ rate_limited: false
 
 ---
 
-## 3. Data Model (Supabase Postgres)
+## 3. Data Model (Relational SQL; Postgres dialect)
+
+> Implementation note (2026-03-06):
+> The relational schema below is the *logical* data model. The codebase accesses it via
+> SQLAlchemy ORM.
+> - Local end-to-end development uses **SQLite** (async `aiosqlite` driver).
+> - Production targets **Postgres** (self-hosted or Supabase), using the same ORM models.
 
 ### agents
 
@@ -310,7 +317,7 @@ The `segments` table serves three purposes:
 2. **Citation validation**: Look up `segments.text` locally to verify a citation's `quote` is a substring, without hitting EMOS.
 3. **Profile room posting**: Track which segments have been posted via `matrix_event_id`.
 
-**EMOS ↔ Supabase mapping**: EMOS search returns memories with `group_id`. Map `group_id` → `sources.emos_group_id` → `segments` (via `source_id`). Then do a local re-rank (BM25 on `segments.text`) to find the most relevant segment(s) within the matched source. This is necessary because EMOS returns extracted *summaries*, not original verbatim content.
+**EMOS ↔ relational mapping**: EMOS search returns memories with `group_id`. Map `group_id` → `sources.emos_group_id` → `segments` (via `source_id`). Then do a local re-rank (BM25 on `segments.text`) to find the most relevant segment(s) within the matched source. This is necessary because EMOS returns extracted *summaries*, not original verbatim content.
 
 ### ingestion_jobs
 
@@ -391,7 +398,7 @@ message_id = "{agent_id}:{platform}:{external_id}:seg:{seq}"
 
 - `sender` / `user_id` = the agent's Postgres UUID. Same across all platforms so that `GET /memories/search?user_id={agent_id}` returns all memories for this agent regardless of source.
 - `group_id` = per source item (one episode / one book / one video). All segments from the same source share a `group_id`. This gives EMOS cross-segment context for better memory extraction.
-- `message_id` = per segment (unique). Maps 1:1 to `segments.emos_message_id` in Supabase.
+- `message_id` = per segment (unique). Maps 1:1 to `segments.emos_message_id` in the relational DB.
 
 For platform-managed figures, `agent_id` is the Postgres UUID. For user agents, the user configures their `tenant_prefix` in `agent_emos_config` to match their EMOS setup.
 
@@ -1027,7 +1034,7 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 ## 13. Implementation Order
 
 1. **Synapse + appservice scaffold**: Deploy Synapse, register appservice, verify virtual user creation
-2. **Supabase schema**: Create tables, seed a test figure
+2. **Relational schema**: Create tables + migrations (SQLite local, Postgres prod), seed a test figure
 3. **agents_service core**: Appservice event handler (matrix), basic message routing
 4. **EMOS client**: Async Python client for `/api/v1/memories` (memorize, search, conversation-meta)
 5. **ADK agent**: Ghost agent with persona instruction, memory_search tool, emit_citations tool
@@ -1048,12 +1055,16 @@ Implemented as Matrix room commands (messages starting with `!bt`).
 ### Python (agents_service, ingestion_service)
 
 ```
+litestar                    # ASGI framework for agents_service
 google-adk                  # Agent Development Kit
 google-genai                # Gemini API client
 matrix                      # Matrix appservice framework
 httpx                       # Async HTTP (EMOS)
 playwright                  # Browser automation (Podwise crawling)
-supabase                    # Supabase Python client
+sqlalchemy                  # ORM (SQLite local; Postgres prod)
+aiosqlite                   # Async SQLite driver (local dev)
+alembic                     # Migrations (relational schema)
+sqladmin                    # Admin UI (operates on SQLAlchemy models)
 boto3                       # AWS Bedrock (Nova Sonic, Nova Lite)
 youtube-transcript-api      # YouTube transcripts
 pydantic                    # Data validation

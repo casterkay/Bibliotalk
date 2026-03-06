@@ -13,7 +13,7 @@ from uuid import UUID, uuid4
 from bt_common.config import get_settings
 
 from .agent.agent_factory import LLMRegistry, create_ghost_agent
-from .database.pocketbase_store import PocketBaseConfig, PocketBaseStore
+from .database.sqlalchemy_store import SQLAlchemyStore, SQLAlchemyStoreConfig, default_sqlite_url
 from .matrix.appservice import format_ghost_response
 from .models.citation import Citation, Evidence
 
@@ -88,38 +88,27 @@ async def _resolve_agent_id_and_store(
         )
 
     settings = get_settings()
-    if not settings.POCKETBASE_URL:
-        raise RuntimeError(
-            "PocketBase is required for non-mock CLI runs. Set POCKETBASE_URL and seed ghosts:\n"
-            "  python -m agents_service.bootstrap seed-ghosts"
-        )
-    if (
-        not settings.POCKETBASE_SUPERUSER_EMAIL
-        or not settings.POCKETBASE_SUPERUSER_PASSWORD
-    ):
-        raise RuntimeError("POCKETBASE_SUPERUSER_EMAIL/PASSWORD not set")
-
-    pb = PocketBaseStore(
-        config=PocketBaseConfig(
-            url=settings.POCKETBASE_URL,
-            email=settings.POCKETBASE_SUPERUSER_EMAIL,
-            password=settings.POCKETBASE_SUPERUSER_PASSWORD,
+    store = SQLAlchemyStore(
+        config=SQLAlchemyStoreConfig(
+            database_url=settings.DATABASE_URL or default_sqlite_url(),
+            create_all=True,
         )
     )
-    agent = await pb.get_agent_by_tenant_prefix(agent_slug)
+    await store.init()
+    agent = await store.get_agent_by_tenant_prefix(agent_slug)
     if not agent:
-        await pb.aclose()
+        await store.aclose()
         raise RuntimeError(
             f"Unknown agent tenant_prefix={agent_slug}. Seed via:\n"
             "  python -m agents_service.bootstrap seed-ghosts"
         )
     agent_id = UUID(str(agent["id"]))
-    return agent_id, pb
+    return agent_id, store
 
 
 async def _run(agent_slug: str, mock_emos: bool, model: str) -> None:
     # Avoid requiring fully-valid Settings for mock runs (mock mode should be runnable
-    # without PocketBase config).
+    # without SQLite config).
     if mock_emos:
         level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
         logging.basicConfig(level=level)
@@ -196,7 +185,7 @@ def main() -> None:
     parser.add_argument(
         "--agent",
         required=True,
-        help="Agent tenant_prefix (PocketBase local dev) or slug (mock mode).",
+        help="Agent tenant_prefix (SQLite local dev) or slug (mock mode).",
     )
     parser.add_argument(
         "--mock-emos", action="store_true", help="Use mock EMOS responses"

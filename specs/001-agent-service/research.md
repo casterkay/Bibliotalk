@@ -83,11 +83,11 @@
 - Allows switching Gemini ↔ Nova Lite v2 by configuration.
 - Keeps higher-level orchestration stable while swapping generation engines.
 
-## R7: Local E2E Storage Backend (PocketBase)
+## R7: Local E2E Storage Backend (SQLite + SQLAlchemy)
 
-**Decision**: For local end-to-end development (“let me chat with ghosts”), use PocketBase as a localhost backend that stores the same logical entities as the blueprint’s Supabase schema.
+**Decision**: For local end-to-end development (“let me chat with ghosts”), use SQLite behind a SQLAlchemy ORM store that holds the same logical entities as the blueprint’s relational schema.
 
 **Rationale**:
 - Local E2E chat requires a canonical store of verbatim `segments` to validate citations and to post profile-room timelines.
 - EverMemOS retrieval returns `group_id` but is not treated as a canonical segment store for verifiable quotes.
-- PocketBase provides a lightweight, schema-managed local backend suitable for a scripted bootstrap flow (seed Ghosts, import segment cache, provision Matrix rooms).
+- SQLite provides a lightweight local backend suitable for a scripted bootstrap flow (seed Ghosts, import segment cache, provision Matrix rooms).

@@ -1,8 +1,9 @@
 """Database access abstraction for agents_service.
 
-The logical schema is defined in BLUEPRINT.md (Supabase/Postgres). For local E2E
-development we use PocketBase, so this interface is intentionally small and
-focused on the queries required by the runtime and bootstrap tooling.
+The logical schema is defined in BLUEPRINT.md (relational/Postgres dialect).
+For local E2E development we use SQLite via SQLAlchemy, so this interface is
+intentionally small and focused on the queries required by the runtime and
+bootstrap tooling.
 """
 
 from __future__ import annotations
@@ -38,4 +39,3 @@ class Store(Protocol):
 
     # Audit
     async def save_chat_history(self, record: dict[str, Any]) -> dict[str, Any]: ...
-

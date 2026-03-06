@@ -1,6 +1,6 @@
 # Implementation Plan: Agent Service
 
-**Feature**: `001-agent-service` | **Date**: 2026-03-03 | **Spec**: [spec.md](./spec.md)  
+**Feature**: `001-agent-service` | **Date**: 2026-03-06 | **Spec**: [spec.md](./spec.md)  
 **Input**: `BLUEPRINT.md` + the design docs in `specs/001-agent-service/`
 
 ## Summary
@@ -13,15 +13,15 @@ This repository contains an end-to-end text chat loop (Matrix appservice → ret
 
 This plan is sourced from `BLUEPRINT.md`, but it includes **local-dev** decisions that intentionally diverge from the blueprint’s proposed Supabase setup.
 
-### C0: Supabase Postgres (blueprint) vs PocketBase (local dev)
+### C0: Postgres (blueprint/prod) vs SQLite (local dev)
 
-- `BLUEPRINT.md` specifies **Supabase Postgres** tables for `agents`, `segments`, `profile_rooms`, `chat_history`, etc.
-- This plan updates the local end-to-end flow to use **PocketBase** as a localhost backend replacing Supabase for dev.
+- `BLUEPRINT.md` specifies a relational schema (shown in Postgres dialect) for `agents`, `segments`, `profile_rooms`, `chat_history`, etc.
+- This repo’s local end-to-end flow uses **SQLite** as the canonical store for dev.
 
 **Resolution**:
 - Treat the blueprint schema as the **logical data model**.
-- Implement a DB abstraction in `agents_service` with a **PocketBase implementation** for local dev.
-- Keep a path open for a future Supabase/Postgres implementation (or migration), but it is not required for the “let me chat with ghosts” local E2E goal.
+- Implement a DB abstraction in `agents_service` backed by **SQLAlchemy ORM**.
+- Keep a path open for a future Postgres deployment by changing `DATABASE_URL` (no code changes).
 
 ### C1: EverMemOS is not a canonical segment store
 
@@ -30,8 +30,8 @@ EverMemOS search returns `group_id` and summaries, but it is **not** a reliable 
 - Profile-room timeline posting (verbatim segments)
 
 **Resolution**:
-- Canonical segments live in PocketBase (`sources` / `segments` collections).
-- Populate PocketBase by replaying ingestion outputs (see “Ingestion Replay → PocketBase Import”).
+- Canonical segments live in SQLite (`sources` / `segments` tables).
+- Populate SQLite by replaying ingestion outputs (see “Ingestion Replay → SQLite Import”).
 
 ### C2: Local Matrix server_name
 
@@ -41,12 +41,12 @@ The local E2E flow uses `server_name=localhost` (so Matrix IDs are `@alice:local
 
 **Languages**: Python 3.11+ (`services/agents_service`, `packages/bt_common`); Node.js 20+ (`services/voice_call_service`)  
 **Key deps (current)**:
-- Python: `fastapi`, `uvicorn`, `pydantic`, `pydantic-settings`, `httpx`, `evermemos`
+- Python: `litestar`, `uvicorn`, `sqlalchemy` (+ `aiosqlite`), `pydantic`, `pydantic-settings`, `httpx`, `evermemos`
 - Node: `matrix-js-sdk`, `ws`
 **Key deps (target, per blueprint)**: Google ADK, Gemini APIs, AWS Bedrock (Nova Lite v2 / Nova Sonic)
 
-**Storage (local dev)**: PocketBase (agents, sources/segments, profile_rooms, chat_history), EverMemOS (retrieval + memory metadata)  
-**Storage (blueprint target)**: Supabase Postgres (logical equivalent of the PocketBase collections), EverMemOS (memory)  
+**Storage (local dev)**: SQLite (agents, sources/segments, profile_rooms, chat_history), EverMemOS (retrieval + memory metadata)  
+**Storage (blueprint/prod target)**: Postgres (same ORM models), EverMemOS (memory)  
 **Performance goals**: <5s text response latency; <3s voice response latency  
 **Constraints**: unencrypted voice for MVP; single homeserver; appservice reserves `@bt_*` namespace; Ghosts never respond in profile rooms
 
@@ -103,7 +103,7 @@ packages/bt_common/src/
 services/agents_service/src/
 ├── __init__.py
 ├── __main__.py                   # CLI harness (`python -m agents_service ...`)
-├── server.py                     # FastAPI appservice transaction endpoint
+├── server.py                     # Litestar appservice transaction endpoint
 ├── agent/
 │   ├── agent_factory.py          # Ghost agent creation + caching
 │   ├── orchestrator.py           # (current) simple multi-ghost orchestration
@@ -113,8 +113,8 @@ services/agents_service/src/
 │       └── emit_citations.py     # Evidence → validated citations
 ├── database/
 │   ├── store.py                  # DB interface (logical model from BLUEPRINT.md)
-│   ├── pocketbase_store.py       # local-dev backend (canonical for E2E chat)
-│   └── supabase_helpers.py       # legacy/compat (kept until removed)
+│   ├── sqlalchemy_models.py      # SQLAlchemy ORM tables
+│   └── sqlalchemy_store.py       # SQLAlchemy-backed Store (SQLite local / Postgres prod)
 ├── matrix/
 │   ├── appservice.py             # event handling + `format_ghost_response`
 │   └── guards.py                 # per-room rate limiter
@@ -152,7 +152,7 @@ services/agents_service/tests/
 
 ---
 
-## Local End-to-End Flow (Synapse + Element Web + agents_service + PocketBase + EverMemOS)
+## Local End-to-End Flow (Synapse + Element Web + agents_service + SQLite + EverMemOS)
 
 ### Single Goal
 
@@ -169,7 +169,7 @@ services/agents_service/tests/
 | --- | --- | --- | --- |
 | Synapse homeserver | Docker | `http://localhost:8008` | Matrix Client-Server API |
 | Element Web | Docker | `http://localhost:8080` | Local dev UI |
-| PocketBase | Docker | `http://localhost:8090` | Canonical local data store (PocketBase v0.36.5) |
+| SQLite DB | Local file | `.agents_service/bibliotalk.sqlite` | Canonical local data store (SQLAlchemy ORM) |
 | agents_service | Host python | `http://localhost:8009` | Matrix appservice + agent runtime |
 | EverMemOS | external/local | `EMOS_BASE_URL` | Retrieval; must already be reachable |
 
@@ -188,10 +188,8 @@ MATRIX_SERVER_NAME="localhost"
 MATRIX_ADMIN_USER="bt_admin"
 MATRIX_ADMIN_PASSWORD="..."
 
-# PocketBase (local canonical store)
-POCKETBASE_URL="http://localhost:8090"
-POCKETBASE_SUPERUSER_EMAIL="admin@bibliotalk.local"
-POCKETBASE_SUPERUSER_PASSWORD="..."
+# SQLite (local canonical store)
+DATABASE_URL="sqlite+aiosqlite:///./.agents_service/bibliotalk.sqlite"
 
 # EverMemOS (retrieval + memorize during ingestion replay)
 EMOS_BASE_URL="http://localhost:1995"
@@ -207,87 +205,26 @@ To support Synapse appservice user resolution and reliable virtual user handling
 - `PUT`/`POST` `/_matrix/app/v1/transactions/{txn_id}` (already implemented)
 - `GET` `/_matrix/app/v1/users/{userId}` (**implemented**)
   - Auth via `hs_token`
-  - Return 200 only for `@bt_...:localhost` users that exist in PocketBase `agents`
+  - Return 200 only for `@bt_...:localhost` users that exist in the SQLite `agents` table
 
-### DB Design: PocketBase Collections (logical equivalents of BLUEPRINT tables)
+### DB Design: SQLite tables (SQLAlchemy ORM)
 
-PocketBase replaces Supabase for local dev. Collections mirror the blueprint tables closely:
+SQLite is the canonical local store for:
+- `agents`, `agent_emos_config`
+- `profile_rooms`
+- `sources`, `segments` (canonical text for citation verification + profile timeline)
+- `chat_history` (audit trail)
 
-- `agents`: Ghost identity + persona + model selection
-- `agent_emos_config`: per-Ghost EMOS base URL + API key + `tenant_prefix`
-- `profile_rooms`: agent_uuid ↔ matrix_room_id
-- `sources`: canonical source metadata keyed by `emos_group_id`
-- `segments`: canonical verbatim segments keyed by `emos_message_id` (citation verification)
-- `chat_history`: audit trail for Matrix messages + citations
+The ORM schema lives in `services/agents_service/src/database/sqlalchemy_models.py`.
 
-**Deterministic IDs (idempotent imports)**:
-- `agent_uuid`: derived from slug (e.g., `confucius`, `alan_watts`)
-- `source_uuid`: derived from `emos_group_id`
-- `segment_uuid`: derived from `emos_message_id`
+### Ingestion Replay → SQLite Import (required for citations + profile timeline)
 
-#### PocketBase collection field sketch (must be encoded in migrations)
-
-`agents`
-- `uuid` (text, unique; app-level stable ID)
-- `kind` (text; `figure|user`)
-- `display_name` (text)
-- `matrix_user_id` (text, unique; `@bt_ghost_confucius:localhost`)
-- `persona_prompt` (text)
-- `llm_model` (text; default `gemini-2.5-flash`)
-- `is_active` (bool; default true)
-
-`agent_emos_config`
-- `agent_uuid` (text, unique)
-- `tenant_prefix` (text, unique; `confucius`, `alan_watts`)
-- `emos_base_url` (text)
-- `emos_api_key_encrypted` (text, optional; unused for now)
-
-`profile_rooms`
-- `agent_uuid` (text, unique)
-- `matrix_room_id` (text, unique)
-
-`sources`
-- `uuid` (text, unique)
-- `agent_uuid` (text)
-- `platform` (text)
-- `external_id` (text)
-- `external_url` (text, optional)
-- `title` (text)
-- `raw_meta` (json/text)
-- `emos_group_id` (text, unique)
-
-`segments`
-- `uuid` (text, unique)
-- `source_uuid` (text)
-- `agent_uuid` (text)
-- `platform` (text)
-- `seq` (number)
-- `text` (text)
-- `sha256` (text)
-- `emos_message_id` (text, unique)
-- `speaker` (text, optional)
-- `start_ms` (number, optional)
-- `end_ms` (number, optional)
-- `matrix_event_id` (text, optional)
-
-`chat_history`
-- `uuid` (text, unique)
-- `matrix_room_id` (text)
-- `sender_agent_uuid` (text, optional)
-- `sender_matrix_user_id` (text)
-- `matrix_event_id` (text, optional)
-- `modality` (text; `text|voice`)
-- `content` (text)
-- `citations` (json/text)
-
-### Ingestion Replay → PocketBase Import (required for citations + profile timeline)
-
-EverMemOS cannot reliably provide canonical segment text on demand, so the canonical segments must be imported into PocketBase.
+EverMemOS cannot reliably provide canonical segment text on demand, so the canonical segments must be imported into SQLite.
 
 **Workflow**:
 1. Run `ingestion_service` with `user_id = tenant_prefix` (e.g. `confucius`) so that EMOS `group_id` / `message_id` match the ID convention used by retrieval.
 2. `ingestion_service` writes JSONL cache lines to `.ingestion_service/segment_cache/{user_id}.jsonl`.
-3. `agents_service` imports this cache into PocketBase (`sources` + `segments`).
+3. `agents_service` imports this cache into SQLite (`sources` + `segments`).
 
 #### Initial demo dataset (deterministic, rerunnable)
 
@@ -301,25 +238,22 @@ The ingestion manifest must use:
 ### Matrix Provisioning (scripted, idempotent)
 
 Add a single bootstrap CLI that:
-- Creates/updates Ghost records in PocketBase
+- Creates/updates Ghost records in SQLite
 - Ensures Ghost Matrix accounts exist (Synapse admin API)
 - Creates Bibliotalk Space + rooms (profile rooms, DMs, group room)
 - Invites Ghosts to DMs + group room (Ghost joins via appservice)
 - Sets profile-room power levels so humans cannot send messages
-- Posts profile-room “timeline” threads from canonical segments in PocketBase
+- Posts profile-room “timeline” threads from canonical segments in SQLite
 - Smoke-tests DM response + citations
 
 ### Repo Additions (deployment assets)
 
 Add:
 - `deploy/local/docker-compose.yml`
-  - Synapse, Element Web, PocketBase services
+  - Synapse, Element Web services
 - `deploy/local/synapse/`
   - generate/config scripts
   - appservice registration YAML generation
-- `deploy/local/pocketbase/`
-  - `pb_migrations/` checked into repo (deterministic schema)
-  - persistent `pb_data/` gitignored
 - `services/agents_service/src/bootstrap.py`
   - the provisioning CLI described above
 
@@ -335,11 +269,11 @@ The intended “happy path” commands (exact scripts/CLIs to be implemented und
      - `docker compose -f deploy/local/docker-compose.yml restart synapse`
 2. Start `agents_service`:
    - `uvicorn agents_service.server:app --host 0.0.0.0 --port 8009`
-3. Seed Ghosts in PocketBase:
+3. Seed Ghosts in SQLite:
    - `python -m agents_service.bootstrap seed-ghosts`
 4. Replay ingestion:
    - `python -m ingestion_service ingest manifest --path "$(pwd)/deploy/local/ingest/manifest.yaml"`
-5. Import canonical segments to PocketBase:
+5. Import canonical segments to SQLite:
    - `python -m agents_service.bootstrap import-segment-cache --cache-dir .ingestion_service/segment_cache`
 6. Provision Matrix Space + rooms:
    - `python -m agents_service.bootstrap provision-matrix`
@@ -364,4 +298,4 @@ The intended “happy path” commands (exact scripts/CLIs to be implemented und
 - Make `.env` discovery robust (support repo-root `.env` even when running from service directories).
 - Add a dedicated Matrix event contract doc (appservice transactions + message send payloads).
 - Implement the `BLUEPRINT.md` retrieval narrowing: EverMemOS `group_id` → `sources/segments` before reranking.
-- Add a first-class “local E2E” developer flow (`deploy/local/*` + `agents_service.bootstrap`) that provisions Synapse + Element Web + PocketBase and seeds a working set of Ghosts + sources.
+- Add a first-class “local E2E” developer flow (`deploy/local/*` + `agents_service.bootstrap`) that provisions Synapse + Element Web and seeds a working set of Ghosts + sources into SQLite.

@@ -1,4 +1,4 @@
-"""Local E2E bootstrap tooling (Synapse + PocketBase).
+"""Local E2E bootstrap tooling (Synapse + SQLite).
 
 Usage examples (repo root):
   python -m agents_service.bootstrap seed-ghosts
@@ -23,7 +23,7 @@ import yaml
 from bt_common.config import get_settings
 from rich.console import Console
 
-from .database.pocketbase_store import PocketBaseConfig, PocketBaseStore
+from .database.sqlalchemy_store import SQLAlchemyStore, SQLAlchemyStoreConfig, default_sqlite_url
 from .matrix.client import MatrixClient
 
 app = typer.Typer(add_completion=False)
@@ -52,22 +52,16 @@ def _load_roster(path: Path) -> list[dict[str, Any]]:
     return [g for g in ghosts if isinstance(g, dict)]
 
 
-async def _pocketbase() -> PocketBaseStore:
+async def _store() -> SQLAlchemyStore:
     settings = get_settings()
-    if not settings.POCKETBASE_URL:
-        raise typer.BadParameter("POCKETBASE_URL is not set")
-    if (
-        not settings.POCKETBASE_SUPERUSER_EMAIL
-        or not settings.POCKETBASE_SUPERUSER_PASSWORD
-    ):
-        raise typer.BadParameter("POCKETBASE_SUPERUSER_EMAIL/PASSWORD not set")
-    return PocketBaseStore(
-        config=PocketBaseConfig(
-            url=settings.POCKETBASE_URL,
-            email=settings.POCKETBASE_SUPERUSER_EMAIL,
-            password=settings.POCKETBASE_SUPERUSER_PASSWORD,
+    store = SQLAlchemyStore(
+        config=SQLAlchemyStoreConfig(
+            database_url=settings.DATABASE_URL or default_sqlite_url(),
+            create_all=True,
         )
     )
+    await store.init()
+    return store
 
 
 @dataclass
@@ -230,7 +224,7 @@ def seed_ghosts(
         if not roster.exists():
             raise typer.BadParameter(f"roster file not found: {roster}")
 
-        pb = await _pocketbase()
+        store = await _store()
         try:
             ghosts = _load_roster(roster)
             if not ghosts:
@@ -261,7 +255,7 @@ def seed_ghosts(
                 )
                 matrix_user_id = f"@bt_{localpart}:{matrix_domain}"
 
-                await pb.upsert_agent(
+                await store.upsert_agent(
                     agent_uuid=agent_uuid,
                     kind=kind,
                     display_name=display_name,
@@ -270,7 +264,7 @@ def seed_ghosts(
                     llm_model=model,
                     is_active=is_active,
                 )
-                await pb.upsert_agent_emos_config(
+                await store.upsert_agent_emos_config(
                     agent_uuid=agent_uuid,
                     emos_base_url=settings.EMOS_BASE_URL,
                     tenant_prefix=tenant_prefix,
@@ -281,7 +275,7 @@ def seed_ghosts(
                     f"Seeded {display_name} → {matrix_user_id} (tenant_prefix={tenant_prefix})"
                 )
         finally:
-            await pb.aclose()
+            await store.aclose()
 
     asyncio.run(_run())
 
@@ -295,7 +289,7 @@ def import_segment_cache(
     ),
 ) -> None:
     async def _run() -> None:
-        pb = await _pocketbase()
+        store = await _store()
         try:
             if not cache_dir.exists():
                 raise typer.BadParameter(f"cache dir not found: {cache_dir}")
@@ -310,7 +304,7 @@ def import_segment_cache(
 
             for path in files:
                 tenant_prefix = path.stem
-                agent = await pb.get_agent_by_tenant_prefix(tenant_prefix)
+                agent = await store.get_agent_by_tenant_prefix(tenant_prefix)
                 if not agent:
                     console.print(
                         f"Skip {path.name}: no agent for tenant_prefix={tenant_prefix}"
@@ -335,7 +329,7 @@ def import_segment_cache(
                         )
                         source_url = payload.get("source_url")
 
-                        source = await pb.upsert_source(
+                        source = await store.upsert_source(
                             agent_uuid=agent_uuid,
                             emos_group_id=group_id,
                             platform=platform,
@@ -350,7 +344,7 @@ def import_segment_cache(
                         )
                         imported_sources += 1
 
-                        await pb.upsert_segment(
+                        await store.upsert_segment(
                             agent_uuid=agent_uuid,
                             source_uuid=UUID(str(source["id"])),
                             emos_message_id=str(payload["message_id"]),
@@ -370,7 +364,7 @@ def import_segment_cache(
                 f"Imported segments: sources={imported_sources} segments={imported_segments} skipped_files={skipped}"
             )
         finally:
-            await pb.aclose()
+            await store.aclose()
 
     asyncio.run(_run())
 
@@ -390,7 +384,7 @@ def provision_matrix(
         if not settings.MATRIX_ADMIN_USER or not settings.MATRIX_ADMIN_PASSWORD:
             raise typer.BadParameter("MATRIX_ADMIN_USER/PASSWORD not set")
 
-        pb = await _pocketbase()
+        store = await _store()
         matrix_admin = MatrixAdminClient(homeserver_url=settings.MATRIX_HOMESERVER_URL)
         matrix_as = MatrixClient(
             homeserver_url=settings.MATRIX_HOMESERVER_URL,
@@ -402,10 +396,10 @@ def provision_matrix(
                 password=settings.MATRIX_ADMIN_PASSWORD,
             )
 
-            agents = await pb.list_agents(active_only=True)
+            agents = await store.list_agents(active_only=True)
             if not agents:
                 raise typer.BadParameter(
-                    "No active agents found in PocketBase (run seed-ghosts first)"
+                    "No active agents found in the SQLite store (run seed-ghosts first)"
                 )
 
             space_room_id: str | None = None
@@ -443,7 +437,7 @@ def provision_matrix(
                 agent_uuid = UUID(str(agent["id"]))
                 ghost_user_id = str(agent["matrix_user_id"])
 
-                existing = await pb.get_profile_room_for_agent(agent_uuid)
+                existing = await store.get_profile_room_for_agent(agent_uuid)
                 if existing and existing.get("matrix_room_id"):
                     profile_room_id = str(existing["matrix_room_id"])
                     console.print(
@@ -476,7 +470,7 @@ def provision_matrix(
                         },
                     )
 
-                    await pb.upsert_profile_room(
+                    await store.upsert_profile_room(
                         agent_uuid=agent_uuid,
                         matrix_room_id=profile_room_id,
                     )
@@ -493,7 +487,7 @@ def provision_matrix(
                     )
 
         finally:
-            await pb.aclose()
+            await store.aclose()
             await matrix_admin.aclose()
             await matrix_as.aclose()
 
@@ -509,17 +503,17 @@ def post_profile_timeline(
 ) -> None:
     async def _run() -> None:
         settings = get_settings()
-        pb = await _pocketbase()
+        store = await _store()
         matrix_as = MatrixClient(
             homeserver_url=settings.MATRIX_HOMESERVER_URL,
             as_token=settings.MATRIX_AS_TOKEN,
         )
         try:
-            agents = await pb.list_agents(active_only=True)
+            agents = await store.list_agents(active_only=True)
             for agent in agents:
                 agent_uuid = UUID(str(agent["id"]))
                 ghost_user_id = str(agent["matrix_user_id"])
-                profile = await pb.get_profile_room_for_agent(agent_uuid)
+                profile = await store.get_profile_room_for_agent(agent_uuid)
                 if not profile or not profile.get("matrix_room_id"):
                     console.print(
                         f"Skip {agent['display_name']}: no profile room (run provision-matrix)"
@@ -527,7 +521,7 @@ def post_profile_timeline(
                     continue
                 room_id = str(profile["matrix_room_id"])
 
-                segments = await pb.get_segments_for_agent(agent_uuid)
+                segments = await store.get_segments_for_agent(agent_uuid)
                 if not segments:
                     console.print(
                         f"Skip {agent['display_name']}: no segments (run import-segment-cache)"
@@ -588,7 +582,7 @@ def post_profile_timeline(
                         if row_idx == 0:
                             root_event_id = event_id
 
-                        await pb.upsert_segment(
+                        await store.upsert_segment(
                             agent_uuid=agent_uuid,
                             source_uuid=UUID(str(row["source_id"])),
                             emos_message_id=str(row["emos_message_id"]),
@@ -610,7 +604,7 @@ def post_profile_timeline(
                 )
 
         finally:
-            await pb.aclose()
+            await store.aclose()
             await matrix_as.aclose()
 
     asyncio.run(_run())
@@ -619,7 +613,7 @@ def post_profile_timeline(
 @app.command("smoke-test")
 def smoke_test(
     ghost: str = typer.Option(
-        "confucius", help="Ghost tenant_prefix to DM (must exist in PocketBase)."
+        "confucius", help="Ghost tenant_prefix to DM (must exist in the SQLite store)."
     ),
     prompt: str = typer.Option(
         "What did you say about learning?", help="Message text."
@@ -631,7 +625,7 @@ def smoke_test(
         if not settings.MATRIX_ADMIN_USER or not settings.MATRIX_ADMIN_PASSWORD:
             raise typer.BadParameter("MATRIX_ADMIN_USER/PASSWORD not set")
 
-        pb = await _pocketbase()
+        store = await _store()
         matrix_admin = MatrixAdminClient(homeserver_url=settings.MATRIX_HOMESERVER_URL)
         matrix_as = MatrixClient(
             homeserver_url=settings.MATRIX_HOMESERVER_URL,
@@ -642,7 +636,7 @@ def smoke_test(
                 username=settings.MATRIX_ADMIN_USER,
                 password=settings.MATRIX_ADMIN_PASSWORD,
             )
-            agent = await pb.get_agent_by_tenant_prefix(ghost)
+            agent = await store.get_agent_by_tenant_prefix(ghost)
             if not agent:
                 raise typer.BadParameter(
                     f"Unknown ghost tenant_prefix={ghost} (run seed-ghosts)"
@@ -682,7 +676,7 @@ def smoke_test(
                 "Timed out waiting for ghost reply (is agents_service running?)"
             )
         finally:
-            await pb.aclose()
+            await store.aclose()
             await matrix_admin.aclose()
             await matrix_as.aclose()
 
