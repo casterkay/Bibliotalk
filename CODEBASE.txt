@@ -1,5 +1,6 @@
 .
 ├── AGENTS.md
+├── BLUEPRINT-discord.md
 ├── BLUEPRINT.md
 ├── CLAUDE.md -> AGENTS.md
 ├── CODEBASE.txt
@@ -139,5 +140,5 @@
 │       └── tasks.md
 └── uv.lock
 
-42 directories, 98 files
+42 directories, 99 files
 
