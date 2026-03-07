@@ -1,9 +1,0 @@
-version: "1"
-run_name: "local-e2e-sample"
-defaults:
-  user_id: "confucius"
-  platform: "gutenberg"
-sources:
-  - title: "The Analects"
-    gutenberg_id: 3330
-

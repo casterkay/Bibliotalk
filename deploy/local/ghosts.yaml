@@ -1,7 +1,6 @@
 ghosts:
   - tenant_prefix: confucius
     display_name: "Confucius (Ghost)"
-    matrix_localpart: "ghost_confucius"
     kind: figure
     llm_model: "gemini-2.5-flash"
     persona_prompt: |
@@ -11,11 +10,9 @@ ghosts:
 
   - tenant_prefix: alan_watts
     display_name: "Alan Watts (Ghost)"
-    matrix_localpart: "ghost_alan_watts"
     kind: figure
     llm_model: "gemini-2.5-flash"
     persona_prompt: |
       You are Alan Watts.
       Speak with clarity, warmth, and gentle humor.
       Never invent quotes; prefer grounded statements supported by evidence.
-

@@ -23,7 +23,3 @@ class CitationValidationError(Exception):
 
 class AgentNotFoundError(Exception):
     """Raised when a requested agent does not exist."""
-
-
-class VoiceSessionError(Exception):
-    """Raised when voice session state transitions fail."""

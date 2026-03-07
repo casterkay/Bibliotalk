@@ -22,7 +22,12 @@ class GeminiConfigurationError(RuntimeError):
 def _uses_socks_proxy() -> bool:
     for key in ("ALL_PROXY", "all_proxy", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
         value = (os.getenv(key) or "").strip().lower()
-        if value.startswith("socks5://") or value.startswith("socks5h://") or value.startswith("socks4://") or value.startswith("socks://"):
+        if (
+            value.startswith("socks5://")
+            or value.startswith("socks5h://")
+            or value.startswith("socks4://")
+            or value.startswith("socks://")
+        ):
             return True
     return False
 
@@ -67,19 +72,15 @@ class AdkGeminiLLM:
     temperature: float = 0.2
     max_output_tokens: int = 800
 
-    async def generate(
-        self, *, persona_prompt: str, query: str, evidence: list[Evidence]
-    ) -> str:
+    async def generate(self, *, persona_prompt: str, query: str, evidence: list[Evidence]) -> str:
         google_api_key = os.getenv("GOOGLE_API_KEY")
         if not google_api_key:
-            raise GeminiConfigurationError(
-                "Missing GOOGLE_API_KEY for Gemini via ADK."
-            )
+            raise GeminiConfigurationError("Missing GOOGLE_API_KEY for Gemini via ADK.")
 
         if _uses_socks_proxy():
             try:
                 import socksio  # noqa: F401
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 raise GeminiConfigurationError(
                     "SOCKS proxy detected but dependencies are missing. "
                     "Install httpx socks support (e.g. `uv sync` after adding `httpx[socks]`) "
@@ -90,7 +91,7 @@ class AdkGeminiLLM:
             from google.adk.agents import Agent
             from google.adk.runners import InMemoryRunner
             from google.genai import types
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise GeminiConfigurationError(
                 "Google ADK/Gemini dependencies are not installed."
             ) from exc
@@ -119,7 +120,7 @@ class AdkGeminiLLM:
         )
 
         runner = InMemoryRunner(agent=agent, app_name=self.app_name)
-        user_id = "matrix"
+        user_id = "discord"
         session_id = f"stateless-{uuid4()}"
         await runner.session_service.create_session(
             app_name=self.app_name, user_id=user_id, session_id=session_id

@@ -4,8 +4,8 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: CODEBASE.txt
       - id: end-of-file-fixer
+        exclude: CODEBASE.txt
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
@@ -23,7 +23,7 @@ repos:
         args: [
           --fix,
           --exit-non-zero-on-fix,
-          '--extend-ignore=RUF012,B008,B007,UP038',
+          '--extend-ignore=RUF012,B008,B007,UP038,RUF001',
         ]
       - id: ruff-format
 

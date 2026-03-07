@@ -4,21 +4,7 @@
 ├── CODEBASE.txt
 ├── deploy
 │   └── local
-│       ├── bin
-│       │   ├── enable-appservice.sh
-│       │   ├── generate-appservice.sh
-│       │   ├── setup-all.sh
-│       │   └── setup-appservice.sh
-│       ├── docker-compose.yml
-│       ├── element
-│       │   └── config.json
-│       ├── ghosts.yaml
-│       ├── ingest
-│       │   └── manifest.yaml
-│       └── synapse
-│           ├── appservice
-│           │   └── bibliotalk-appservice.example.yaml
-│           └── README.md
+│       └── ghosts.yaml
 ├── DESIGN.md
 ├── packages
 │   └── bt_common
@@ -35,94 +21,41 @@
 │   └── outline-codebase.sh
 ├── services
 │   ├── agents_service
-│   │   ├── alembic
-│   │   │   ├── env.py
-│   │   │   ├── README
-│   │   │   ├── script.py.mako
-│   │   │   └── versions
-│   │   │       └── 87ce04bfe41c_init_schema.py
-│   │   ├── alembic.ini
 │   │   ├── pyproject.toml
 │   │   └── src
-│   │       ├── admin
-│   │       │   └── sqladmin_app.py
 │   │       ├── agent
 │   │       │   ├── agent_factory.py
 │   │       │   ├── orchestrator.py
 │   │       │   ├── providers
 │   │       │   └── tools
-│   │       ├── bootstrap.py
 │   │       ├── database
-│   │       │   ├── sqlalchemy_models.py
-│   │       │   ├── sqlalchemy_store.py
 │   │       │   └── store.py
-│   │       ├── matrix
-│   │       │   ├── appservice.py
-│   │       │   ├── client.py
-│   │       │   ├── events.py
-│   │       │   └── guards.py
-│   │       ├── models
-│   │       │   ├── citation.py
-│   │       │   └── segment.py
-│   │       ├── server.py
-│   │       └── voice
-│   │           ├── backends
-│   │           ├── session_manager.py
-│   │           └── transcript.py
-│   ├── ingestion_service
-│   │   ├── pyproject.toml
-│   │   ├── README.md
-│   │   ├── scripts
-│   │   │   └── ingest_from_figures_json.py
-│   │   └── src
-│   │       ├── adapters
-│   │       │   ├── base.py
-│   │       │   ├── blog_crawl.py
-│   │       │   ├── document.py
-│   │       │   ├── gutenberg.py
-│   │       │   ├── http_fetch.py
-│   │       │   ├── local_text.py
-│   │       │   ├── rss_feed.py
-│   │       │   ├── url_tools.py
-│   │       │   ├── web_page.py
-│   │       │   └── youtube_transcript.py
-│   │       ├── domain
-│   │       │   ├── errors.py
-│   │       │   ├── ids.py
-│   │       │   └── models.py
-│   │       ├── pipeline
-│   │       │   ├── chunking.py
-│   │       │   ├── index.py
-│   │       │   ├── ingest.py
-│   │       │   └── manifest.py
-│   │       ├── runtime
-│   │       │   ├── config.py
-│   │       │   └── reporting.py
-│   │       └── server.py
-│   └── voice_call_service
-│       ├── eslint.config.js
-│       ├── package.json
+│   │       └── models
+│   │           ├── citation.py
+│   │           └── segment.py
+│   └── ingestion_service
+│       ├── pyproject.toml
+│       ├── README.md
+│       ├── scripts
 │       └── src
-│           ├── audio_bridge.js
-│           ├── index.js
-│           ├── matrixrtc.js
-│           └── mixer.js
+│           ├── adapters
+│           │   ├── base.py
+│           │   ├── rss_feed.py
+│           │   ├── url_tools.py
+│           │   └── youtube_transcript.py
+│           ├── domain
+│           │   ├── errors.py
+│           │   ├── ids.py
+│           │   └── models.py
+│           ├── pipeline
+│           │   ├── chunking.py
+│           │   ├── index.py
+│           │   ├── ingest.py
+│           │   └── manifest.py
+│           └── runtime
+│               ├── config.py
+│               └── reporting.py
 ├── specs
-│   ├── 001-agent-service
-│   │   ├── checklists
-│   │   │   └── requirements.md
-│   │   ├── contracts
-│   │   │   ├── citation-schema.md
-│   │   │   ├── discussion-floor-control.md
-│   │   │   ├── emos-client.md
-│   │   │   ├── matrix-events.md
-│   │   │   └── voice-backend.md
-│   │   ├── data-model.md
-│   │   ├── plan.md
-│   │   ├── quickstart.md
-│   │   ├── research.md
-│   │   ├── spec.md
-│   │   └── tasks.md
 │   ├── 002-evermemos-content-ingest
 │   │   ├── checklists
 │   │   │   └── requirements.md
@@ -154,5 +87,5 @@
 │       └── tasks.md
 └── uv.lock
 
-45 directories, 110 files
+29 directories, 59 files
 

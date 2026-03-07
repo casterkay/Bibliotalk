@@ -4,12 +4,9 @@ from bt_common.config import get_emos_fallback_settings, get_settings
 
 
 def test_settings_and_fallback_round_trip(monkeypatch) -> None:
-    monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///./.agents_service/bibliotalk.sqlite")
+    monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///./.bibliotalk/bibliotalk.sqlite")
     monkeypatch.setenv("EMOS_BASE_URL", "https://emos.local")
     monkeypatch.setenv("EMOS_API_KEY", "emos-key")
-    monkeypatch.setenv("MATRIX_HOMESERVER_URL", "https://matrix.local")
-    monkeypatch.setenv("MATRIX_AS_TOKEN", "as-token")
-    monkeypatch.setenv("MATRIX_HS_TOKEN", "hs-token")
 
     get_settings.cache_clear()
     get_emos_fallback_settings.cache_clear()

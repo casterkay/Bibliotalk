@@ -43,21 +43,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore")
 
     GOOGLE_API_KEY: str | None = None
-    # Storage (agents_service canonical store)
-    # - Local dev default is SQLite (see agents_service.database.sqlalchemy_store.default_sqlite_url()).
-    # - Production target is Postgres with the same SQLAlchemy ORM models.
     DATABASE_URL: str | None = None
-    EMOS_BASE_URL: str
+    EMOS_BASE_URL: str | None = None
     EMOS_API_KEY: str | None = None
     AWS_REGION: str = "us-east-1"
-    MATRIX_HOMESERVER_URL: str
-    MATRIX_AS_TOKEN: str
-    MATRIX_HS_TOKEN: str
-    # Optional: Synapse admin login for scripted local provisioning
-    MATRIX_SERVER_NAME: str | None = None
-    MATRIX_ADMIN_USER: str | None = None
-    MATRIX_ADMIN_PASSWORD: str | None = None
-    MATRIX_REGISTRATION_SHARED_SECRET: str | None = None
     LOG_LEVEL: str = "INFO"
 
 

@@ -5,7 +5,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,6 @@ from ..domain.models import (
     Source,
     SourceContent,
     SourceResult,
-    TranscriptContent,
 )
 from ..runtime.reporting import redact_text
 from .chunking import ChunkingConfig, chunk_plain_text, chunk_transcript, normalize_text
@@ -32,7 +31,7 @@ logger = logging.getLogger("ingestion_service")
 
 
 def _now() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def _default_segment_cache_dir() -> Path:
@@ -56,9 +55,7 @@ def _source_fingerprint(source_content: SourceContent) -> str:
     if isinstance(source_content.content, PlainTextContent):
         normalized = normalize_text(source_content.content.text)
     else:
-        normalized = "\n".join(
-            normalize_text(line.text) for line in source_content.content.lines
-        )
+        normalized = "\n".join(normalize_text(line.text) for line in source_content.content.lines)
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
@@ -82,9 +79,7 @@ def _failed_source_result(
         segments_ingested=0,
         segments_skipped_unchanged=0,
         segments_failed=0,
-        error=ReportError(
-            code=err.code, message=redact_text(str(err), secrets=redact_secrets)
-        ),
+        error=ReportError(code=err.code, message=redact_text(str(err), secrets=redact_secrets)),
         segments=[] if include_segment_details else None,
     )
 
@@ -95,55 +90,13 @@ async def _source_content_from_resolved(
     if resolved.mode == "text":
         if resolved.text is None:
             raise InvalidInputError("Manifest source mode=text missing text")
-        return SourceContent(
-            source=resolved.source, content=PlainTextContent(text=resolved.text)
-        )
-
-    if resolved.mode == "file":
-        if resolved.file_path is None:
-            raise InvalidInputError("Manifest source mode=file missing file_path")
-        from ..adapters.local_text import load_file_source
-
-        return load_file_source(
-            user_id=resolved.source.user_id,
-            platform=resolved.source.platform,
-            external_id=resolved.source.external_id,
-            title=resolved.source.title,
-            path=resolved.file_path,
-            source_url=resolved.source.source_url,
-            author=resolved.source.author,
-            published_at=(
-                resolved.source.published_at.isoformat()
-                if resolved.source.published_at
-                else None
-            ),
-        )
-
-    if resolved.mode == "gutenberg":
-        if resolved.source.platform != "gutenberg":
-            raise InvalidInputError("gutenberg_id requires platform=gutenberg")
-        if resolved.gutenberg_id is None:
-            raise InvalidInputError(
-                "Manifest source mode=gutenberg missing gutenberg_id"
-            )
-        from ..adapters.gutenberg import load_gutenberg_source
-
-        return await load_gutenberg_source(
-            user_id=resolved.source.user_id,
-            external_id=resolved.source.external_id,
-            title=resolved.source.title,
-            gutenberg_id=resolved.gutenberg_id,
-            source_url=resolved.source.source_url,
-            author=resolved.source.author,
-        )
+        return SourceContent(source=resolved.source, content=PlainTextContent(text=resolved.text))
 
     if resolved.mode == "youtube":
         if resolved.source.platform != "youtube":
             raise InvalidInputError("youtube_video_id requires platform=youtube")
         if resolved.youtube_video_id is None:
-            raise InvalidInputError(
-                "Manifest source mode=youtube missing youtube_video_id"
-            )
+            raise InvalidInputError("Manifest source mode=youtube missing youtube_video_id")
         from ..adapters.youtube_transcript import load_youtube_transcript_source
 
         return await load_youtube_transcript_source(
@@ -164,7 +117,9 @@ class _ExpandedSource:
     error: IngestError | None = None
 
 
-def _merge_raw_meta(left: dict[str, Any] | None, right: dict[str, Any] | None) -> dict[str, Any] | None:
+def _merge_raw_meta(
+    left: dict[str, Any] | None, right: dict[str, Any] | None
+) -> dict[str, Any] | None:
     if not left and not right:
         return None
     out: dict[str, Any] = {}
@@ -176,126 +131,9 @@ def _merge_raw_meta(left: dict[str, Any] | None, right: dict[str, Any] | None) -
 
 
 async def _expand_resolved(resolved: ResolvedManifestSource) -> list[_ExpandedSource]:
-    if resolved.mode in {"text", "gutenberg", "youtube"}:
+    if resolved.mode in {"text", "youtube"}:
         sc = await _source_content_from_resolved(resolved)
         return [_ExpandedSource(source=sc.source, source_content=sc)]
-
-    if resolved.mode == "file":
-        if resolved.file_path is None:
-            raise InvalidInputError("Manifest source mode=file missing file_path")
-        from ..adapters.document import load_document_file_source
-
-        sc = await load_document_file_source(source=resolved.source, path=resolved.file_path)
-        return [_ExpandedSource(source=sc.source, source_content=sc)]
-
-    if resolved.mode == "doc_url":
-        if resolved.doc_url is None:
-            raise InvalidInputError("Manifest source mode=doc_url missing doc_url")
-        from ..adapters.document import load_document_url_source
-
-        sc = await load_document_url_source(source=resolved.source, url=resolved.doc_url)
-        return [_ExpandedSource(source=sc.source, source_content=sc)]
-
-    if resolved.mode == "web_url":
-        if resolved.web_url is None:
-            raise InvalidInputError("Manifest source mode=web_url missing web_url")
-        from ..adapters.web_page import extract_web_page_markdown
-
-        extracted = await extract_web_page_markdown(resolved.web_url)
-        src = resolved.source.model_copy(deep=True)
-        src.source_url = extracted.canonical_url
-        if extracted.title:
-            src.title = extracted.title
-            src.group_name = extracted.title
-        if extracted.published_at and not src.published_at:
-            src.published_at = extracted.published_at
-        src.raw_meta = _merge_raw_meta(src.raw_meta, extracted.raw_meta)
-        sc = SourceContent(source=src, content=PlainTextContent(text=extracted.markdown))
-        return [_ExpandedSource(source=src, source_content=sc)]
-
-    if resolved.mode == "rss_url":
-        if resolved.rss_url is None:
-            raise InvalidInputError("Manifest source mode=rss_url missing rss_url")
-        from ..adapters.rss_feed import parse_feed
-        from ..adapters.url_tools import url_external_id
-        from ..adapters.web_page import extract_web_page_markdown
-
-        max_items = int(resolved.max_items or 50)
-        entries = await parse_feed(resolved.rss_url, max_items=max_items)
-
-        out: list[_ExpandedSource] = []
-        for entry in entries:
-            src = Source(
-                user_id=resolved.source.user_id,
-                platform=resolved.source.platform,
-                external_id=url_external_id(entry.url),
-                title=entry.title or entry.url.rsplit("/", 1)[-1] or "Untitled",
-                source_url=entry.url,
-                author=resolved.source.author,
-                published_at=entry.published_at,
-                raw_meta=_merge_raw_meta(
-                    resolved.source.raw_meta,
-                    _merge_raw_meta(entry.raw_meta, {"discovered_via": "rss_url", "rss_url": resolved.rss_url}),
-                ),
-            )
-            try:
-                extracted = await extract_web_page_markdown(entry.url)
-                if extracted.title:
-                    src.title = extracted.title
-                    src.group_name = extracted.title
-                if extracted.published_at and not src.published_at:
-                    src.published_at = extracted.published_at
-                src.source_url = extracted.canonical_url
-                src.raw_meta = _merge_raw_meta(src.raw_meta, extracted.raw_meta)
-                sc = SourceContent(source=src, content=PlainTextContent(text=extracted.markdown))
-                out.append(_ExpandedSource(source=src, source_content=sc))
-            except Exception as exc:  # noqa: BLE001
-                err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
-                out.append(_ExpandedSource(source=src, source_content=None, error=err))
-        return out
-
-    if resolved.mode == "crawl_seed_url":
-        if resolved.crawl_seed_url is None:
-            raise InvalidInputError("Manifest source mode=crawl_seed_url missing crawl_seed_url")
-        from ..adapters.blog_crawl import CrawlConfig, discover_blog_urls
-        from ..adapters.url_tools import url_external_id
-        from ..adapters.web_page import extract_web_page_markdown
-
-        max_items = int(resolved.max_items or 50)
-        max_pages = int(resolved.max_pages or 200)
-        urls = await discover_blog_urls(
-            resolved.crawl_seed_url,
-            cfg=CrawlConfig(max_items=max_items, max_pages=max_pages),
-        )
-        out: list[_ExpandedSource] = []
-        for url in urls:
-            src = Source(
-                user_id=resolved.source.user_id,
-                platform=resolved.source.platform,
-                external_id=url_external_id(url),
-                title=url.rsplit("/", 1)[-1] or "Untitled",
-                source_url=url,
-                author=resolved.source.author,
-                raw_meta=_merge_raw_meta(
-                    resolved.source.raw_meta,
-                    {"discovered_via": "crawl_seed_url", "crawl_seed_url": resolved.crawl_seed_url},
-                ),
-            )
-            try:
-                extracted = await extract_web_page_markdown(url)
-                if extracted.title:
-                    src.title = extracted.title
-                    src.group_name = extracted.title
-                if extracted.published_at:
-                    src.published_at = extracted.published_at
-                src.source_url = extracted.canonical_url
-                src.raw_meta = _merge_raw_meta(src.raw_meta, extracted.raw_meta)
-                sc = SourceContent(source=src, content=PlainTextContent(text=extracted.markdown))
-                out.append(_ExpandedSource(source=src, source_content=sc))
-            except Exception as exc:  # noqa: BLE001
-                err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
-                out.append(_ExpandedSource(source=src, source_content=None, error=err))
-        return out
 
     raise InvalidInputError(f"Unsupported manifest source mode: {resolved.mode}")
 
@@ -318,13 +156,9 @@ async def ingest_source(
     cache_dir = segment_cache_dir or _default_segment_cache_dir()
 
     if isinstance(source_content.content, PlainTextContent):
-        segments = chunk_plain_text(
-            source, source_content.content.text, cfg=chunking_cfg
-        )
+        segments = chunk_plain_text(source, source_content.content.text, cfg=chunking_cfg)
     else:
-        segments = chunk_transcript(
-            source, source_content.content.lines, cfg=chunking_cfg
-        )
+        segments = chunk_transcript(source, source_content.content.lines, cfg=chunking_cfg)
 
     # Ensure conversation metadata is saved for every conversation group used
     # by segments (for chapterized books this can be >1 group per source).
@@ -348,9 +182,7 @@ async def ingest_source(
                 "group_name": gname,
                 "source_url": source.source_url,
                 "author": source.author,
-                "published_at": (
-                    source.published_at.isoformat() if source.published_at else None
-                ),
+                "published_at": (source.published_at.isoformat() if source.published_at else None),
                 "raw_meta": source.raw_meta,
             }
             if gid != default_group_id:
@@ -366,7 +198,7 @@ async def ingest_source(
                 source_fingerprint=_source_fingerprint(source_content),
             )
         meta_saved = True
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
         return SourceResult(
             user_id=source.user_id,
@@ -381,9 +213,7 @@ async def ingest_source(
             segments_ingested=0,
             segments_skipped_unchanged=0,
             segments_failed=0,
-            error=ReportError(
-                code=err.code, message=redact_text(str(err), secrets=redact_secrets)
-            ),
+            error=ReportError(code=err.code, message=redact_text(str(err), secrets=redact_secrets)),
             segments=[] if include_segment_details else None,
         )
 
@@ -491,13 +321,13 @@ async def ingest_source(
                     user_id=source.user_id,
                     payload=payload,
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.warning(
                     "segment cache write failed run_id=%s message_id=%s status=ingested",
                     run_id,
                     seg.message_id,
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             failed += 1
             err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
             index.upsert_segment_status(
@@ -620,7 +450,7 @@ async def ingest_manifest(
     for resolved in resolve_manifest_sources(manifest):
         try:
             expanded = await _expand_resolved(resolved)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
             result = _failed_source_result(
                 source=resolved.source,

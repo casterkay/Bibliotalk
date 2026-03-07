@@ -1,9 +1,8 @@
 """Database access abstraction for agents_service.
 
-The logical schema is defined in BLUEPRINT.md (relational/Postgres dialect).
-For local E2E development we use SQLite via SQLAlchemy, so this interface is
-intentionally small and focused on the queries required by the runtime and
-bootstrap tooling.
+This protocol captures only the retrieval operations still needed by the
+trimmed agent library after the Matrix-era runtime and ORM implementation were
+removed from the repository.
 """
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ class AgentRow(TypedDict, total=False):
     id: str
     kind: str
     display_name: str
-    matrix_user_id: str
     persona_prompt: str
     llm_model: str
     is_active: bool
@@ -57,37 +55,15 @@ class SegmentRow(TypedDict, total=False):
     speaker: str | None
     start_ms: int | None
     end_ms: int | None
-    matrix_event_id: str | None
-
-
-class ChatHistoryRow(TypedDict, total=False):
-    id: str
-    matrix_room_id: str
-    sender_agent_id: str | None
-    sender_matrix_user_id: str
-    matrix_event_id: str | None
-    modality: str
-    content: str
-    citations: list[dict[str, object]]
-    created_at: str
 
 
 class Store(Protocol):
     async def aclose(self) -> None: ...
 
-    # Agents / config
     async def get_agent(self, agent_id: UUID) -> AgentRow | None: ...
-    async def get_agent_by_matrix_id(self, matrix_user_id: str) -> AgentRow | None: ...
     async def get_agent_emos_config(self, agent_id: UUID) -> AgentEmosConfigRow | None: ...
 
-    # Rooms
-    async def is_profile_room(self, matrix_room_id: str) -> bool: ...
-
-    # Retrieval/citations
     async def get_sources_by_emos_group_ids(self, emos_group_ids: list[str]) -> list[SourceRow]: ...
     async def get_segments_by_source_ids(self, source_ids: list[str]) -> list[SegmentRow]: ...
     async def get_segments_by_ids(self, segment_ids: list[UUID]) -> list[SegmentRow]: ...
     async def get_segments_for_agent(self, agent_id: UUID) -> list[SegmentRow]: ...
-
-    # Audit
-    async def save_chat_history(self, record: ChatHistoryRow) -> ChatHistoryRow: ...

@@ -1,79 +1,31 @@
 # ingestion_service
 
-Standalone Python package + CLI for ingesting curated, operator-provided content into EverMemOS.
+This package now keeps only the ingestion primitives that still matter to the Discord MVP:
 
-Primary entry point:
+- YouTube transcript loading via `youtube-transcript-api`
+- YouTube metadata discovery via `yt-dlp`
+- RSS feed parsing via `feedparser`
+- deterministic chunking
+- local indexing and EverMemOS ingest helpers
 
-- `uv run --package ingestion_service -m ingestion_service --help`
+Removed from this package:
 
-This package focuses on deterministic chunking, stable IDs, safe re-runs (idempotency), and per-source JSON reporting.
+- legacy HTTP server entrypoints
+- document/blog/web-page ingestion adapters
+- figure JSON conversion scripts
+- Matrix-era or non-YouTube ingestion surfaces
 
-## CLI
+## Development
 
-Web and document ingestion use optional extras:
+- Sync deps in the workspace: `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+- Run tests: `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
 
-- In this repo workspace (recommended): `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
-- As a standalone package:
-  - Web extraction + blog discovery: `pip install 'ingestion_service[web]'`
-  - Document conversion (pdf/docx/epub/html/…): `pip install 'ingestion_service[docs]'`
+## Optional Extras
 
-Commands:
+- `ingest`: installs `youtube-transcript-api`
+- `web`: installs `feedparser`
 
-- `uv run --package ingestion_service -m ingestion_service ingest web --help`
-- `uv run --package ingestion_service -m ingestion_service ingest doc-url --help`
-- `uv run --package ingestion_service -m ingestion_service crawl blog --help`
-- `uv run --package ingestion_service -m ingestion_service crawl rss --help`
+## Notes
 
-## FastAPI Server
-
-Run the ingestion API server:
-
-- `uv run --package ingestion_service uvicorn ingestion_service.server:app --host 0.0.0.0 --port 8080`
-
-Endpoints:
-
-- `GET /health`
-- `POST /ingest/text`
-- `POST /ingest/file`
-- `POST /ingest/manifest`
-
-`POST /ingest/manifest` request body:
-
-```json
-{
-  "manifest": {
-    "version": "2",
-    "sources": [
-      {
-        "user_id": "confucius",
-        "platform": "gutenberg",
-        "external_id": "3330",
-        "title": "The Analects",
-        "gutenberg_id": "3330"
-      }
-    ]
-  }
-}
-```
-
-## Figure JSON Ingestion Script
-
-Script:
-
-- `scripts/ingest_from_figures_json.py`
-
-Example:
-
-- `uv --directory services/ingestion_service run --package ingestion_service python scripts/ingest_from_figures_json.py --input /absolute/path/to/figures.json`
-
-What it does:
-
-- Reads figure JSON (`{ "<Figure Name>": { "avatar": "...", "bio": "...", "sources": [...] } }`)
-- Converts supported source URLs into ingest manifest items
-- Runs manifest ingestion
-- Writes ingestion report JSON
-- Appends per-user segment cache into `.ingestion_service/segment_cache/<user_id>.jsonl`
-
-Playlist expansion uses `yt-dlp`:
-
-- `yt-dlp --flat-playlist --print "https://www.youtube.com/watch?v=%(id)s" "https://www.youtube.com/playlist?list=<PLAYLIST_ID>"`
+- `yt-dlp` must be available on `PATH` for YouTube metadata and playlist discovery.
+- The target replacement runtime is documented in `specs/003-discord-bot/plan.md`.

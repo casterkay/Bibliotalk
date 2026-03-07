@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from ..domain.models import Segment, Source, TranscriptLine, build_segment
 
@@ -34,10 +34,6 @@ class _TranscriptMessage:
 
 
 _PARA_SPLIT_RE = re.compile(r"\n\s*\n+")
-_CHAPTER_HEADING_RE = re.compile(
-    r"^(chapter|book|part|section)\s+([ivxlcdm]+|\d+)\b.*$",
-    flags=re.IGNORECASE,
-)
 _SENTENCE_END_RE = re.compile(r'[.!?。！？]["\')\]’”）】]*$')
 
 
@@ -58,40 +54,6 @@ def _split_long(text: str, max_chars: int) -> list[str]:
         parts.append(remaining[:cut].strip())
         remaining = remaining[cut:].strip()
     return [p for p in parts if p]
-
-
-def _looks_like_chapter_heading(paragraph: str) -> bool:
-    collapsed = " ".join(paragraph.split())
-    if not collapsed or len(collapsed) > 120:
-        return False
-    if _CHAPTER_HEADING_RE.match(collapsed):
-        return True
-    if collapsed.isupper() and 1 <= len(collapsed.split()) <= 10:
-        return True
-    return False
-
-
-def _chapterized_paragraphs(paragraphs: list[str]) -> list[tuple[str, str]]:
-    chapter_title = "Main Text"
-    chapter_buckets: list[tuple[str, list[str]]] = [(chapter_title, [])]
-    seen_titles = {chapter_title}
-
-    for paragraph in paragraphs:
-        if _looks_like_chapter_heading(paragraph):
-            title = " ".join(paragraph.split())
-            if title in seen_titles:
-                continue
-            seen_titles.add(title)
-            chapter_buckets.append((title, []))
-            continue
-        chapter_buckets[-1][1].append(paragraph)
-
-    out: list[tuple[str, str]] = []
-    for title, paras in chapter_buckets:
-        if not paras:
-            continue
-        out.append((title, "\n\n".join(paras)))
-    return out
 
 
 def _chunk_plain_text_default(source: Source, text: str, cfg: ChunkingConfig) -> list[Segment]:
@@ -143,52 +105,19 @@ def _chunk_plain_text_default(source: Source, text: str, cfg: ChunkingConfig) ->
     return segments
 
 
-def _chunk_plain_text_gutenberg(source: Source, text: str, cfg: ChunkingConfig) -> list[Segment]:
-    paragraphs = [p.strip() for p in _PARA_SPLIT_RE.split(text) if p.strip()]
-    chapter_blocks = _chapterized_paragraphs(paragraphs)
-    if not chapter_blocks:
-        return []
-
-    segments: list[Segment] = []
-    chapter_count = len(chapter_blocks)
-    for chapter_idx, (chapter_title, chapter_text) in enumerate(chapter_blocks, start=1):
-        chapter_group_id = f"{source.group_id}:chapter:{chapter_idx:03d}"
-        chapter_group_name = f"{source.title} — {chapter_title}"
-
-        for paragraph in [p.strip() for p in _PARA_SPLIT_RE.split(chapter_text) if p.strip()]:
-            # Gutenberg paragraphs are treated as message boundaries.
-            for piece in _split_long(paragraph, cfg.max_chars):
-                piece = piece.strip()
-                segments.append(
-                    build_segment(
-                        source=source,
-                        seq=len(segments),
-                        text=piece,
-                        sha256=sha256_text(piece),
-                        start_ms=None,
-                        end_ms=None,
-                        speaker=None,
-                        group_id=chapter_group_id,
-                        group_name=(
-                            f"{chapter_group_name} "
-                            f"({chapter_idx}/{chapter_count})"
-                        ),
-                    )
-                )
-    return segments
-
-
-def chunk_plain_text(source: Source, text: str, *, cfg: ChunkingConfig | None = None) -> list[Segment]:
+def chunk_plain_text(
+    source: Source, text: str, *, cfg: ChunkingConfig | None = None
+) -> list[Segment]:
     cfg = cfg or ChunkingConfig()
     normalized = normalize_text(text)
     if not normalized:
         return []
-    if source.platform == "gutenberg":
-        return _chunk_plain_text_gutenberg(source, normalized, cfg)
     return _chunk_plain_text_default(source, normalized, cfg)
 
 
-def _merge_transcript_messages(lines: list[TranscriptLine], cfg: ChunkingConfig) -> list[_TranscriptMessage]:
+def _merge_transcript_messages(
+    lines: list[TranscriptLine], cfg: ChunkingConfig
+) -> list[_TranscriptMessage]:
     messages: list[_TranscriptMessage] = []
     cur_text_parts: list[str] = []
     cur_start: int | None = None
@@ -221,9 +150,7 @@ def _merge_transcript_messages(lines: list[TranscriptLine], cfg: ChunkingConfig)
 
         speaker_changed = cur_speaker is not None and line.speaker != cur_speaker
         has_large_gap = (
-            cur_end is not None
-            and line.start_ms is not None
-            and (line.start_ms - cur_end) > 15_000
+            cur_end is not None and line.start_ms is not None and (line.start_ms - cur_end) > 15_000
         )
         if cur_text_parts and (speaker_changed or has_large_gap):
             flush()
@@ -246,27 +173,27 @@ def _resolve_virtual_anchor(source: Source) -> datetime | None:
     ts = raw_meta.get("timestamp")
     if isinstance(ts, (int, float)):
         try:
-            return datetime.fromtimestamp(float(ts), tz=timezone.utc)
+            return datetime.fromtimestamp(float(ts), tz=UTC)
         except (OSError, OverflowError, ValueError):
             pass
     if isinstance(ts, str) and ts.strip().isdigit():
         try:
-            return datetime.fromtimestamp(float(ts.strip()), tz=timezone.utc)
+            return datetime.fromtimestamp(float(ts.strip()), tz=UTC)
         except (OSError, OverflowError, ValueError):
             pass
 
     upload_date = raw_meta.get("upload_date")
     if isinstance(upload_date, str) and re.fullmatch(r"\d{8}", upload_date):
         try:
-            return datetime.strptime(upload_date, "%Y%m%d").replace(tzinfo=timezone.utc)
+            return datetime.strptime(upload_date, "%Y%m%d").replace(tzinfo=UTC)
         except ValueError:
             pass
 
     if source.published_at:
         published = source.published_at
         if published.tzinfo is None:
-            return published.replace(tzinfo=timezone.utc)
-        return published.astimezone(timezone.utc)
+            return published.replace(tzinfo=UTC)
+        return published.astimezone(UTC)
     return None
 
 
@@ -277,7 +204,9 @@ def _virtual_time(anchor: datetime | None, offset_ms: int | None) -> str | None:
     return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def chunk_transcript(source: Source, lines: list[TranscriptLine], *, cfg: ChunkingConfig | None = None) -> list[Segment]:
+def chunk_transcript(
+    source: Source, lines: list[TranscriptLine], *, cfg: ChunkingConfig | None = None
+) -> list[Segment]:
     cfg = cfg or ChunkingConfig(target_chars=1000, max_chars=1200)
     normalized_lines: list[TranscriptLine] = []
     for line in lines:

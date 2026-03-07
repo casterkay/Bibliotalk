@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any
 from uuid import uuid4
 
 A2AClient = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
@@ -16,7 +17,6 @@ class DiscussionConfig:
     ghost_agent_ids: list[str]
     max_turns: int = 4
     turn_order: str = "round-robin"
-    voice_mode: bool = False
 
 
 class DiscussionOrchestrator:
@@ -25,11 +25,9 @@ class DiscussionOrchestrator:
         *,
         a2a_client: A2AClient,
         post_message: PostMessage,
-        voice_dispatch: Callable[[str, dict[str, Any]], Awaitable[None]] | None = None,
     ):
         self.a2a_client = a2a_client
         self.post_message = post_message
-        self.voice_dispatch = voice_dispatch
 
     async def run(self, room_id: str, config: DiscussionConfig) -> list[dict[str, Any]]:
         history: list[dict[str, Any]] = []
@@ -60,10 +58,6 @@ class DiscussionOrchestrator:
 
             turn_payload = {"ghost_id": ghost_id, "text": text, "citations": citations}
             history.append(turn_payload)
-
-            if config.voice_mode and self.voice_dispatch is not None:
-                await self.voice_dispatch(room_id, turn_payload)
-            else:
-                await self.post_message(room_id, turn_payload)
+            await self.post_message(room_id, turn_payload)
 
         return history

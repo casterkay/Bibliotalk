@@ -3,10 +3,7 @@ from __future__ import annotations
 import re
 
 from ingestion_service.domain.models import Source, TranscriptLine
-from ingestion_service.pipeline.chunking import (
-    chunk_plain_text,
-    chunk_transcript,
-)
+from ingestion_service.pipeline.chunking import chunk_plain_text, chunk_transcript
 
 
 def test_chunk_plain_text_is_deterministic() -> None:
@@ -44,25 +41,6 @@ def test_chunk_transcript_merges_sentence_fragments_without_timestamp_prefix() -
     assert all(not s.text.startswith("[") for s in segments)
     assert segments[0].virtual_start_at == "2023-11-14T22:13:20Z"
     assert segments[0].virtual_end_at == "2023-11-14T22:13:21Z"
-
-
-def test_chunk_plain_text_gutenberg_chapter_conversations() -> None:
-    src = Source(user_id="u1", platform="gutenberg", external_id="3330", title="Analects")
-    text = (
-        "CHAPTER I\n\n"
-        "Paragraph one.\n\n"
-        "Paragraph two.\n\n"
-        "CHAPTER II\n\n"
-        "Paragraph three."
-    )
-    segments = chunk_plain_text(src, text)
-    assert len(segments) == 3
-    assert len({s.group_id for s in segments}) == 2
-    assert all(s.group_id for s in segments)
-    assert all(
-        re.match(r"^u1:gutenberg:3330:chapter:\d{3}$", s.group_id or "")
-        for s in segments
-    )
 
 
 def test_chunk_transcript_does_not_split_on_internal_punctuation() -> None:

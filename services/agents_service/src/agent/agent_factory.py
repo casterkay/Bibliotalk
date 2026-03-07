@@ -69,7 +69,6 @@ class LLMRegistry:
             cls._models.setdefault("gemini-2.5-flash", AdkGeminiLLM("gemini-2.5-flash"))
         except Exception:
             cls._models.setdefault("gemini-2.5-flash", _EchoLLM("gemini-2.5-flash"))
-        cls._models.setdefault("nova-lite-v2", _EchoLLM("nova-lite-v2"))
 
 
 @dataclass
@@ -81,7 +80,6 @@ class GhostAgent:
     llm: Any
     memory_search_fn: MemorySearchFn
     emit_citations_fn: EmitCitationsFn
-    matrix_user_id: str | None = None
     is_active: bool = True
 
     async def run(self, query: str) -> dict[str, Any]:
@@ -205,7 +203,6 @@ async def create_ghost_agent(
         llm=llm,
         memory_search_fn=memory_search_fn,
         emit_citations_fn=emit_citations_fn,
-        matrix_user_id=agent_row.get("matrix_user_id"),
         is_active=bool(agent_row.get("is_active", True)),
     )
 

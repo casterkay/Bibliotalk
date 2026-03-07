@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
-from bt_common.exceptions import (
-    EMOSConnectionError,
-    EMOSError,
-    EMOSNotFoundError,
-    EMOSValidationError,
-)
+
+from .exceptions import EMOSConnectionError, EMOSError, EMOSNotFoundError, EMOSValidationError
 
 
 class EverMemOSClient:
@@ -63,8 +60,7 @@ class EverMemOSClient:
     async def memorize(self, payload: dict[str, Any]) -> dict[str, Any]:
         required = {
             "message_id": payload.get("message_id", ""),
-            "create_time": payload.get("create_time")
-            or datetime.now(tz=timezone.utc).isoformat(),
+            "create_time": payload.get("create_time") or datetime.now(tz=UTC).isoformat(),
             "sender": payload.get("sender", ""),
             "content": payload.get("content", ""),
         }
@@ -191,9 +187,7 @@ class EverMemOSClient:
         else:
             body.setdefault(
                 "name",
-                source_meta_dict.get("title")
-                or body.get("group_id")
-                or "Ingestion Source",
+                source_meta_dict.get("title") or body.get("group_id") or "Ingestion Source",
             )
 
         if "description" not in body:
@@ -204,15 +198,11 @@ class EverMemOSClient:
                 or "Ingestion source metadata"
             )
 
-        created_at = body.get("created_at") or datetime.now(tz=timezone.utc).isoformat()
+        created_at = body.get("created_at") or datetime.now(tz=UTC).isoformat()
 
         # Some EMOS deployments reject explicit scene/scene_desc at group scope
         # and inherit them from global config.
-        scene = (
-            body.get("scene")
-            if "scene" in body
-            else (None if is_group_scope else "assistant")
-        )
+        scene = body.get("scene") if "scene" in body else (None if is_group_scope else "assistant")
 
         create_kwargs: dict[str, Any] = {
             "created_at": created_at,
@@ -235,14 +225,12 @@ class EverMemOSClient:
             lambda: self.client.v0.memories.conversation_meta.create(**create_kwargs)
         )
 
-    async def _run_with_retry(
-        self, operation: Callable[[], Awaitable[Any]]
-    ) -> dict[str, Any]:
+    async def _run_with_retry(self, operation: Callable[[], Awaitable[Any]]) -> dict[str, Any]:
         for attempt in range(1, self.retries + 1):
             try:
                 result = await operation()
                 return self._normalize_result(result)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 if self._should_retry(exc) and attempt < self.retries:
                     await asyncio.sleep(2 ** (attempt - 1))
                     continue
@@ -312,11 +300,7 @@ class EverMemOSClient:
         status_code = self._extract_status_code(exc)
         code = self._extract_code(exc)
 
-        if (
-            class_name == "NotFoundError"
-            or status_code == 404
-            or code == "RESOURCE_NOT_FOUND"
-        ):
+        if class_name == "NotFoundError" or status_code == 404 or code == "RESOURCE_NOT_FOUND":
             raise EMOSNotFoundError(message) from exc
 
         if (

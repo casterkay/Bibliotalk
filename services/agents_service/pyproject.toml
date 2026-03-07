@@ -9,19 +9,7 @@ description = "Bibliotalk agents service"
 requires-python = ">=3.11"
 dependencies = [
   "httpx[socks]>=0.27.0",
-  "itsdangerous>=2.2.0",
-  "litestar>=2.0.0",
   "pydantic>=2.8.0",
-  "pydantic-settings>=2.4.0",
-  "PyYAML>=6.0.1",
-  "rich>=13.7.0",
-  "sqlalchemy>=2.0.0",
-  "aiosqlite>=0.20.0",
-  "alembic>=1.13.0",
-  "greenlet>=3.3.2",
-  "sqladmin>=0.16.0",
-  "typer>=0.12.0",
-  "uvicorn>=0.30.0",
   "google-adk>=1.25.0",
   "google-genai>=1.0.0",
   "bt_common>=0.1.0",
@@ -37,15 +25,11 @@ dev = [
 [tool.setuptools]
 packages = [
   "agents_service",
-  "agents_service.admin",
   "agents_service.agent",
   "agents_service.agent.providers",
   "agents_service.agent.tools",
   "agents_service.database",
-  "agents_service.matrix",
   "agents_service.models",
-  "agents_service.voice",
-  "agents_service.voice.backends",
 ]
 
 [tool.setuptools.package-dir]

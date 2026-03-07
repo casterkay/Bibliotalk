@@ -1,40 +1,24 @@
-# Bibliotalk (Deprecated)
+# Bibliotalk
 
-This repository is being deprecated in favor of a simpler system:
+This repository is being reduced to the Discord-era MVP described in `specs/003-discord-bot/`.
 
-- Continuously collect YouTube transcripts for specific figures.
-- Ingest transcripts into EverMemOS to construct per-figure memory.
-- Run one Discord bot per figure.
-  - Each figure has a Discord channel that shows a feed of ingested videos (one thread per video).
-  - Users DM a figure’s bot for private chat; the bot searches relevant memory segments and cites them.
+What remains in scope:
 
-The current codebase still contains reusable pieces for this new direction (notably the YouTube ingestion pipeline and the EverMemOS client wrapper).
+- `packages/bt_common/`: shared EverMemOS client, config loading, logging, and common exceptions.
+- `services/ingestion_service/`: retained YouTube/RSS ingestion primitives, chunking, and EverMemOS indexing logic.
+- `services/agents_service/`: retained Gemini-grounded agent library, evidence models, and citation tooling.
+- `specs/002-evermemos-content-ingest/` and `specs/003-discord-bot/`: active design artifacts.
 
-See `BLUEPRINT.md` for the rewritten target architecture.
-
-## What Still Matters Here
-
-- `services/ingestion_service/`: YouTube transcript ingestion + chunking + dedup + EverMemOS memorize.
-- `packages/bt_common/`: shared EverMemOS client, config loading, logging, exceptions.
+Out-of-scope legacy surfaces such as Matrix transport, voice runtimes, SQLAdmin, Synapse deploy assets, and unrelated research docs have been removed.
 
 ## Development
 
-- Sync deps (workspace):
-  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
-- Run tests:
-  - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
-  - `uv --directory packages/bt_common run --package bt_common -m pytest`
+- Sync deps (workspace): `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+- Run agent tests: `uv --directory services/agents_service run --package agents_service -m pytest`
+- Run ingestion tests: `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
+- Run shared package tests: `uv --directory packages/bt_common run --package bt_common -m pytest`
 
-## EverMemOS Ingestion CLI (One-shot)
+## Notes
 
-Environment variables:
-
-- `EMOS_BASE_URL` (required)
-- `EMOS_API_KEY` (optional)
-- `INGEST_INDEX_PATH` (optional)
-
-YouTube ingest happens via the ingestion service CLI and manifest tooling.
-
-Notes:
-
-- `yt-dlp` must be available on PATH (used for YouTube metadata/discovery).
+- `yt-dlp` must be available on `PATH` for YouTube metadata and discovery.
+- The canonical target architecture is documented in `specs/003-discord-bot/plan.md`.

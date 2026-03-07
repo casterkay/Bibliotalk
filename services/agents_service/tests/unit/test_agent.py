@@ -39,7 +39,7 @@ class FakeSupabase:
             "id": str(self.agent_id),
             "display_name": "Confucius (Ghost)",
             "persona_prompt": "You are Confucius.",
-            "llm_model": "nova-lite-v2",
+            "llm_model": "gemini-2.5-flash",
         }
 
     async def get_agent_emos_config(self, agent_id):
@@ -65,7 +65,7 @@ async def test_agent_factory_creates_llm_agent_with_correct_persona_prompt() -> 
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
-    registry.register("nova-lite-v2", FakeLlm("nova-lite-v2"))
+    registry.register("gemini-2.5-flash", FakeLlm("gemini-2.5-flash"))
 
     agent = await create_ghost_agent(supabase.agent_id, store=supabase, llm_registry=registry)
 
@@ -79,7 +79,7 @@ async def test_agent_calls_memory_search_tool_when_given_factual_question() -> N
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
-    registry.register("nova-lite-v2", FakeLlm("nova-lite-v2"))
+    registry.register("gemini-2.5-flash", FakeLlm("gemini-2.5-flash"))
     called = {"value": 0}
 
     async def fake_memory_search(query: str, agent_id: str):
@@ -113,7 +113,7 @@ async def test_agent_calls_emit_citations_with_evidence_objects() -> None:
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
-    registry.register("nova-lite-v2", FakeLlm("nova-lite-v2"))
+    registry.register("gemini-2.5-flash", FakeLlm("gemini-2.5-flash"))
     seen = {"count": 0}
 
     evidence = Evidence(
@@ -151,7 +151,7 @@ async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty(
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
-    registry.register("nova-lite-v2", FakeLlm("nova-lite-v2"))
+    registry.register("gemini-2.5-flash", FakeLlm("gemini-2.5-flash"))
 
     async def empty_memory_search(query: str, agent_id: str):
         return []
@@ -174,8 +174,8 @@ async def test_agent_uses_correct_llm_model_from_config() -> None:
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
-    llm = FakeLlm("nova-lite-v2")
-    registry.register("nova-lite-v2", llm)
+    llm = FakeLlm("gemini-2.5-flash")
+    registry.register("gemini-2.5-flash", llm)
 
     evidence = Evidence(
         segment_id=uuid4(),
@@ -199,7 +199,7 @@ async def test_agent_uses_correct_llm_model_from_config() -> None:
     await agent.run("What did you say about learning?")
 
     assert llm.calls == 1
-    assert agent.model == "nova-lite-v2"
+    assert agent.model == "gemini-2.5-flash"
 
 
 @pytest.mark.anyio
@@ -208,7 +208,7 @@ async def test_agent_handles_memory_outage_gracefully() -> None:
 
     supabase = FakeSupabase()
     registry = FakeRegistry()
-    registry.register("nova-lite-v2", FakeLlm("nova-lite-v2"))
+    registry.register("gemini-2.5-flash", FakeLlm("gemini-2.5-flash"))
 
     class _FakeEmosError(Exception):
         pass
