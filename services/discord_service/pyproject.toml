@@ -3,16 +3,15 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agents_service"
+name = "discord_service"
 version = "0.1.0"
-description = "Bibliotalk agents service"
+description = "Bibliotalk Discord runtime"
 requires-python = ">=3.11"
 dependencies = [
   "bt_common>=0.1.0",
-  "google-adk>=1.25.0",
-  "google-genai>=1.0.0",
-  "httpx[socks]>=0.27.0",
+  "discord.py>=2.4.0",
   "pydantic>=2.8.0",
+  "pydantic-settings>=2.4.0",
 ]
 
 [project.optional-dependencies]
@@ -23,27 +22,13 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = [
-  "agents_service",
-  "agents_service.agent",
-  "agents_service.agent.providers",
-  "agents_service.agent.tools",
-  "agents_service.models",
-]
+packages = ["discord_service"]
 
 [tool.setuptools.package-dir]
-"agents_service" = "src"
+"discord_service" = "src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "RUF"]
-ignore = ["E501"]
 
 [tool.uv.sources]
 bt-common = { workspace = true }

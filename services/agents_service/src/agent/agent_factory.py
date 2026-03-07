@@ -15,8 +15,8 @@ from bt_common.config import get_emos_fallback_settings
 from bt_common.evermemos_client import EverMemOSClient
 from bt_common.exceptions import AgentNotFoundError
 
-from ..database.store import Store
 from ..models.citation import Evidence
+from ..store import Store
 from .providers.gemini import GeminiConfigurationError
 from .tools.emit_citations import EmitCitationsTool
 from .tools.memory_search import MemorySearchTool

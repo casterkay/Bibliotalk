@@ -2,11 +2,58 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from ..domain.errors import AdapterError, UnsupportedSourceError
-from .url_tools import canonicalize_http_url, is_http_url
+
+_TRACKING_KEYS = {
+    "gclid",
+    "fbclid",
+    "igshid",
+    "mc_cid",
+    "mc_eid",
+}
+
+
+def is_http_url(url: str) -> bool:
+    value = url.strip().lower()
+    return value.startswith("http://") or value.startswith("https://")
+
+
+def canonicalize_http_url(url: str) -> str:
+    raw = (url or "").strip()
+    if not raw:
+        raise AdapterError("URL is empty")
+    if not is_http_url(raw):
+        raise AdapterError(f"Unsupported URL scheme (http/https only): {url}")
+
+    parsed = urlparse(raw)
+    scheme = (parsed.scheme or "https").lower()
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        raise AdapterError(f"Invalid URL (no hostname): {url}")
+
+    netloc = hostname
+    if parsed.port and not (
+        (scheme == "http" and parsed.port == 80) or (scheme == "https" and parsed.port == 443)
+    ):
+        netloc = f"{hostname}:{parsed.port}"
+
+    path = parsed.path or "/"
+    if path != "/" and path.endswith("/"):
+        path = path[:-1]
+
+    query_pairs = []
+    for key, value in parse_qsl(parsed.query, keep_blank_values=True):
+        lowered = key.lower()
+        if lowered.startswith("utm_") or lowered in _TRACKING_KEYS:
+            continue
+        query_pairs.append((key, value))
+
+    query = urlencode(query_pairs, doseq=True)
+    return urlunparse((scheme, netloc, path, "", query, ""))
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +94,7 @@ def _to_datetime(value: Any) -> datetime | None:
     parsed = getattr(value, "published_parsed", None)
     if parsed:
         try:
-            return datetime(*parsed[:6], tzinfo=timezone.utc)
+            return datetime(*parsed[:6], tzinfo=UTC)
         except Exception:
             return None
     raw = getattr(value, "published", None) or getattr(value, "updated", None)
@@ -55,7 +102,7 @@ def _to_datetime(value: Any) -> datetime | None:
         try:
             dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             return dt
         except ValueError:
             return None
@@ -79,7 +126,9 @@ def _parse_sync(feed_url: str) -> list[FeedEntry]:
             canon = canonicalize_http_url(link)
         except Exception:
             continue
-        title = getattr(entry, "title", None) or (entry.get("title") if isinstance(entry, dict) else None)
+        title = getattr(entry, "title", None) or (
+            entry.get("title") if isinstance(entry, dict) else None
+        )
         published = _to_datetime(entry)
         entries.append(
             FeedEntry(
@@ -100,7 +149,7 @@ async def parse_feed(feed_url: str, *, max_items: int | None = None) -> list[Fee
 
     entries = await asyncio.to_thread(_parse_sync, canon_feed)
     # Deterministic ordering: published_at desc (when present), then URL asc.
-    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    epoch = datetime(1970, 1, 1, tzinfo=UTC)
     entries.sort(
         key=lambda e: (
             -(e.published_at or epoch).timestamp(),

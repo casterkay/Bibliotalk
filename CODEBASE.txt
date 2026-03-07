@@ -12,6 +12,9 @@
 │       └── src
 │           ├── config.py
 │           ├── evermemos_client.py
+│           ├── evidence_store
+│           │   ├── engine.py
+│           │   └── models.py
 │           ├── exceptions.py
 │           └── logging.py
 ├── pyproject.toml
@@ -29,32 +32,44 @@
 │   │       │   ├── providers
 │   │       │   └── tools
 │   │       ├── database
-│   │       │   └── store.py
-│   │       └── models
-│   │           ├── citation.py
-│   │           └── segment.py
-│   └── ingestion_service
+│   │       ├── models
+│   │       │   ├── citation.py
+│   │       │   └── segment.py
+│   │       └── store.py
+│   ├── discord_service
+│   │   ├── pyproject.toml
+│   │   └── src
+│   │       ├── config.py
+│   │       └── runtime.py
+│   ├── ingestion_service
+│   │   ├── alembic
+│   │   │   ├── env.py
+│   │   │   └── versions
+│   │   │       └── 0001_initial_schema.py
+│   │   ├── alembic.ini
+│   │   ├── pyproject.toml
+│   │   ├── README.md
+│   │   ├── scripts
+│   │   └── src
+│   │       ├── adapters
+│   │       │   ├── base.py
+│   │       │   ├── rss_feed.py
+│   │       │   └── youtube_transcript.py
+│   │       ├── domain
+│   │       │   ├── errors.py
+│   │       │   ├── ids.py
+│   │       │   └── models.py
+│   │       ├── pipeline
+│   │       │   ├── chunking.py
+│   │       │   ├── index.py
+│   │       │   └── ingest.py
+│   │       └── runtime
+│   │           ├── config.py
+│   │           ├── poller.py
+│   │           └── reporting.py
+│   └── memory_page_service
 │       ├── pyproject.toml
-│       ├── README.md
-│       ├── scripts
 │       └── src
-│           ├── adapters
-│           │   ├── base.py
-│           │   ├── rss_feed.py
-│           │   ├── url_tools.py
-│           │   └── youtube_transcript.py
-│           ├── domain
-│           │   ├── errors.py
-│           │   ├── ids.py
-│           │   └── models.py
-│           ├── pipeline
-│           │   ├── chunking.py
-│           │   ├── index.py
-│           │   ├── ingest.py
-│           │   └── manifest.py
-│           └── runtime
-│               ├── config.py
-│               └── reporting.py
 ├── specs
 │   ├── 002-evermemos-content-ingest
 │   │   ├── checklists
@@ -87,5 +102,5 @@
 │       └── tasks.md
 └── uv.lock
 
-29 directories, 59 files
+36 directories, 67 files
 

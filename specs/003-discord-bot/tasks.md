@@ -11,17 +11,17 @@
 
 **Purpose**: Remove out-of-scope code, align package manifests, and create the new standalone runtimes.
 
-- [ ] T001 Delete Matrix transport code in `services/agents_service/src/matrix/`
-- [ ] T002 Delete voice runtime code in `services/agents_service/src/voice/`
-- [ ] T003 Delete SQLAdmin UI code in `services/agents_service/src/admin/`
-- [ ] T004 Delete legacy database layer in `services/agents_service/src/database/`
-- [ ] T005 Delete unused Gemini alternatives and server entrypoint in `services/agents_service/src/agent/providers/aws_nova.py` and `services/agents_service/src/server.py`
-- [ ] T006 Delete non-YouTube adapters in `services/ingestion_service/src/adapters/blog_crawl.py`, `services/ingestion_service/src/adapters/document.py`, `services/ingestion_service/src/adapters/gutenberg.py`, `services/ingestion_service/src/adapters/http_fetch.py`, `services/ingestion_service/src/adapters/local_text.py`, `services/ingestion_service/src/adapters/url_tools.py`, and `services/ingestion_service/src/adapters/web_page.py`
-- [ ] T007 Delete non-MVP ingestion entrypoints in `services/ingestion_service/src/server.py` and `services/ingestion_service/src/pipeline/manifest.py`
-- [ ] T008 Update retained package dependencies in `services/ingestion_service/pyproject.toml` and `services/agents_service/pyproject.toml` to match the trimmed MVP scope
-- [ ] T009 Create the shared evidence-store package skeleton in `packages/bt_common/src/evidence_store/__init__.py`, `packages/bt_common/src/evidence_store/engine.py`, and `packages/bt_common/src/evidence_store/models.py`
-- [ ] T010 [P] Create the new Discord runtime package skeleton in `services/discord_service/pyproject.toml`, `services/discord_service/src/__init__.py`, `services/discord_service/src/__main__.py`, and `services/discord_service/tests/__init__.py`
-- [ ] T011 [P] Create the new memory-page service package skeleton in `services/memory_page_service/pyproject.toml`, `services/memory_page_service/src/__init__.py`, and `services/memory_page_service/src/__main__.py`
+- [X] T001 Delete Matrix transport code in `services/agents_service/src/matrix/`
+- [X] T002 Delete voice runtime code in `services/agents_service/src/voice/`
+- [X] T003 Delete SQLAdmin UI code in `services/agents_service/src/admin/`
+- [X] T004 Delete legacy database layer in `services/agents_service/src/database/`
+- [X] T005 Delete unused Gemini alternatives and server entrypoint in `services/agents_service/src/agent/providers/aws_nova.py` and `services/agents_service/src/server.py`
+- [X] T006 Delete non-YouTube adapters in `services/ingestion_service/src/adapters/blog_crawl.py`, `services/ingestion_service/src/adapters/document.py`, `services/ingestion_service/src/adapters/gutenberg.py`, `services/ingestion_service/src/adapters/http_fetch.py`, `services/ingestion_service/src/adapters/local_text.py`, `services/ingestion_service/src/adapters/url_tools.py`, and `services/ingestion_service/src/adapters/web_page.py`
+- [X] T007 Delete non-MVP ingestion entrypoints in `services/ingestion_service/src/server.py` and `services/ingestion_service/src/pipeline/manifest.py`
+- [X] T008 Update retained package dependencies in `services/ingestion_service/pyproject.toml` and `services/agents_service/pyproject.toml` to match the trimmed MVP scope
+- [X] T009 Create the shared evidence-store package skeleton in `packages/bt_common/src/evidence_store/__init__.py`, `packages/bt_common/src/evidence_store/engine.py`, and `packages/bt_common/src/evidence_store/models.py`
+- [X] T010 [P] Create the new Discord runtime package skeleton in `services/discord_service/pyproject.toml`, `services/discord_service/src/__init__.py`, `services/discord_service/src/__main__.py`, and `services/discord_service/tests/__init__.py`
+- [X] T011 [P] Create the new memory-page service package skeleton in `services/memory_page_service/pyproject.toml`, `services/memory_page_service/src/__init__.py`, and `services/memory_page_service/src/__main__.py`
 
 ---
 
@@ -31,18 +31,18 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete.
 
-- [ ] T012 Create the SQLAlchemy async engine and session factory in `packages/bt_common/src/evidence_store/engine.py`
-- [ ] T013 Create the shared ORM schema in `packages/bt_common/src/evidence_store/models.py`
-- [ ] T014 Create the initial Alembic environment and first migration in `services/ingestion_service/alembic/env.py` and `services/ingestion_service/alembic/versions/0001_initial_schema.py`
-- [ ] T015 [P] Create standalone collector configuration models in `services/ingestion_service/src/runtime/config.py`
-- [ ] T016 [P] Create Discord runtime configuration models in `services/discord_service/src/config.py`
-- [ ] T017 [P] Add structured logging bootstrap for the collector and Discord runtimes in `services/ingestion_service/src/runtime/reporting.py` and `services/discord_service/src/runtime.py`
-- [ ] T018 Refactor `services/ingestion_service/src/pipeline/index.py` to use `AsyncSession` from `packages/bt_common/src/evidence_store/engine.py`
+- [X] T012 Create the SQLAlchemy async engine and session factory in `packages/bt_common/src/evidence_store/engine.py`
+- [X] T013 Create the shared ORM schema in `packages/bt_common/src/evidence_store/models.py`
+- [X] T014 Create the initial Alembic environment and first migration in `services/ingestion_service/alembic/env.py` and `services/ingestion_service/alembic/versions/0001_initial_schema.py`
+- [X] T015 [P] Create standalone collector configuration models in `services/ingestion_service/src/runtime/config.py`
+- [X] T016 [P] Create Discord runtime configuration models in `services/discord_service/src/config.py`
+- [X] T017 [P] Add structured logging bootstrap for the collector and Discord runtimes in `services/ingestion_service/src/runtime/reporting.py` and `services/discord_service/src/runtime.py`
+- [X] T018 Refactor `services/ingestion_service/src/pipeline/index.py` to use `AsyncSession` from `packages/bt_common/src/evidence_store/engine.py`
 - [ ] T019 Refactor `services/ingestion_service/src/domain/models.py` to keep only YouTube and evidence-cache fields needed by the MVP in `services/ingestion_service/src/domain/models.py`
-- [ ] T020 Refactor `services/agents_service/src/models/citation.py` to the new `Evidence` and link-validation contract from `specs/003-discord-bot/contracts/evidence.md`
-- [ ] T021 Create the standalone collector process bootstrap in `services/ingestion_service/src/__main__.py` and `services/ingestion_service/src/runtime/poller.py`
-- [ ] T022 Create the Discord bot process bootstrap in `services/discord_service/src/runtime.py` and `services/discord_service/src/__main__.py`
-- [ ] T023 [P] Add foundational database and startup tests in `packages/bt_common/tests/test_evidence_store_models.py`, `services/ingestion_service/tests/integration/test_runtime_startup.py`, and `services/discord_service/tests/integration/test_runtime_startup.py`
+- [X] T020 Refactor `services/agents_service/src/models/citation.py` to the new `Evidence` and link-validation contract from `specs/003-discord-bot/contracts/evidence.md`
+- [X] T021 Create the standalone collector process bootstrap in `services/ingestion_service/src/__main__.py` and `services/ingestion_service/src/runtime/poller.py`
+- [X] T022 Create the Discord bot process bootstrap in `services/discord_service/src/runtime.py` and `services/discord_service/src/__main__.py`
+- [X] T023 [P] Add foundational database and startup tests in `packages/bt_common/tests/test_evidence_store_models.py`, `services/ingestion_service/tests/integration/test_runtime_startup.py`, and `services/discord_service/tests/integration/test_runtime_startup.py`
 
 **Checkpoint**: Shared DB infra, collector runtime, and Discord runtime boundaries are ready for story implementation.
 

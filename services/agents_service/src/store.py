@@ -1,9 +1,4 @@
-"""Database access abstraction for agents_service.
-
-This protocol captures only the retrieval operations still needed by the
-trimmed agent library after the Matrix-era runtime and ORM implementation were
-removed from the repository.
-"""
+"""Store protocol for figure-agent retrieval dependencies."""
 
 from __future__ import annotations
 

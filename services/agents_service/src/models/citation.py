@@ -1,9 +1,10 @@
-"""Citation and evidence models with validation helpers."""
+"""Evidence contract and link-validation helpers for grounded responses."""
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterable, Sequence
 from datetime import datetime
-from typing import Iterable, Sequence
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -11,11 +12,41 @@ from pydantic import BaseModel, Field
 
 class Evidence(BaseModel):
     segment_id: UUID
-    emos_message_id: str
+    source_id: UUID | None = None
+    figure_id: UUID | None = None
+    memory_user_id: str = ""
+    memory_timestamp: datetime | None = None
+    memory_page_id: str | None = None
+    memory_url: str | None = None
     source_title: str
     source_url: str
     text: str
+    group_id: str = ""
     platform: str
+    published_at: datetime | None = None
+    video_url_with_timestamp: str | None = None
+    emos_message_id: str | None = None
+
+    def model_post_init(self, __context: object) -> None:
+        if (
+            self.memory_page_id is None
+            and self.memory_user_id
+            and self.memory_timestamp is not None
+        ):
+            self.memory_page_id = (
+                f"{self.memory_user_id}_{self.memory_timestamp.strftime('%Y%m%dT%H%M%SZ')}"
+            )
+        if self.memory_url is None and self.memory_page_id:
+            self.memory_url = f"https://www.bibliotalk.space/memory/{self.memory_page_id}"
+        if (
+            self.video_url_with_timestamp is None
+            and self.published_at is not None
+            and self.memory_timestamp is not None
+            and self.source_url
+        ):
+            offset = max(0, int((self.memory_timestamp - self.published_at).total_seconds()))
+            separator = "&" if "?" in self.source_url else "?"
+            self.video_url_with_timestamp = f"{self.source_url}{separator}t={offset}s"
 
 
 class Citation(BaseModel):
@@ -29,7 +60,7 @@ class Citation(BaseModel):
     timestamp: datetime | None = None
 
     @classmethod
-    def from_evidence(cls, evidence: Evidence, *, index: int, quote: str) -> "Citation":
+    def from_evidence(cls, evidence: Evidence, *, index: int, quote: str) -> Citation:
         return cls(
             index=index,
             segment_id=evidence.segment_id,
@@ -69,3 +100,30 @@ def validate_citations(
         valid.append(citation)
 
     return valid
+
+
+_INLINE_LINK_RE = re.compile(r"\[([^\]]+)\]\((https://www\.bibliotalk\.space/memory/[^)]+)\)")
+_QUOTED_TEXT_RE = re.compile(r'"([^"]+)"')
+
+
+def validate_evidence_links(
+    response_text: str,
+    evidence_set: list[Evidence],
+    *,
+    figure_emos_user_id: str,
+) -> str:
+    evidence_by_url = {e.memory_url: e for e in evidence_set if e.memory_url}
+
+    def _replace(match: re.Match[str]) -> str:
+        visible_text, url = match.group(1), match.group(2)
+        evidence = evidence_by_url.get(url)
+        if evidence is None:
+            return visible_text
+        if evidence.memory_user_id != figure_emos_user_id:
+            return visible_text
+        quoted_spans = _QUOTED_TEXT_RE.findall(response_text)
+        if quoted_spans and not any(span in evidence.text for span in quoted_spans):
+            return visible_text
+        return match.group(0)
+
+    return _INLINE_LINK_RE.sub(_replace, response_text)

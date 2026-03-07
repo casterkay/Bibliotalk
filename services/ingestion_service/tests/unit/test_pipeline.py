@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import uuid
 
 import pytest
+from bt_common.evidence_store.engine import get_session_factory, init_database
+from bt_common.evidence_store.models import Figure
+from bt_common.evidence_store.models import Source as StoredSource
 from ingestion_service.domain.models import PlainTextContent, Source, SourceContent
 from ingestion_service.pipeline.index import IngestionIndex
 from ingestion_service.pipeline.ingest import ingest_sources
@@ -26,9 +30,28 @@ class StubEverMemOS:
 async def test_segment_cache_matches_memorize_payload_and_skips_do_not_append(
     tmp_path,
 ) -> None:
-    idx = IngestionIndex(tmp_path / "index.sqlite3")
+    db = tmp_path / "index.sqlite3"
+    await init_database(db)
+    session_factory = get_session_factory(db)
+    idx = IngestionIndex(session_factory, path=db)
     client = StubEverMemOS()
     cache_dir = tmp_path / "segment_cache"
+
+    async with session_factory() as session:
+        figure = Figure(figure_id=uuid.uuid4(), display_name="Test Figure", emos_user_id="u1")
+        session.add(figure)
+        await session.flush()
+        session.add(
+            StoredSource(
+                figure_id=figure.figure_id,
+                external_id="e1",
+                group_id="u1:local:e1",
+                platform="local",
+                title="T",
+                source_url="https://example.com/e1",
+            )
+        )
+        await session.commit()
 
     src = Source(user_id="u1", platform="local", external_id="e1", title="T")
     sc = SourceContent(source=src, content=PlainTextContent(text="One.\n\nTwo.\n\nThree."))

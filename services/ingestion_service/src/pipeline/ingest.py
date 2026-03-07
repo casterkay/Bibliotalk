@@ -4,28 +4,25 @@ import hashlib
 import json
 import logging
 import uuid
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from bt_common.evermemos_client import EverMemOSClient
 
-from ..domain.errors import IngestError, InvalidInputError
+from ..domain.errors import IngestError
 from ..domain.models import (
     IngestReport,
     PlainTextContent,
     ReportError,
     ReportSummary,
     SegmentResult,
-    Source,
     SourceContent,
     SourceResult,
 )
 from ..runtime.reporting import redact_text
 from .chunking import ChunkingConfig, chunk_plain_text, chunk_transcript, normalize_text
 from .index import IngestionIndex
-from .manifest import Manifest, ResolvedManifestSource, resolve_manifest_sources
 
 logger = logging.getLogger("ingestion_service")
 
@@ -84,60 +81,6 @@ def _failed_source_result(
     )
 
 
-async def _source_content_from_resolved(
-    resolved: ResolvedManifestSource,
-) -> SourceContent:
-    if resolved.mode == "text":
-        if resolved.text is None:
-            raise InvalidInputError("Manifest source mode=text missing text")
-        return SourceContent(source=resolved.source, content=PlainTextContent(text=resolved.text))
-
-    if resolved.mode == "youtube":
-        if resolved.source.platform != "youtube":
-            raise InvalidInputError("youtube_video_id requires platform=youtube")
-        if resolved.youtube_video_id is None:
-            raise InvalidInputError("Manifest source mode=youtube missing youtube_video_id")
-        from ..adapters.youtube_transcript import load_youtube_transcript_source
-
-        return await load_youtube_transcript_source(
-            user_id=resolved.source.user_id,
-            external_id=resolved.source.external_id,
-            title=resolved.source.title,
-            video_id=resolved.youtube_video_id,
-            source_url=resolved.source.source_url,
-        )
-
-    raise InvalidInputError(f"Unsupported manifest source mode: {resolved.mode}")
-
-
-@dataclass(frozen=True, slots=True)
-class _ExpandedSource:
-    source: Source
-    source_content: SourceContent | None
-    error: IngestError | None = None
-
-
-def _merge_raw_meta(
-    left: dict[str, Any] | None, right: dict[str, Any] | None
-) -> dict[str, Any] | None:
-    if not left and not right:
-        return None
-    out: dict[str, Any] = {}
-    if left:
-        out.update(left)
-    if right:
-        out.update(right)
-    return out
-
-
-async def _expand_resolved(resolved: ResolvedManifestSource) -> list[_ExpandedSource]:
-    if resolved.mode in {"text", "youtube"}:
-        sc = await _source_content_from_resolved(resolved)
-        return [_ExpandedSource(source=sc.source, source_content=sc)]
-
-    raise InvalidInputError(f"Unsupported manifest source mode: {resolved.mode}")
-
-
 async def ingest_source(
     *,
     source_content: SourceContent,
@@ -173,7 +116,7 @@ async def ingest_source(
     meta_saved = False
     try:
         for gid, gname in group_meta.items():
-            if index.get_source_meta_saved(user_id=source.user_id, group_id=gid):
+            if await index.get_source_meta_saved(user_id=source.user_id, group_id=gid):
                 continue
             meta = {
                 "platform": source.platform,
@@ -192,7 +135,7 @@ async def ingest_source(
                 group_id=gid,
                 source_meta={k: v for k, v in meta.items() if v is not None},
             )
-            index.set_source_meta_saved(
+            await index.set_source_meta_saved(
                 user_id=source.user_id,
                 group_id=gid,
                 source_fingerprint=_source_fingerprint(source_content),
@@ -225,14 +168,14 @@ async def ingest_source(
     for seg in segments:
         seg_group_id = seg.group_id or default_group_id
         seg_group_name = seg.group_name or default_group_name
-        existing = index.get_segment(user_id=source.user_id, message_id=seg.message_id)
+        existing = await index.get_segment(user_id=source.user_id, message_id=seg.message_id)
         if (
             existing
             and existing.sha256 == seg.sha256
             and existing.status in {"ingested", "skipped_unchanged"}
         ):
             skipped += 1
-            index.upsert_segment_status(
+            await index.upsert_segment_status(
                 user_id=source.user_id,
                 group_id=seg_group_id,
                 message_id=seg.message_id,
@@ -292,7 +235,7 @@ async def ingest_source(
 
             await client.memorize(payload)
             ingested += 1
-            index.upsert_segment_status(
+            await index.upsert_segment_status(
                 user_id=source.user_id,
                 group_id=seg_group_id,
                 message_id=seg.message_id,
@@ -330,7 +273,7 @@ async def ingest_source(
         except Exception as exc:
             failed += 1
             err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
-            index.upsert_segment_status(
+            await index.upsert_segment_status(
                 user_id=source.user_id,
                 group_id=seg_group_id,
                 message_id=seg.message_id,
@@ -410,80 +353,6 @@ async def ingest_sources(
         results.append(result)
         if result.status == "failed":
             any_failed = True
-
-    summary = ReportSummary(
-        sources_total=len(results),
-        sources_succeeded=sum(1 for r in results if r.status == "done"),
-        sources_failed=sum(1 for r in results if r.status == "failed"),
-        segments_ingested=sum(r.segments_ingested for r in results),
-        segments_skipped_unchanged=sum(r.segments_skipped_unchanged for r in results),
-        segments_failed=sum(r.segments_failed for r in results),
-    )
-    finished = _now()
-
-    return IngestReport(
-        run_id=run_id,
-        started_at=started,
-        finished_at=finished,
-        status="failed" if any_failed else "done",
-        summary=summary,
-        sources=results,
-    )
-
-
-async def ingest_manifest(
-    *,
-    manifest: Manifest,
-    index: IngestionIndex,
-    client: EverMemOSClient,
-    include_segment_details: bool = True,
-    redact_secrets: list[str] | None = None,
-    segment_cache_dir: Path | None = None,
-) -> IngestReport:
-    started = _now()
-    run_id = str(uuid.uuid4())
-    redact_secrets = redact_secrets or []
-
-    results: list[SourceResult] = []
-    any_failed = False
-
-    for resolved in resolve_manifest_sources(manifest):
-        try:
-            expanded = await _expand_resolved(resolved)
-        except Exception as exc:
-            err = exc if isinstance(exc, IngestError) else IngestError(str(exc))
-            result = _failed_source_result(
-                source=resolved.source,
-                err=err,
-                redact_secrets=redact_secrets,
-                include_segment_details=include_segment_details,
-            )
-            results.append(result)
-            any_failed = True
-            continue
-
-        for item in expanded:
-            if item.source_content is None:
-                err = item.error or IngestError("Failed to load source content")
-                result = _failed_source_result(
-                    source=item.source,
-                    err=err,
-                    redact_secrets=redact_secrets,
-                    include_segment_details=include_segment_details,
-                )
-            else:
-                result = await ingest_source(
-                    source_content=item.source_content,
-                    index=index,
-                    client=client,
-                    run_id=run_id,
-                    include_segment_details=include_segment_details,
-                    redact_secrets=redact_secrets,
-                    segment_cache_dir=segment_cache_dir,
-                )
-            results.append(result)
-            if result.status == "failed":
-                any_failed = True
 
     summary = ReportSummary(
         sources_total=len(results),
