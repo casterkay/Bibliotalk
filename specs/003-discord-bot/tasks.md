@@ -85,19 +85,19 @@
 
 ### Tests for User Story 2
 
-- [ ] T037 [P] [US2] Add unit tests for transcript batching rules in `services/discord_service/tests/unit/test_batcher.py`
-- [ ] T038 [P] [US2] Add unit tests for Discord post idempotency state transitions in `services/discord_service/tests/unit/test_feed_publisher.py`
-- [ ] T039 [P] [US2] Add integration tests for parent-post, thread creation, retry, and resume behavior in `services/discord_service/tests/integration/test_feed_publication.py`
-- [ ] T040 [P] [US2] Add contract tests for Discord message shapes from `specs/003-discord-bot/contracts/discord-messages.md` in `services/discord_service/tests/contract/test_discord_message_models.py`
+- [X] T037 [P] [US2] Add unit tests for transcript batching rules in `services/discord_service/tests/unit/test_batcher.py`
+- [X] T038 [P] [US2] Add unit tests for Discord post idempotency state transitions in `services/discord_service/tests/unit/test_feed_publisher.py`
+- [X] T039 [P] [US2] Add integration tests for parent-post, thread creation, retry, and resume behavior in `services/discord_service/tests/integration/test_feed_publication.py`
+- [X] T040 [P] [US2] Add contract tests for Discord message shapes from `specs/003-discord-bot/contracts/discord-messages.md` in `services/discord_service/tests/contract/test_discord_message_models.py`
 
 ### Implementation for User Story 2
 
-- [ ] T041 [P] [US2] Implement transcript batch grouping in `services/discord_service/src/feed/batcher.py`
-- [ ] T042 [P] [US2] Implement typed Discord boundary models in `services/discord_service/src/bot/message_models.py`
-- [ ] T043 [US2] Implement feed parent-message and thread publisher logic in `services/discord_service/src/feed/publisher.py`
-- [ ] T044 [US2] Persist and resume `discord_posts` state during feed publication in `services/discord_service/src/feed/publisher.py` and `packages/bt_common/src/evidence_store/models.py`
-- [ ] T045 [US2] Trigger feed publication from newly ingested videos by reading shared ingest state in `services/discord_service/src/feed/publisher.py` and `services/discord_service/src/runtime.py`
-- [ ] T046 [US2] Add rate-limit handling and retry logging for Discord publication in `services/discord_service/src/feed/publisher.py`
+- [X] T041 [P] [US2] Implement transcript batch grouping in `services/discord_service/src/feed/batcher.py`
+- [X] T042 [P] [US2] Implement typed Discord boundary models in `services/discord_service/src/bot/message_models.py`
+- [X] T043 [US2] Implement feed parent-message and thread publisher logic in `services/discord_service/src/feed/publisher.py`
+- [X] T044 [US2] Persist and resume `discord_posts` state during feed publication in `services/discord_service/src/feed/publisher.py` and `packages/bt_common/src/evidence_store/models.py`
+- [X] T045 [US2] Trigger feed publication from newly ingested videos by reading shared ingest state in `services/discord_service/src/feed/publisher.py` and `services/discord_service/src/runtime.py`
+- [X] T046 [US2] Add rate-limit handling and retry logging for Discord publication in `services/discord_service/src/feed/publisher.py`
 
 **Checkpoint**: User Story 2 is functional when the system can publish feed content for already-ingested videos, retry safely, and avoid duplicate threads or messages.
 

@@ -39,7 +39,12 @@
 │   ├── discord_service
 │   │   ├── pyproject.toml
 │   │   └── src
+│   │       ├── bot
+│   │       │   └── message_models.py
 │   │       ├── config.py
+│   │       ├── feed
+│   │       │   ├── batcher.py
+│   │       │   └── publisher.py
 │   │       └── runtime.py
 │   ├── ingestion_service
 │   │   ├── alembic
@@ -105,5 +110,5 @@
 │       └── tasks.md
 └── uv.lock
 
-36 directories, 70 files
+38 directories, 73 files
 
