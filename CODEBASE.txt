@@ -46,6 +46,7 @@
 │   │       ├── config.py
 │   │       ├── feed
 │   │       │   ├── batcher.py
+│   │       │   ├── discord_transport.py
 │   │       │   └── publisher.py
 │   │       └── runtime.py
 │   ├── ingestion_service
@@ -81,6 +82,7 @@
 │       ├── pyproject.toml
 │       └── src
 │           ├── app.py
+│           ├── config.py
 │           └── resolver.py
 ├── specs
 │   ├── 002-evermemos-content-ingest
@@ -114,5 +116,5 @@
 │       └── tasks.md
 └── uv.lock
 
-38 directories, 77 files
+38 directories, 79 files
 
