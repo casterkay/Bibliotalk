@@ -108,6 +108,38 @@ class EverMemOSClient:
             )
         )
 
+    async def get_memories(
+        self,
+        *,
+        user_id: str | None = None,
+        group_id: str | None = None,
+        memory_type: str = "episodic_memory",
+        limit: int = 20,
+        offset: int = 0,
+        start_time: str | None = None,
+        end_time: str | None = None,
+    ) -> dict[str, Any]:
+        query: dict[str, Any] = {
+            "memory_type": memory_type,
+            "limit": limit,
+            "offset": offset,
+        }
+        if user_id is not None:
+            query["user_id"] = user_id
+        if group_id is not None:
+            query["group_id"] = group_id
+        if start_time is not None:
+            query["start_time"] = start_time
+        if end_time is not None:
+            query["end_time"] = end_time
+
+        return await self._run_with_retry(
+            lambda: self.client.v0.memories.get(
+                extra_headers=self.headers or None,
+                extra_query=query,
+            )
+        )
+
     async def delete_memories(
         self,
         payload: dict[str, Any] | None = None,

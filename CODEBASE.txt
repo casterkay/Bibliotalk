@@ -40,6 +40,8 @@
 │   │   ├── pyproject.toml
 │   │   └── src
 │   │       ├── bot
+│   │       │   ├── client.py
+│   │       │   ├── dm_handler.py
 │   │       │   └── message_models.py
 │   │       ├── config.py
 │   │       ├── feed
@@ -78,6 +80,8 @@
 │   └── memory_page_service
 │       ├── pyproject.toml
 │       └── src
+│           ├── app.py
+│           └── resolver.py
 ├── specs
 │   ├── 002-evermemos-content-ingest
 │   │   ├── checklists
@@ -110,5 +114,5 @@
 │       └── tasks.md
 └── uv.lock
 
-38 directories, 73 files
+38 directories, 77 files
 

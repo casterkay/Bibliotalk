@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 import pytest
-from discord_service.bot.message_models import FeedBatchMessage, FeedParentMessage
+from discord_service.bot.message_models import (
+    FeedBatchMessage,
+    FeedParentMessage,
+    InboundDM,
+    OutboundDMResponse,
+)
 from pydantic import ValidationError
 
 
@@ -42,3 +48,25 @@ def test_feed_batch_message_rejects_rendered_content_above_discord_limit() -> No
             text="x" * 1_995,
             seq_label="[00:00:00]",
         )
+
+
+def test_inbound_dm_and_outbound_response_match_contract_shapes() -> None:
+    inbound = InboundDM(
+        discord_message_id="msg-1",
+        discord_user_id="user-1",
+        discord_channel_id="chan-1",
+        figure_id=uuid.uuid4(),
+        content="What did he say about learning?",
+        received_at=datetime.now(tz=UTC),
+    )
+    outbound = OutboundDMResponse(
+        discord_channel_id="chan-1",
+        response_text="Answer [Learning without thought is labor lost.](https://www.bibliotalk.space/memory/alan-watts_20260308T120000Z)",
+        evidence_used=[
+            "https://www.bibliotalk.space/memory/alan-watts_20260308T120000Z"
+        ],
+        no_evidence=False,
+    )
+
+    assert inbound.discord_user_id == "user-1"
+    assert outbound.no_evidence is False

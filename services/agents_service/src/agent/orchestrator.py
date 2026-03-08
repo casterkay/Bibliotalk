@@ -1,14 +1,45 @@
-"""Discussion orchestrator for multi-ghost turn-taking."""
+"""Discord DM orchestration and legacy discussion helpers."""
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 A2AClient = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
 PostMessage = Callable[[str, dict[str, Any]], Awaitable[None]]
+AgentFactory = Callable[[UUID], Awaitable[Any]]
+
+
+@dataclass(frozen=True, slots=True)
+class DMContext:
+    figure_id: UUID
+    figure_slug: str
+    discord_user_id: str
+    discord_channel_id: str
+    content: str
+
+
+@dataclass(frozen=True, slots=True)
+class DMResponse:
+    response_text: str
+    citations: list[str]
+    evidence: list[Any]
+
+
+class DMOrchestrator:
+    def __init__(self, *, agent_factory: AgentFactory):
+        self.agent_factory = agent_factory
+
+    async def run(self, context: DMContext) -> DMResponse:
+        agent = await self.agent_factory(context.figure_id)
+        result = await agent.run(context.content)
+        return DMResponse(
+            response_text=result.get("text", ""),
+            citations=list(result.get("citations", [])),
+            evidence=list(result.get("evidence", [])),
+        )
 
 
 @dataclass

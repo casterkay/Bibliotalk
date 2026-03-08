@@ -8,14 +8,17 @@ from collections import Counter
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, Field
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 
 class Source(BaseModel):
     id: UUID
-    agent_id: UUID
+    figure_id: UUID | None = Field(
+        default=None, validation_alias=AliasChoices("figure_id", "agent_id")
+    )
+    agent_id: UUID | None = None
     platform: str
     external_id: str
     external_url: str | None = None
@@ -29,7 +32,10 @@ class Source(BaseModel):
 class Segment(BaseModel):
     id: UUID
     source_id: UUID
-    agent_id: UUID
+    figure_id: UUID | None = Field(
+        default=None, validation_alias=AliasChoices("figure_id", "agent_id")
+    )
+    agent_id: UUID | None = None
     platform: str
     seq: int
     text: str
@@ -37,7 +43,18 @@ class Segment(BaseModel):
     start_ms: int | None = None
     end_ms: int | None = None
     sha256: str
-    emos_message_id: str
+    create_time: datetime | None = None
+    group_id: str | None = None
+    source_title: str | None = None
+    source_url: str | None = None
+    published_at: datetime | None = None
+    emos_message_id: str | None = None
+
+    def model_post_init(self, __context: object) -> None:
+        if self.figure_id is None and self.agent_id is not None:
+            self.figure_id = self.agent_id
+        if self.agent_id is None and self.figure_id is not None:
+            self.agent_id = self.figure_id
 
 
 def _tokenize(text: str) -> list[str]:

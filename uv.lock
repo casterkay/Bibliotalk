@@ -620,6 +620,7 @@ name = "discord-service"
 version = "0.1.0"
 source = { editable = "services/discord_service" }
 dependencies = [
+    { name = "agents-service" },
     { name = "bt-common" },
     { name = "discord-py" },
     { name = "pydantic" },
@@ -635,6 +636,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "agents-service", editable = "services/agents_service" },
     { name = "bt-common", editable = "packages/bt_common" },
     { name = "discord-py", specifier = ">=2.4.0" },
     { name = "pydantic", specifier = ">=2.8.0" },

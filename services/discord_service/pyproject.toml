@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Bibliotalk Discord runtime"
 requires-python = ">=3.11"
 dependencies = [
+  "agents_service>=0.1.0",
   "bt_common>=0.1.0",
   "discord.py>=2.4.0",
   "pydantic>=2.8.0",
@@ -31,4 +32,5 @@ packages = ["discord_service"]
 testpaths = ["tests"]
 
 [tool.uv.sources]
+agents-service = { workspace = true }
 bt-common = { workspace = true }

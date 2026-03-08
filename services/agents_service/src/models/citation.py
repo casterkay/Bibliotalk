@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+NO_EVIDENCE_RESPONSE = "I couldn't find relevant supporting evidence for that question."
+
 
 class Evidence(BaseModel):
     segment_id: UUID
@@ -47,6 +49,15 @@ class Evidence(BaseModel):
             offset = max(0, int((self.memory_timestamp - self.published_at).total_seconds()))
             separator = "&" if "?" in self.source_url else "?"
             self.video_url_with_timestamp = f"{self.source_url}{separator}t={offset}s"
+
+
+def build_inline_link(evidence: Evidence, *, max_chars: int = 120) -> str | None:
+    if not evidence.memory_url:
+        return None
+    visible_text = " ".join(evidence.text.split())[:max_chars].strip()
+    if not visible_text:
+        return None
+    return f"[{visible_text}]({evidence.memory_url})"
 
 
 class Citation(BaseModel):
@@ -121,9 +132,12 @@ def validate_evidence_links(
             return visible_text
         if evidence.memory_user_id != figure_emos_user_id:
             return visible_text
-        quoted_spans = _QUOTED_TEXT_RE.findall(response_text)
-        if quoted_spans and not any(span in evidence.text for span in quoted_spans):
+        if visible_text not in evidence.text:
             return visible_text
         return match.group(0)
 
     return _INLINE_LINK_RE.sub(_replace, response_text)
+
+
+def extract_memory_links(response_text: str) -> list[tuple[str, str]]:
+    return [(match.group(1), match.group(2)) for match in _INLINE_LINK_RE.finditer(response_text)]

@@ -44,9 +44,7 @@ def _build_prompt(query: str, evidence: list[Evidence]) -> str:
     lines.append("Question:")
     lines.append(query.strip())
     lines.append("")
-    lines.append(
-        "Evidence excerpts (cite as [^N] where N matches the excerpt number; do not invent facts):"
-    )
+    lines.append("Evidence excerpts (do not invent facts beyond these excerpts):")
     for idx, item in enumerate(evidence, start=1):
         excerpt = _truncate(item.text, max_chars=1200)
         header = f"[{idx}] {item.source_title} ({item.platform})"
@@ -57,9 +55,10 @@ def _build_prompt(query: str, evidence: list[Evidence]) -> str:
     lines.append("Rules:")
     lines.append("- Use ONLY the evidence excerpts above.")
     lines.append(
-        '- If evidence is insufficient, reply exactly: "I have no evidence to answer that right now."'
+        '- If evidence is insufficient, reply exactly: "I couldn\'t find relevant supporting evidence for that question."'
     )
-    lines.append("- Do not include a 'Sources' section (it is added by the service).")
+    lines.append("- Do not use citation indices or a trailing Sources section.")
+    lines.append("- Keep the answer concise and grounded in the provided evidence.")
     return "\n".join(lines).strip()
 
 

@@ -15,7 +15,12 @@ from bt_common.config import get_emos_fallback_settings
 from bt_common.evermemos_client import EverMemOSClient
 from bt_common.exceptions import AgentNotFoundError
 
-from ..models.citation import Evidence
+from ..models.citation import (
+    NO_EVIDENCE_RESPONSE,
+    Evidence,
+    extract_memory_links,
+    validate_evidence_links,
+)
 from ..store import Store
 from .providers.gemini import GeminiConfigurationError
 from .tools.emit_citations import EmitCitationsTool
@@ -74,6 +79,7 @@ class LLMRegistry:
 @dataclass
 class GhostAgent:
     id: str
+    figure_slug: str
     name: str
     instruction: str
     model: str
@@ -93,8 +99,9 @@ class GhostAgent:
             }
         if not evidence:
             return {
-                "text": "I have no evidence to answer that right now.",
+                "text": NO_EVIDENCE_RESPONSE,
                 "citations": [],
+                "evidence": [],
             }
 
         try:
@@ -123,7 +130,19 @@ class GhostAgent:
             citations = await self.emit_citations_fn(evidence, self.id)
         except Exception:
             citations = []
-        return {"text": text, "citations": citations}
+        response_text = text.strip()
+        if citations and not extract_memory_links(response_text):
+            response_text = f"{response_text} {citations[0]}".strip()
+        response_text = validate_evidence_links(
+            response_text,
+            evidence,
+            figure_emos_user_id=self.figure_slug,
+        )
+        if not extract_memory_links(response_text):
+            response_text = NO_EVIDENCE_RESPONSE
+            citations = []
+            evidence = []
+        return {"text": response_text, "citations": citations, "evidence": evidence}
 
 
 async def create_ghost_agent(
@@ -197,6 +216,7 @@ async def create_ghost_agent(
 
     ghost = GhostAgent(
         id=key,
+        figure_slug=agent_row.get("emos_user_id", key),
         name=agent_row["display_name"],
         instruction=agent_row["persona_prompt"],
         model=model,

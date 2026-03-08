@@ -1,8 +1,33 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator
+
+
+class InboundDM(BaseModel):
+    discord_message_id: str = Field(min_length=1)
+    discord_user_id: str = Field(min_length=1)
+    discord_channel_id: str = Field(min_length=1)
+    figure_id: uuid.UUID
+    content: str = Field(min_length=1)
+    received_at: datetime
+
+
+class OutboundDMResponse(BaseModel):
+    discord_channel_id: str = Field(min_length=1)
+    response_text: str = Field(min_length=1, max_length=2000)
+    evidence_used: list[str]
+    no_evidence: bool = False
+
+    @model_validator(mode="after")
+    def validate_no_evidence_shape(self) -> OutboundDMResponse:
+        if self.no_evidence and self.evidence_used:
+            raise ValueError(
+                "no-evidence responses cannot contain evidence_used entries"
+            )
+        return self
 
 
 class FeedParentMessage(BaseModel):

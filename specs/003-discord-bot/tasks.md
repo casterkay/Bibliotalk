@@ -111,23 +111,23 @@
 
 ### Tests for User Story 3
 
-- [ ] T047 [P] [US3] Add unit tests for BM25-backed evidence selection in `services/agents_service/tests/unit/test_memory_search.py`
-- [ ] T048 [P] [US3] Add unit tests for inline link and quote validation in `services/agents_service/tests/unit/test_citation_validation.py`
-- [ ] T049 [P] [US3] Add integration tests for DM response generation and no-evidence fallback in `services/discord_service/tests/integration/test_dm_chat.py`
-- [ ] T050 [P] [US3] Add contract tests for `Evidence` construction and link validation in `services/agents_service/tests/contract/test_evidence_contract.py`
-- [ ] T051 [P] [US3] Add contract tests for EverMemOS search/retrieval calls in `packages/bt_common/tests/test_evermemos_search_contract.py`
-- [ ] T052 [P] [US3] Add contract and integration tests for public memory pages in `services/memory_page_service/tests/contract/test_memory_pages_contract.py` and `services/memory_page_service/tests/integration/test_memory_pages.py`
+- [X] T047 [P] [US3] Add unit tests for BM25-backed evidence selection in `services/agents_service/tests/unit/test_memory_search.py`
+- [X] T048 [P] [US3] Add unit tests for inline link and quote validation in `services/agents_service/tests/unit/test_citation_validation.py`
+- [X] T049 [P] [US3] Add integration tests for DM response generation and no-evidence fallback in `services/discord_service/tests/integration/test_dm_chat.py`
+- [X] T050 [P] [US3] Add contract tests for `Evidence` construction and link validation in `services/agents_service/tests/contract/test_evidence_contract.py`
+- [X] T051 [P] [US3] Add contract tests for EverMemOS search/retrieval calls in `packages/bt_common/tests/test_evermemos_search_contract.py`
+- [X] T052 [P] [US3] Add contract and integration tests for public memory pages in `services/memory_page_service/tests/contract/test_memory_pages_contract.py` and `services/memory_page_service/tests/integration/test_memory_pages.py`
 
 ### Implementation for User Story 3
 
-- [ ] T053 [P] [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in `services/agents_service/src/agent/tools/memory_search.py`
-- [ ] T054 [P] [US3] Replace citation-index emission with inline `memory_url` emission in `services/agents_service/src/agent/tools/emit_citations.py`
-- [ ] T055 [P] [US3] Adapt Gemini agent construction for figure personas and evidence-only responses in `services/agents_service/src/agent/agent_factory.py` and `services/agents_service/src/agent/providers/gemini.py`
-- [ ] T056 [US3] Adapt agent orchestration for Discord DM context in `services/agents_service/src/agent/orchestrator.py`
-- [ ] T057 [US3] Implement the Discord DM handler in `services/discord_service/src/bot/dm_handler.py`
-- [ ] T058 [US3] Implement the Discord client subclass and message routing in `services/discord_service/src/bot/client.py`
-- [ ] T059 [US3] Implement the memory page resolver and HTTP/serverless handler in `services/memory_page_service/src/resolver.py` and `services/memory_page_service/src/app.py`
-- [ ] T060 [US3] Add final link-validation, quote-validation, no-evidence fallback, and page-resolution enforcement in `services/discord_service/src/bot/dm_handler.py`, `services/agents_service/src/models/citation.py`, and `services/memory_page_service/src/resolver.py`
+- [X] T053 [P] [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in `services/agents_service/src/agent/tools/memory_search.py`
+- [X] T054 [P] [US3] Replace citation-index emission with inline `memory_url` emission in `services/agents_service/src/agent/tools/emit_citations.py`
+- [X] T055 [P] [US3] Adapt Gemini agent construction for figure personas and evidence-only responses in `services/agents_service/src/agent/agent_factory.py` and `services/agents_service/src/agent/providers/gemini.py`
+- [X] T056 [US3] Adapt agent orchestration for Discord DM context in `services/agents_service/src/agent/orchestrator.py`
+- [X] T057 [US3] Implement the Discord DM handler in `services/discord_service/src/bot/dm_handler.py`
+- [X] T058 [US3] Implement the Discord client subclass and message routing in `services/discord_service/src/bot/client.py`
+- [X] T059 [US3] Implement the memory page resolver and HTTP/serverless handler in `services/memory_page_service/src/resolver.py` and `services/memory_page_service/src/app.py`
+- [X] T060 [US3] Add final link-validation, quote-validation, no-evidence fallback, and page-resolution enforcement in `services/discord_service/src/bot/dm_handler.py`, `services/agents_service/src/models/citation.py`, and `services/memory_page_service/src/resolver.py`
 
 **Checkpoint**: User Story 3 is functional when a figure bot can answer supported questions with valid inline memory links, linked pages resolve correctly, and unsupported questions are declined without cross-figure leakage.
 

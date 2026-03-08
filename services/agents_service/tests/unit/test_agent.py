@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 import pytest
-from agents_service.models.citation import Evidence
+from agents_service.models.citation import NO_EVIDENCE_RESPONSE, Evidence
 
 
 @dataclass
@@ -165,7 +165,7 @@ async def test_agent_responds_with_no_evidence_when_memory_search_returns_empty(
 
     response = await agent.run("What did you say about learning?")
 
-    assert "no evidence" in response["text"].lower()
+    assert response["text"] == NO_EVIDENCE_RESPONSE
 
 
 @pytest.mark.anyio
