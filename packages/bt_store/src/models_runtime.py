@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from uuid import UUID
 
@@ -9,10 +10,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .models_base import Base
 
 
-class ChatHistory(Base):
-    __tablename__ = "chat_history"
+class TalkThread(Base):
+    __tablename__ = "talk_threads"
 
-    chat_id: Mapped[UUID] = mapped_column(primary_key=True)
+    thread_id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     platform: Mapped[str] = mapped_column(String(32), index=True)
     room_id: Mapped[str] = mapped_column(String(255), index=True)
     sender_agent_id: Mapped[UUID | None] = mapped_column(
@@ -30,18 +31,36 @@ class PlatformPost(Base):
     __tablename__ = "platform_posts"
     __table_args__ = (UniqueConstraint("idempotency_key"),)
 
-    post_id: Mapped[UUID] = mapped_column(primary_key=True)
+    post_id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     platform: Mapped[str] = mapped_column(String(32), index=True)
     kind: Mapped[str] = mapped_column(String(32), index=True)
     agent_id: Mapped[UUID] = mapped_column(ForeignKey("agents.agent_id"), index=True)
-    room_id: Mapped[str] = mapped_column(String(255), index=True)
+    container_id: Mapped[str] = mapped_column(String(255), index=True)
+    thread_id: Mapped[str | None] = mapped_column(String(255), default=None)
     source_id: Mapped[UUID] = mapped_column(ForeignKey("sources.source_id"), index=True)
     segment_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("segments.segment_id"), index=True, default=None
+    )
+    batch_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("source_text_batches.batch_id"), index=True, default=None
     )
     idempotency_key: Mapped[str] = mapped_column(String(512))
     platform_event_id: Mapped[str | None] = mapped_column(String(255), default=None)
     status: Mapped[str] = mapped_column(String(16), index=True, default="pending")
     error: Mapped[str | None] = mapped_column(String(1024), default=None)
+    meta_json: Mapped[dict | None] = mapped_column(JSON, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class PlatformRoute(Base):
+    __tablename__ = "platform_routes"
+    __table_args__ = (UniqueConstraint("platform", "purpose", "agent_id"),)
+
+    route_id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    platform: Mapped[str] = mapped_column(String(32), index=True)
+    purpose: Mapped[str] = mapped_column(String(32), index=True)
+    agent_id: Mapped[UUID | None] = mapped_column(ForeignKey("agents.agent_id"), index=True)
+    container_id: Mapped[str] = mapped_column(String(255))
+    config_json: Mapped[dict | None] = mapped_column(JSON, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)

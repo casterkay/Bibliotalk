@@ -1,7 +1,7 @@
 # Contract: Citation Schema (v1)
 
 **Scope**: Bibliotalk Spirit responses (text + voice transcripts)
-**Used by**: agent core, Matrix adapter, audit storage (`ChatHistory`)
+**Used by**: agent core, Matrix adapter, audit storage (`TalkThread`)
 
 This contract defines the structured citation payload used to keep Spirit responses verifiable (**言必有據**).
 

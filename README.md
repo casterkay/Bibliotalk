@@ -2,7 +2,7 @@
 
 **Steve Job**'s dream comes true - to talk with and learn from some of the greatest minds in human history, such as **Aristotle**.
 
-Powered by **Gemini Live** and **EverMemOS**, Bibliotalk is a **Matrix** space where you can have real-time conversations with **AI Spirits** of famous human beings revived from their digital archives of *thoughts*, *talks*, *podcasts*, and so on. Every non-trivial claim they make is grounded by **citations** to original sources, to eliminate the notorious *"LLM hallucination"* problem.
+Powered by **Gemini Live** and **EverMemOS**, Bibliotalk is a **Matrix** space where you can have real-time conversations with **AI Spirits** of famous human beings revived from their digital archives of *thoughts*, *talks*, *podcasts*, and so on. Every non-trivial claim they make is **evidence-based** with citations to original sources, to eliminate the notorious *"LLM hallucination"* issues.
 
 Let's create your **world-class AI mentor group** in **Bibliotalk** now!
 

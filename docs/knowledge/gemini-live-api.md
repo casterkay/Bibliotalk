@@ -464,20 +464,6 @@ Text can be sent using `send_realtime_input` (Python) or `sendRealtimeInput` (Ja
 await session.send_realtime_input(text="Hello, how are you?")
 ```
 
-### Sending video
-
-Video frames are sent as individual images (e.g., JPEG or PNG) at a specific frame rate (max 1 frame per second).
-
-```py
-# Assuming 'frame' is your JPEG-encoded image bytes
-await session.send_realtime_input(
-    video=types.Blob(
-        data=frame,
-        mime_type="image/jpeg",
-    )
-)
-```
-
 ### Incremental content updates
 
 Use incremental updates to send text input, establish session context, or restore session context. For short contexts you can send turn-by-turn interactions to represent the exact sequence of events:

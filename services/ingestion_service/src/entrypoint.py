@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from bt_common.evermemos_client import EverMemOSClient
-from bt_common.evidence_store.engine import get_session_factory, init_database
+from bt_store.engine import get_session_factory, init_database
 
 from .runtime.config import load_runtime_config
 from .runtime.poller import CollectorPoller

@@ -42,13 +42,14 @@
 │       ├── alembic.ini
 │       ├── pyproject.toml
 │       └── src
-│           └── bt_store
-│               ├── citations.py
-│               ├── engine.py
-│               ├── models_base.py
-│               ├── models_core.py
-│               ├── models_evidence.py
-│               └── models_runtime.py
+│           ├── citations.py
+│           ├── engine.py
+│           ├── models_base.py
+│           ├── models_core.py
+│           ├── models_evidence.py
+│           ├── models_ingestion.py
+│           ├── models_runtime.py
+│           └── models.py
 ├── pyproject.toml
 ├── README.md
 ├── ROSTER.md
@@ -102,11 +103,6 @@
 │   │           ├── service.py
 │   │           └── transport.py
 │   ├── ingestion_service
-│   │   ├── alembic
-│   │   │   ├── env.py
-│   │   │   └── versions
-│   │   │       └── 0001_initial_schema.py
-│   │   ├── alembic.ini
 │   │   ├── pyproject.toml
 │   │   ├── README.md
 │   │   ├── scripts
@@ -212,5 +208,5 @@
 │       └── tasks.md
 └── uv.lock
 
-66 directories, 147 files
+63 directories, 146 files
 

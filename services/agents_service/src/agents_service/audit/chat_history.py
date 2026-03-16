@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from bt_store.engine import session_scope
-from bt_store.models_runtime import ChatHistory
+from bt_store.models_runtime import TalkThread
 
 logger = logging.getLogger("agents_service.audit")
 
@@ -26,8 +26,8 @@ class ChatEvent:
 async def persist_chat_event(event: ChatEvent) -> None:
     try:
         async with session_scope() as session:
-            row = ChatHistory(
-                chat_id=uuid4(),
+            row = TalkThread(
+                thread_id=uuid4(),
                 platform=event.platform,
                 room_id=event.room_id,
                 sender_agent_id=event.sender_agent_id,
@@ -42,7 +42,7 @@ async def persist_chat_event(event: ChatEvent) -> None:
             await session.commit()
     except Exception:
         logger.exception(
-            "chat_history persist failed (is bt_store migrated?) platform=%s room_id=%s",
+            "talk_threads persist failed (is bt_store migrated?) platform=%s room_id=%s",
             event.platform,
             event.room_id,
         )

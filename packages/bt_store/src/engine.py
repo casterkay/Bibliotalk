@@ -61,3 +61,11 @@ async def session_scope(db_path: str | Path | None = None):
     session_factory = get_session_factory(db_path)
     async with session_factory() as session:
         yield session
+
+
+async def init_database(db_path: str | Path | None = None) -> None:
+    from .models import Base
+
+    engine = get_async_engine(db_path)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)

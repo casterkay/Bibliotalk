@@ -4,10 +4,16 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import Figure, IngestState, Subscription, TranscriptBatch
-from bt_common.evidence_store.models import Segment as StoredSegment
-from bt_common.evidence_store.models import Source as StoredSource
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Segment as StoredSegment
+from bt_store.models_evidence import Source as StoredSource
+from bt_store.models_ingestion import (
+    SourceIngestionState,
+    SourceTextBatch,
+    Subscription,
+    SubscriptionState,
+)
 from ingestion_service.domain.errors import AccessRestrictedError, RetryLaterError
 from ingestion_service.domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
 from ingestion_service.pipeline.discovery import DiscoveredVideo
@@ -78,10 +84,13 @@ async def test_ingest_persists_sources_segments_and_batches_without_duplicates(t
 
     async with session_factory() as session:
         session.add(
-            Figure(
-                figure_id=uuid.uuid4(),
+            Agent(
+                agent_id=uuid.uuid4(),
+                kind="figure",
+                slug="alan-watts",
                 display_name="Alan Watts",
-                emos_user_id="alan-watts",
+                persona_summary=None,
+                is_active=True,
             )
         )
         await session.commit()
@@ -104,15 +113,17 @@ async def test_ingest_persists_sources_segments_and_batches_without_duplicates(t
 
     async with session_factory() as session:
         stored_source = (await session.execute(select(StoredSource))).scalar_one()
+        state = await session.get(SourceIngestionState, stored_source.source_id)
         segment_count = await session.scalar(select(func.count()).select_from(StoredSegment))
-        batch_count = await session.scalar(select(func.count()).select_from(TranscriptBatch))
+        batch_count = await session.scalar(select(func.count()).select_from(SourceTextBatch))
         max_batch_len = await session.scalar(
-            select(func.max(func.length(TranscriptBatch.text))).select_from(TranscriptBatch)
+            select(func.max(func.length(SourceTextBatch.text))).select_from(SourceTextBatch)
         )
 
-    assert stored_source.group_id == "alan-watts:youtube:abc123"
-    assert stored_source.transcript_status == "ingested"
-    assert stored_source.source_meta_synced_at is not None
+    assert stored_source.emos_group_id == "alan-watts:youtube:abc123"
+    assert state is not None
+    assert state.ingest_status == "ingested"
+    assert stored_source.meta_synced_at is not None
     assert segment_count == 2
     assert batch_count >= 1
     assert (max_batch_len or 0) <= 1_800
@@ -130,10 +141,13 @@ async def test_manual_reingest_deletes_remote_memories_and_supersedes_old_segmen
 
     async with session_factory() as session:
         session.add(
-            Figure(
-                figure_id=uuid.uuid4(),
+            Agent(
+                agent_id=uuid.uuid4(),
+                kind="figure",
+                slug="alan-watts",
                 display_name="Alan Watts",
-                emos_user_id="alan-watts",
+                persona_summary=None,
+                is_active=True,
             )
         )
         await session.commit()
@@ -155,14 +169,16 @@ async def test_manual_reingest_deletes_remote_memories_and_supersedes_old_segmen
 
     async with session_factory() as session:
         stored_source = (await session.execute(select(StoredSource))).scalar_one()
+        state = await session.get(SourceIngestionState, stored_source.source_id)
         segments = (
             (await session.execute(select(StoredSegment).order_by(StoredSegment.seq)))
             .scalars()
             .all()
         )
-        batch_count = await session.scalar(select(func.count()).select_from(TranscriptBatch))
+        batch_count = await session.scalar(select(func.count()).select_from(SourceTextBatch))
 
-    assert stored_source.transcript_status == "ingested"
+    assert state is not None
+    assert state.ingest_status == "ingested"
     assert len(segments) == 2
     assert all("revised" in segment.text for segment in segments)
     assert batch_count >= 1
@@ -180,10 +196,13 @@ async def test_manual_reingest_same_content_succeeds_without_unique_constraint_c
 
     async with session_factory() as session:
         session.add(
-            Figure(
-                figure_id=uuid.uuid4(),
+            Agent(
+                agent_id=uuid.uuid4(),
+                kind="figure",
+                slug="alan-watts",
                 display_name="Alan Watts",
-                emos_user_id="alan-watts",
+                persona_summary=None,
+                is_active=True,
             )
         )
         await session.commit()
@@ -217,10 +236,13 @@ async def test_segment_failure_marks_whole_transcript_failed_and_cleans_up(tmp_p
 
     async with session_factory() as session:
         session.add(
-            Figure(
-                figure_id=uuid.uuid4(),
+            Agent(
+                agent_id=uuid.uuid4(),
+                kind="figure",
+                slug="alan-watts",
                 display_name="Alan Watts",
-                emos_user_id="alan-watts",
+                persona_summary=None,
+                is_active=True,
             )
         )
         await session.commit()
@@ -240,10 +262,12 @@ async def test_segment_failure_marks_whole_transcript_failed_and_cleans_up(tmp_p
 
     async with session_factory() as session:
         stored_source = (await session.execute(select(StoredSource))).scalar_one()
+        state = await session.get(SourceIngestionState, stored_source.source_id)
         segment_count = await session.scalar(select(func.count()).select_from(StoredSegment))
-        batch_count = await session.scalar(select(func.count()).select_from(TranscriptBatch))
+        batch_count = await session.scalar(select(func.count()).select_from(SourceTextBatch))
 
-    assert stored_source.transcript_status == "failed"
+    assert state is not None
+    assert state.ingest_status == "failed"
     assert segment_count == 0
     assert batch_count == 0
 
@@ -256,18 +280,26 @@ async def test_collector_poll_once_ingests_new_video_and_skips_it_on_next_cycle(
     client = StubEverMemOS()
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
-            display_name="Alan Watts",
-            emos_user_id="alan-watts",
+        agent_id = uuid.uuid4()
+        session.add(
+            Agent(
+                agent_id=agent_id,
+                kind="figure",
+                slug="alan-watts",
+                display_name="Alan Watts",
+                persona_summary=None,
+                is_active=True,
+            )
         )
-        session.add(figure)
-        await session.flush()
         session.add(
             Subscription(
-                figure_id=figure.figure_id,
-                subscription_type="channel",
+                subscription_id=uuid.uuid4(),
+                agent_id=agent_id,
+                content_platform="youtube",
+                subscription_type="youtube.channel",
                 subscription_url="https://www.youtube.com/@AlanWattsOrg",
+                poll_interval_minutes=30,
+                is_active=True,
             )
         )
         await session.commit()
@@ -325,7 +357,7 @@ async def test_collector_poll_once_ingests_new_video_and_skips_it_on_next_cycle(
     async with session_factory() as session:
         source_count = await session.scalar(select(func.count()).select_from(StoredSource))
         segment_count = await session.scalar(select(func.count()).select_from(StoredSegment))
-        batch_count = await session.scalar(select(func.count()).select_from(TranscriptBatch))
+        batch_count = await session.scalar(select(func.count()).select_from(SourceTextBatch))
 
     assert source_count == 1
     assert segment_count == 2
@@ -341,21 +373,29 @@ async def test_collector_does_not_advance_cursor_when_ingest_fails(tmp_path) -> 
     client.memorize_results = [RuntimeError("emos down")]
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
-            display_name="Alan Watts",
-            emos_user_id="alan-watts",
+        agent_id = uuid.uuid4()
+        subscription_id = uuid.uuid4()
+        session.add(
+            Agent(
+                agent_id=agent_id,
+                kind="figure",
+                slug="alan-watts",
+                display_name="Alan Watts",
+                persona_summary=None,
+                is_active=True,
+            )
         )
-        session.add(figure)
-        await session.flush()
         subscription = Subscription(
-            figure_id=figure.figure_id,
-            subscription_type="channel",
+            subscription_id=subscription_id,
+            agent_id=agent_id,
+            content_platform="youtube",
+            subscription_type="youtube.channel",
             subscription_url="https://www.youtube.com/@AlanWattsOrg",
+            poll_interval_minutes=30,
+            is_active=True,
         )
         session.add(subscription)
         await session.commit()
-        subscription_id = subscription.subscription_id
 
     async def fake_discovery(
         _: str,
@@ -411,21 +451,23 @@ async def test_collector_does_not_advance_cursor_when_ingest_fails(tmp_path) -> 
     assert snapshot.ingested_videos == 0
 
     async with session_factory() as session:
-        ingest_state = await session.get(IngestState, subscription_id)
+        sub_state = await session.get(SubscriptionState, subscription_id)
         stored = (
             (await session.execute(select(StoredSource).where(StoredSource.external_id == "vid1")))
             .scalars()
             .one()
         )
+        src_state = await session.get(SourceIngestionState, stored.source_id)
 
-    assert ingest_state is not None
-    assert ingest_state.last_seen_video_id == "vid1"
-    assert ingest_state.failure_count == 0
-    assert ingest_state.next_retry_at is None
+    assert sub_state is not None
+    assert sub_state.last_seen_external_id == "vid1"
+    assert sub_state.failure_count == 0
+    assert sub_state.next_retry_at is None
 
-    assert stored.transcript_status == "pending"
-    assert stored.transcript_failure_count == 1
-    assert stored.transcript_next_retry_at is not None
+    assert src_state is not None
+    assert src_state.ingest_status == "pending"
+    assert src_state.failure_count == 1
+    assert src_state.next_retry_at is not None
 
 
 @pytest.mark.anyio
@@ -436,21 +478,29 @@ async def test_collector_skips_members_only_videos(tmp_path) -> None:
     client = StubEverMemOS()
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
-            display_name="Alan Watts",
-            emos_user_id="alan-watts",
+        agent_id = uuid.uuid4()
+        subscription_id = uuid.uuid4()
+        session.add(
+            Agent(
+                agent_id=agent_id,
+                kind="figure",
+                slug="alan-watts",
+                display_name="Alan Watts",
+                persona_summary=None,
+                is_active=True,
+            )
         )
-        session.add(figure)
-        await session.flush()
         subscription = Subscription(
-            figure_id=figure.figure_id,
-            subscription_type="channel",
+            subscription_id=subscription_id,
+            agent_id=agent_id,
+            content_platform="youtube",
+            subscription_type="youtube.channel",
             subscription_url="https://www.youtube.com/@AlanWattsOrg",
+            poll_interval_minutes=30,
+            is_active=True,
         )
         session.add(subscription)
         await session.commit()
-        subscription_id = subscription.subscription_id
 
     async def fake_discovery(*_args, **_kwargs) -> list[DiscoveredVideo]:
         return [
@@ -490,7 +540,7 @@ async def test_collector_skips_members_only_videos(tmp_path) -> None:
     assert snapshot.ingested_videos == 0
 
     async with session_factory() as session:
-        ingest_state = await session.get(IngestState, subscription_id)
+        sub_state = await session.get(SubscriptionState, subscription_id)
         stored = (
             (
                 await session.execute(
@@ -500,11 +550,13 @@ async def test_collector_skips_members_only_videos(tmp_path) -> None:
             .scalars()
             .one()
         )
+        src_state = await session.get(SourceIngestionState, stored.source_id)
 
-    assert ingest_state is not None
-    assert ingest_state.last_seen_video_id == "members1"
-    assert stored.transcript_status == "skipped"
-    assert stored.transcript_skip_reason == "members_only"
+    assert sub_state is not None
+    assert sub_state.last_seen_external_id == "members1"
+    assert src_state is not None
+    assert src_state.ingest_status == "skipped"
+    assert src_state.skip_reason == "members_only"
 
 
 @pytest.mark.anyio
@@ -515,17 +567,26 @@ async def test_collector_schedules_retry_on_rate_limit(tmp_path) -> None:
     client = StubEverMemOS()
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
-            display_name="Alan Watts",
-            emos_user_id="alan-watts",
+        agent_id = uuid.uuid4()
+        subscription_id = uuid.uuid4()
+        session.add(
+            Agent(
+                agent_id=agent_id,
+                kind="figure",
+                slug="alan-watts",
+                display_name="Alan Watts",
+                persona_summary=None,
+                is_active=True,
+            )
         )
-        session.add(figure)
-        await session.flush()
         subscription = Subscription(
-            figure_id=figure.figure_id,
-            subscription_type="channel",
+            subscription_id=subscription_id,
+            agent_id=agent_id,
+            content_platform="youtube",
+            subscription_type="youtube.channel",
             subscription_url="https://www.youtube.com/@AlanWattsOrg",
+            poll_interval_minutes=30,
+            is_active=True,
         )
         session.add(subscription)
         await session.commit()
@@ -573,10 +634,12 @@ async def test_collector_schedules_retry_on_rate_limit(tmp_path) -> None:
             .scalars()
             .one()
         )
+        state = await session.get(SourceIngestionState, stored.source_id)
 
-    assert stored.transcript_status == "pending"
-    assert stored.transcript_failure_count == 1
-    assert stored.transcript_next_retry_at is not None
+    assert state is not None
+    assert state.ingest_status == "pending"
+    assert state.failure_count == 1
+    assert state.next_retry_at is not None
 
 
 @pytest.mark.anyio
@@ -587,43 +650,66 @@ async def test_collector_continues_processing_manual_sources_when_one_fails(tmp_
     client = StubEverMemOS()
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(),
-            display_name="Alan Watts",
-            emos_user_id="alan-watts",
+        agent_id = uuid.uuid4()
+        subscription_id = uuid.uuid4()
+        session.add(
+            Agent(
+                agent_id=agent_id,
+                kind="figure",
+                slug="alan-watts",
+                display_name="Alan Watts",
+                persona_summary=None,
+                is_active=True,
+            )
         )
-        session.add(figure)
-        await session.flush()
         session.add(
             Subscription(
-                figure_id=figure.figure_id,
-                subscription_type="channel",
+                subscription_id=subscription_id,
+                agent_id=agent_id,
+                content_platform="youtube",
+                subscription_type="youtube.channel",
                 subscription_url="https://www.youtube.com/@AlanWattsOrg",
+                poll_interval_minutes=30,
+                is_active=True,
             )
         )
         now = datetime.now(tz=UTC)
+        bad_source_id = uuid.uuid4()
+        good_source_id = uuid.uuid4()
         session.add(
             StoredSource(
-                figure_id=figure.figure_id,
-                platform="youtube",
+                source_id=bad_source_id,
+                agent_id=agent_id,
+                content_platform="youtube",
                 external_id="bad",
-                group_id="alan-watts:youtube:bad",
+                emos_group_id="alan-watts:youtube:bad",
                 title="Bad video",
-                source_url="https://www.youtube.com/watch?v=bad",
-                transcript_status="pending",
-                manual_ingestion_requested_at=now,
+                external_url="https://www.youtube.com/watch?v=bad",
+            )
+        )
+        session.add(
+            SourceIngestionState(
+                source_id=bad_source_id,
+                ingest_status="pending",
+                manual_requested_at=now,
             )
         )
         session.add(
             StoredSource(
-                figure_id=figure.figure_id,
-                platform="youtube",
+                source_id=good_source_id,
+                agent_id=agent_id,
+                content_platform="youtube",
                 external_id="good",
-                group_id="alan-watts:youtube:good",
+                emos_group_id="alan-watts:youtube:good",
                 title="Good video",
-                source_url="https://www.youtube.com/watch?v=good",
-                transcript_status="pending",
-                manual_ingestion_requested_at=now,
+                external_url="https://www.youtube.com/watch?v=good",
+            )
+        )
+        session.add(
+            SourceIngestionState(
+                source_id=good_source_id,
+                ingest_status="pending",
+                manual_requested_at=now,
             )
         )
         await session.commit()
@@ -684,6 +770,20 @@ async def test_collector_continues_processing_manual_sources_when_one_fails(tmp_
             .scalars()
             .all()
         )
+        states = {
+            row.source_id: row
+            for row in (
+                (
+                    await session.execute(
+                        select(SourceIngestionState).where(
+                            SourceIngestionState.source_id.in_([s.source_id for s in sources])
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        }
     assert [s.external_id for s in sources] == ["bad", "good"]
-    assert all(s.manual_ingestion_requested_at is None for s in sources)
-    assert [s.transcript_status for s in sources] == ["no_transcript", "ingested"]
+    assert all(states[s.source_id].manual_requested_at is None for s in sources)
+    assert [states[s.source_id].ingest_status for s in sources] == ["no_transcript", "ingested"]

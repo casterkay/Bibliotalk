@@ -3,8 +3,10 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import Figure, Source
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Source
+from bt_store.models_ingestion import SourceIngestionState
 from ingestion_service.pipeline.index import IngestionIndex
 from sqlalchemy import select
 
@@ -16,16 +18,26 @@ async def test_index_roundtrip(tmp_path) -> None:
     session_factory = get_session_factory(db)
 
     async with session_factory() as session:
-        figure = Figure(figure_id=uuid.uuid4(), display_name="Test Figure", emos_user_id="u1")
-        session.add(figure)
-        await session.flush()
+        agent_id = uuid.uuid4()
+        session.add(
+            Agent(
+                agent_id=agent_id,
+                kind="figure",
+                slug="u1",
+                display_name="Test Figure",
+                persona_summary=None,
+                is_active=True,
+            )
+        )
         session.add(
             Source(
-                figure_id=figure.figure_id,
+                source_id=uuid.uuid4(),
+                agent_id=agent_id,
+                content_platform="youtube",
                 external_id="video-1",
-                group_id="u1:youtube:video-1",
+                emos_group_id="u1:youtube:video-1",
                 title="Video 1",
-                source_url="https://example.com/video-1",
+                external_url="https://example.com/video-1",
             )
         )
         await session.commit()
@@ -58,18 +70,30 @@ async def test_existing_source_is_not_treated_as_meta_synced_until_marked(tmp_pa
     session_factory = get_session_factory(db)
 
     async with session_factory() as session:
-        figure = Figure(figure_id=uuid.uuid4(), display_name="Test Figure", emos_user_id="u1")
-        session.add(figure)
-        await session.flush()
+        agent_id = uuid.uuid4()
+        source_id = uuid.uuid4()
         session.add(
-            Source(
-                figure_id=figure.figure_id,
-                external_id="video-1",
-                group_id="u1:youtube:video-1",
-                title="Video 1",
-                source_url="https://example.com/video-1",
+            Agent(
+                agent_id=agent_id,
+                kind="figure",
+                slug="u1",
+                display_name="Test Figure",
+                persona_summary=None,
+                is_active=True,
             )
         )
+        session.add(
+            Source(
+                source_id=source_id,
+                agent_id=agent_id,
+                content_platform="youtube",
+                external_id="video-1",
+                emos_group_id="u1:youtube:video-1",
+                title="Video 1",
+                external_url="https://example.com/video-1",
+            )
+        )
+        session.add(SourceIngestionState(source_id=source_id, ingest_status="pending"))
         await session.commit()
 
     idx = IngestionIndex(session_factory, path=db)
@@ -85,6 +109,8 @@ async def test_existing_source_is_not_treated_as_meta_synced_until_marked(tmp_pa
 
     async with session_factory() as session:
         stored = (await session.execute(select(Source))).scalar_one()
+        state = await session.get(SourceIngestionState, stored.source_id)
 
-    assert stored.transcript_status == "pending"
-    assert stored.source_meta_synced_at is None
+    assert stored.meta_synced_at is None
+    assert state is not None
+    assert state.ingest_status == "pending"

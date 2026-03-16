@@ -5,9 +5,8 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import Figure
-from bt_common.evidence_store.models import Source as StoredSource
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
 from ingestion_service.domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
 from ingestion_service.pipeline.index import IngestionIndex
 from ingestion_service.pipeline.ingest import ingest_sources
@@ -39,17 +38,15 @@ async def test_segment_cache_matches_memorize_payload_and_skips_do_not_append(
     cache_dir = tmp_path / "segment_cache"
 
     async with session_factory() as session:
-        figure = Figure(figure_id=uuid.uuid4(), display_name="Test Figure", emos_user_id="u1")
-        session.add(figure)
-        await session.flush()
         session.add(
-            StoredSource(
-                figure_id=figure.figure_id,
-                external_id="e1",
-                group_id="u1:youtube:e1",
-                platform="youtube",
-                title="T",
-                source_url="https://www.youtube.com/watch?v=e1",
+            Agent(
+                agent_id=uuid.uuid4(),
+                kind="figure",
+                slug="u1",
+                display_name="Test Figure",
+                persona_summary=None,
+                is_active=True,
+                created_at=datetime.now(tz=UTC),
             )
         )
         await session.commit()

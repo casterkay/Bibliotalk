@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bt_common.config import load_repo_dotenv
-from bt_common.evidence_store.engine import default_database_path, resolve_database_path
+from bt_store.engine import default_database_path, resolve_database_path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

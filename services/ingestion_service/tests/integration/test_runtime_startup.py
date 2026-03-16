@@ -3,8 +3,9 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import Figure, Subscription
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_ingestion import Subscription
 from ingestion_service.runtime.config import load_runtime_config
 from ingestion_service.runtime.poller import CollectorPoller
 from ingestion_service.runtime.reporting import configure_logging
@@ -17,16 +18,26 @@ async def test_collector_runtime_startup(tmp_path) -> None:
     session_factory = get_session_factory(db)
 
     async with session_factory() as session:
-        figure = Figure(
-            figure_id=uuid.uuid4(), display_name="Alan Watts", emos_user_id="alan-watts"
+        agent_id = uuid.uuid4()
+        session.add(
+            Agent(
+                agent_id=agent_id,
+                kind="figure",
+                slug="alan-watts",
+                display_name="Alan Watts",
+                persona_summary=None,
+                is_active=True,
+            )
         )
-        session.add(figure)
-        await session.flush()
         session.add(
             Subscription(
-                figure_id=figure.figure_id,
-                subscription_type="channel",
+                subscription_id=uuid.uuid4(),
+                agent_id=agent_id,
+                content_platform="youtube",
+                subscription_type="youtube.channel",
                 subscription_url="https://www.youtube.com/@AlanWattsOrg",
+                poll_interval_minutes=30,
+                is_active=True,
             )
         )
         await session.commit()

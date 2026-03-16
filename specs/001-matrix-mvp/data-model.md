@@ -23,15 +23,15 @@ Represents a single Spirit persona that can participate in Dialogue Rooms and ow
 **Key fields**
 - `agent_id`: stable UUID
 - `kind`: `figure` (MVP) *(future: `user`)*
+- `slug`: stable unique handle (used as EverMemOS tenant prefix and CLI key)
 - `display_name`: human-friendly name (e.g., "Confucius (Spirit)")
-- `persona_prompt`: system persona and constraints
-- `llm_model`: model selection identifier (configurable per agent)
+- `persona_summary`: optional short persona descriptor (for UX)
 - `is_active`: active/inactive flag
 - `created_at`
 
 **Validation rules**
 - `display_name` non-empty; stable enough for UI display.
-- `persona_prompt` non-empty.
+- `slug` unique, URL-safe-ish, and stable (used in IDs and CLI).
 - Inactive agents never respond in Dialogue Rooms.
 
 ---
@@ -60,12 +60,27 @@ Represents a platform room that Bibliotalk must reason about for routing, enforc
 - `platform`: `matrix`
 - `room_id`: platform-native room identifier (e.g., `!abc:server`)
 - `kind`: `archive` | `dialogue`
-- `owner_agent_id`: required for `archive` rooms; null for `dialogue` rooms
 - `created_at`
 
 **Validation rules**
-- `kind=archive` implies `owner_agent_id` is non-null.
 - A room’s `kind` is immutable after creation.
+
+---
+
+### 3.1) RoomMember
+
+Represents a room participant. A room is explicitly multi-participant (humans and/or agents).
+
+**Key fields**
+- `room_pk`: FK to `Room`
+- `platform_user_id`: platform user ID within the room
+- `agent_id`: optional FK to `Agent` (present when this member is a Spirit virtual user)
+- `member_kind`: `human` | `agent` *(extensible)*
+- `role`: optional platform-agnostic role hint (e.g., `admin`, `moderator`)
+- `created_at`
+
+**Constraints**
+- Unique `(room_pk, platform_user_id)`.
 
 ---
 
@@ -93,6 +108,52 @@ One upstream content item ingested for an agent (video, book, podcast, document)
 **Constraints**
 - Unique `(agent_id, content_platform, external_id)`.
 - `emos_group_id` stable and derivable from `(agent_id/content_platform/external_id)` by convention.
+
+---
+
+### 4.1) Subscription + SubscriptionState
+
+Tracks source feed subscriptions (e.g., YouTube channel/playlist feeds) and their ingestion cursors.
+
+**Subscription key fields**
+- `subscription_id`: UUID
+- `agent_id`
+- `content_platform`: e.g., `youtube`
+- `subscription_type`: e.g., `youtube.channel`, `youtube.playlist`
+- `subscription_url`
+- `poll_interval_minutes`
+- `is_active`
+- `created_at`
+
+**SubscriptionState key fields**
+- `subscription_id`: PK/FK to `Subscription`
+- `last_seen_external_id`: cursor (e.g., last seen video ID)
+- `last_published_at`: cursor timestamp (optional)
+- `last_polled_at`
+- `failure_count`, `next_retry_at`
+- `updated_at`
+
+---
+
+### 4.2) SourceIngestionState + SourceTextBatch
+
+Tracks per-source ingestion state and the derived “postable text batches”.
+
+**SourceIngestionState key fields**
+- `source_id`: PK/FK to `Source`
+- `ingest_status`: `pending` | `ingested` | `failed` | `no_transcript` *(extensible)*
+- `failure_count`, `last_attempt_at`, `next_retry_at`, `skip_reason`
+- `manual_requested_at`
+- `updated_at`
+
+**SourceTextBatch key fields**
+- `batch_id`: UUID
+- `source_id`
+- `kind`: e.g., `transcript`
+- `start_seq`, `end_seq` (+ optional `start_ms`, `end_ms`)
+- `text`
+- `batch_rule`: batching reason (speaker change, silence gap, char limit, etc.)
+- `created_at`
 
 ---
 
@@ -124,12 +185,12 @@ Atomic verbatim evidence chunk used for:
 
 ## Conversation & Publication Entities
 
-### 6) ChatHistory
+### 6) TalkThreads
 
 Audit record of Dialogue Room turns (text and voice transcripts), including structured citations.
 
 **Key fields**
-- `chat_id`: UUID
+- `thread_id`: UUID
 - `platform`: `matrix`
 - `room_id`
 - `sender_agent_id`: nullable (null for real human users)
@@ -180,7 +241,7 @@ Tracks idempotent publication of Source/Segment content into Archive Rooms.
 
 Structured citation object produced during response generation and attached to:
 - Dialogue Room messages (as payload + visible markers)
-- ChatHistory records
+- TalkThreads records
 
 **Key fields**
 - `segment_id`
@@ -198,5 +259,5 @@ Structured citation object produced during response generation and attached to:
 - Given a set of EverMemOS retrieval results (group IDs), fetch candidate `Source` rows and then the associated `Segment` rows.
 - Given `segment_id`, fetch `Segment.text` for citation verification.
 - Given `source_id`, list ordered `Segment` rows for Archive thread posting.
-- Given a Dialogue Room `room_id`, append `ChatHistory` and query recent history for conversational context.
+- Given a Dialogue Room `room_id`, append `TalkThreads` and query recent history for conversational context.
 - Given `agent_id`, query pending `PlatformPost` rows and publish them idempotently.

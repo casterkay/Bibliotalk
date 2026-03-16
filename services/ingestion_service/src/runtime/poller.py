@@ -10,7 +10,9 @@ from typing import Any
 from uuid import UUID
 
 from bt_common.evermemos_client import EverMemOSClient
-from bt_common.evidence_store.models import Figure, IngestState, Source, Subscription
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Source
+from bt_store.models_ingestion import SourceIngestionState, Subscription, SubscriptionState
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -105,12 +107,12 @@ class CollectorPoller:
 
         async with self.session_factory() as session:
             stmt = (
-                select(Subscription, Figure)
-                .join(Figure, Figure.figure_id == Subscription.figure_id)
+                select(Subscription, Agent)
+                .join(Agent, Agent.agent_id == Subscription.agent_id)
                 .where(Subscription.is_active.is_(True))
             )
             if self.config.figure_slug:
-                stmt = stmt.where(Figure.emos_user_id == self.config.figure_slug)
+                stmt = stmt.where(Agent.slug == self.config.figure_slug)
             subscription_rows = (await session.execute(stmt)).all()
 
         results = await asyncio.gather(
@@ -119,7 +121,7 @@ class CollectorPoller:
                     subscription.subscription_id,
                     lambda subscription=subscription, figure=figure: self._process_subscription(
                         subscription=subscription,
-                        figure=figure,
+                        agent=figure,
                     ),
                 )
                 for subscription, figure in subscription_rows
@@ -160,7 +162,7 @@ class CollectorPoller:
         self,
         *,
         subscription: Subscription,
-        figure: Figure,
+        agent: Agent,
     ) -> tuple[int, int, int]:
         if self.client is None:
             return (0, 0, 0)
@@ -169,29 +171,30 @@ class CollectorPoller:
         discovered_count = 0
         ingested_count = 0
 
-        manual_sources = await self._load_manual_reingest_sources(figure.figure_id)
+        manual_sources = await self._load_manual_reingest_sources(agent.agent_id)
 
         async with self.session_factory() as session:
-            ingest_state = await session.get(IngestState, subscription.subscription_id)
-            if ingest_state is None:
-                ingest_state = IngestState(subscription_id=subscription.subscription_id)
-                session.add(ingest_state)
+            sub_state = await session.get(SubscriptionState, subscription.subscription_id)
+            if sub_state is None:
+                sub_state = SubscriptionState(subscription_id=subscription.subscription_id)
+                session.add(sub_state)
                 await session.commit()
-                await session.refresh(ingest_state)
+                await session.refresh(sub_state)
 
-            next_retry_at = _ensure_utc(ingest_state.next_retry_at)
-            last_published_at = _ensure_utc(ingest_state.last_published_at)
+            next_retry_at = _ensure_utc(sub_state.next_retry_at)
+            last_published_at = _ensure_utc(sub_state.last_published_at)
 
         # Manual re-ingests are operator-driven and should not be blocked by discovery backoff.
         for source_row in manual_sources:
             try:
                 await self._sleep_youtube_request_gap()
                 source_content = await self.transcript_loader(
-                    user_id=figure.emos_user_id,
+                    user_id=agent.slug,
                     external_id=source_row.external_id,
                     title=source_row.title,
                     video_id=source_row.external_id,
-                    source_url=source_row.source_url,
+                    source_url=source_row.external_url
+                    or f"https://www.youtube.com/watch?v={source_row.external_id}",
                 )
                 result = await manual_reingest_source(
                     source_content=source_content,
@@ -201,7 +204,7 @@ class CollectorPoller:
             except Exception:
                 self.logger.exception(
                     "manual reingest crashed figure=%s video_id=%s",
-                    figure.emos_user_id,
+                    agent.slug,
                     source_row.external_id,
                 )
                 continue
@@ -209,7 +212,7 @@ class CollectorPoller:
             if result.status != "done":
                 self.logger.error(
                     "manual reingest failed figure=%s video_id=%s code=%s message=%s",
-                    figure.emos_user_id,
+                    agent.slug,
                     source_row.external_id,
                     (result.error.code if result.error else None),
                     (result.error.message if result.error else None),
@@ -220,51 +223,53 @@ class CollectorPoller:
 
         if next_retry_at and next_retry_at > now:
             async with self.session_factory() as session:
-                ingest_state = await session.get(IngestState, subscription.subscription_id)
-                if ingest_state is not None:
-                    ingest_state.last_polled_at = now
+                sub_state = await session.get(SubscriptionState, subscription.subscription_id)
+                if sub_state is not None:
+                    sub_state.last_polled_at = now
+                    sub_state.updated_at = now
                     await session.commit()
             return (0, ingested_count, 0)
 
         try:
             bootstrap = False
-            last_seen_video_id: str | None
+            last_seen_external_id: str | None
             async with self.session_factory() as session:
-                ingest_state = await session.get(IngestState, subscription.subscription_id)
-                if ingest_state is None:
-                    last_seen_video_id = None
-                    last_published_at = None
-                    bootstrap = True
-                else:
-                    last_seen_video_id = ingest_state.last_seen_video_id
-                    last_published_at = _ensure_utc(ingest_state.last_published_at)
-                    bootstrap = (
-                        ingest_state.last_polled_at is None
-                        and ingest_state.last_seen_video_id is None
-                        and ingest_state.last_published_at is None
-                    )
+                sub_state = await session.get(SubscriptionState, subscription.subscription_id)
+                if sub_state is None:
+                    sub_state = SubscriptionState(subscription_id=subscription.subscription_id)
+                    session.add(sub_state)
+                    await session.commit()
+                    await session.refresh(sub_state)
+
+                last_seen_external_id = sub_state.last_seen_external_id
+                last_published_at = _ensure_utc(sub_state.last_published_at)
+                bootstrap = (
+                    sub_state.last_polled_at is None
+                    and sub_state.last_seen_external_id is None
+                    and sub_state.last_published_at is None
+                )
 
             await self._sleep_youtube_request_gap()
             discovered = await self.discovery_fn(
                 subscription.subscription_url,
-                last_seen_video_id=last_seen_video_id,
+                last_seen_video_id=last_seen_external_id,
                 last_published_at=last_published_at,
                 bootstrap=bootstrap,
             )
         except Exception:
             async with self.session_factory() as session:
-                ingest_state = await session.get(IngestState, subscription.subscription_id)
-                if ingest_state is None:
-                    ingest_state = IngestState(subscription_id=subscription.subscription_id)
-                    session.add(ingest_state)
-                ingest_state.last_polled_at = now
-                ingest_state.failure_count += 1
+                sub_state = await session.get(SubscriptionState, subscription.subscription_id)
+                if sub_state is None:
+                    sub_state = SubscriptionState(subscription_id=subscription.subscription_id)
+                    session.add(sub_state)
+                sub_state.last_polled_at = now
+                sub_state.failure_count += 1
                 backoff_minutes = min(
-                    subscription.poll_interval_minutes
-                    * (2 ** max(0, ingest_state.failure_count - 1)),
+                    subscription.poll_interval_minutes * (2 ** max(0, sub_state.failure_count - 1)),
                     24 * 60,
                 )
-                ingest_state.next_retry_at = now + timedelta(minutes=backoff_minutes)
+                sub_state.next_retry_at = now + timedelta(minutes=backoff_minutes)
+                sub_state.updated_at = now
                 await session.commit()
             raise
 
@@ -277,23 +282,24 @@ class CollectorPoller:
             await self._upsert_discovered_source(
                 index=index,
                 subscription_id=subscription.subscription_id,
-                figure_slug=figure.emos_user_id,
+                figure_slug=agent.slug,
                 item=item,
             )
 
         # Advance cursor based on discovery only. Individual source failures are handled per-source.
         latest = discovered[-1] if discovered else None
         async with self.session_factory() as session:
-            ingest_state = await session.get(IngestState, subscription.subscription_id)
-            if ingest_state is None:
-                ingest_state = IngestState(subscription_id=subscription.subscription_id)
-                session.add(ingest_state)
-            ingest_state.last_polled_at = now
+            sub_state = await session.get(SubscriptionState, subscription.subscription_id)
+            if sub_state is None:
+                sub_state = SubscriptionState(subscription_id=subscription.subscription_id)
+                session.add(sub_state)
+            sub_state.last_polled_at = now
             if latest is not None:
-                ingest_state.last_seen_video_id = latest.video_id
-                ingest_state.last_published_at = _ensure_utc(latest.published_at)
-            ingest_state.failure_count = 0
-            ingest_state.next_retry_at = None
+                sub_state.last_seen_external_id = latest.video_id
+                sub_state.last_published_at = _ensure_utc(latest.published_at)
+            sub_state.failure_count = 0
+            sub_state.next_retry_at = None
+            sub_state.updated_at = now
             await session.commit()
 
         # Process due sources for this subscription (newly discovered + retry queue).
@@ -304,7 +310,7 @@ class CollectorPoller:
             outcome = await self._attempt_source(
                 index=index,
                 subscription_id=subscription.subscription_id,
-                figure_slug=figure.emos_user_id,
+                figure_slug=agent.slug,
                 source_row=stored,
             )
             if outcome == "ingested":
@@ -330,12 +336,9 @@ class CollectorPoller:
     ) -> None:
         raw_meta: dict[str, Any] | None = item.raw_meta or None
         try:
-            raw_meta_json = json.dumps(raw_meta, ensure_ascii=False) if raw_meta else None
+            json.dumps(raw_meta, ensure_ascii=False) if raw_meta else None
             safe_raw_meta = raw_meta
         except TypeError:
-            raw_meta_json = json.dumps(
-                {"raw_meta_error": "non_json_serializable"}, ensure_ascii=False
-            )
             safe_raw_meta = {"raw_meta_error": "non_json_serializable"}
 
         class _SourceInput:
@@ -364,7 +367,7 @@ class CollectorPoller:
             refreshed = await session.get(Source, stored.source_id)
             if refreshed is None:
                 return
-            refreshed.raw_meta_json = raw_meta_json or refreshed.raw_meta_json
+            refreshed.raw_meta_json = safe_raw_meta or refreshed.raw_meta_json
             if refreshed.subscription_id is None:
                 refreshed.subscription_id = subscription_id
             await session.commit()
@@ -373,12 +376,19 @@ class CollectorPoller:
         async with self.session_factory() as session:
             stmt = (
                 select(Source)
+                .outerjoin(
+                    SourceIngestionState,
+                    SourceIngestionState.source_id == Source.source_id,
+                )
                 .where(
                     Source.subscription_id == subscription_id,
-                    Source.transcript_status == "pending",
                     or_(
-                        Source.transcript_next_retry_at.is_(None),
-                        Source.transcript_next_retry_at <= now,
+                        SourceIngestionState.ingest_status.is_(None),
+                        SourceIngestionState.ingest_status == "pending",
+                    ),
+                    or_(
+                        SourceIngestionState.next_retry_at.is_(None),
+                        SourceIngestionState.next_retry_at <= now,
                     ),
                 )
                 .order_by(Source.published_at, Source.source_id)
@@ -405,22 +415,27 @@ class CollectorPoller:
         attempt: int | None = None
         external_id: str | None = None
         async with self.session_factory() as session:
-            stored = await session.get(Source, source_id)
-            if stored is None:
+            source = await session.get(Source, source_id)
+            if source is None:
                 return
-            stored.transcript_failure_count += 1
-            stored.transcript_last_attempt_at = now
-            stored.transcript_skip_reason = None
-            external_id = stored.external_id
-            if stored.transcript_failure_count >= max_attempts:
-                stored.transcript_status = "failed"
-                stored.transcript_next_retry_at = None
+            state = await session.get(SourceIngestionState, source_id)
+            if state is None:
+                state = SourceIngestionState(source_id=source_id)
+                session.add(state)
+            state.failure_count += 1
+            state.last_attempt_at = now
+            state.skip_reason = None
+            state.updated_at = now
+            external_id = source.external_id
+            if state.failure_count >= max_attempts:
+                state.ingest_status = "failed"
+                state.next_retry_at = None
             else:
-                delay_s = self._compute_retry_delay_s(attempt=stored.transcript_failure_count)
-                stored.transcript_next_retry_at = now + timedelta(seconds=delay_s)
-                stored.transcript_status = "pending"
+                delay_s = self._compute_retry_delay_s(attempt=state.failure_count)
+                state.next_retry_at = now + timedelta(seconds=delay_s)
+                state.ingest_status = "pending"
                 retry_in_s = delay_s
-            attempt = stored.transcript_failure_count
+            attempt = state.failure_count
             await session.commit()
 
         self.logger.warning(
@@ -439,14 +454,19 @@ class CollectorPoller:
         reason: str,
     ) -> None:
         async with self.session_factory() as session:
-            stored = await session.get(Source, source_id)
-            if stored is None:
+            source = await session.get(Source, source_id)
+            if source is None:
                 return
-            stored.transcript_status = "skipped"
-            stored.transcript_skip_reason = reason
-            stored.transcript_failure_count = 0
-            stored.transcript_last_attempt_at = now
-            stored.transcript_next_retry_at = None
+            state = await session.get(SourceIngestionState, source_id)
+            if state is None:
+                state = SourceIngestionState(source_id=source_id)
+                session.add(state)
+            state.ingest_status = "skipped"
+            state.skip_reason = reason
+            state.failure_count = 0
+            state.last_attempt_at = now
+            state.next_retry_at = None
+            state.updated_at = now
             await session.commit()
 
     async def _attempt_source(
@@ -460,17 +480,21 @@ class CollectorPoller:
         del subscription_id
         now = datetime.now(tz=UTC)
 
-        if source_row.transcript_status != "pending":
-            return "skipped"
-        next_retry_at = _ensure_utc(source_row.transcript_next_retry_at)
-        if next_retry_at and next_retry_at > now:
-            return "skipped"
-
         async with self.session_factory() as session:
             stored = await session.get(Source, source_row.source_id)
             if stored is None:
                 return "skipped"
-            stored.transcript_last_attempt_at = now
+            state = await session.get(SourceIngestionState, stored.source_id)
+            if state is None:
+                state = SourceIngestionState(source_id=stored.source_id)
+                session.add(state)
+            if state.ingest_status != "pending":
+                return "skipped"
+            next_retry_at = _ensure_utc(state.next_retry_at)
+            if next_retry_at and next_retry_at > now:
+                return "skipped"
+            state.last_attempt_at = now
+            state.updated_at = now
             await session.commit()
 
         try:
@@ -480,7 +504,8 @@ class CollectorPoller:
                 external_id=source_row.external_id,
                 title=source_row.title,
                 video_id=source_row.external_id,
-                source_url=source_row.source_url,
+                source_url=source_row.external_url
+                or f"https://www.youtube.com/watch?v={source_row.external_id}",
             )
         except AccessRestrictedError:
             await self._mark_source_skipped(
@@ -516,15 +541,19 @@ class CollectorPoller:
         )
         return "retry"
 
-    async def _load_manual_reingest_sources(self, figure_id) -> list[Source]:
+    async def _load_manual_reingest_sources(self, agent_id: UUID) -> list[Source]:
         async with self.session_factory() as session:
             stmt = (
                 select(Source)
-                .where(
-                    Source.figure_id == figure_id,
-                    Source.manual_ingestion_requested_at.is_not(None),
+                .join(
+                    SourceIngestionState,
+                    SourceIngestionState.source_id == Source.source_id,
                 )
-                .order_by(Source.manual_ingestion_requested_at.asc())
+                .where(
+                    Source.agent_id == agent_id,
+                    SourceIngestionState.manual_requested_at.is_not(None),
+                )
+                .order_by(SourceIngestionState.manual_requested_at.asc())
             )
             return list((await session.execute(stmt)).scalars().all())
 

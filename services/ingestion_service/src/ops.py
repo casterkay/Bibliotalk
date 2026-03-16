@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from bt_common.evidence_store.engine import get_session_factory, init_database
-from bt_common.evidence_store.models import Figure, Source
+from bt_store.engine import get_session_factory, init_database
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Source
+from bt_store.models_ingestion import SourceIngestionState
 from sqlalchemy import select
 
 
@@ -21,7 +23,7 @@ async def request_manual_ingest(
 
     async with session_factory() as session:
         figure = (
-            (await session.execute(select(Figure).where(Figure.emos_user_id == figure_slug)))
+            (await session.execute(select(Agent).where(Agent.slug == figure_slug)))
             .scalars()
             .first()
         )
@@ -34,8 +36,8 @@ async def request_manual_ingest(
             (
                 await session.execute(
                     select(Source).where(
-                        Source.figure_id == figure.figure_id,
-                        Source.platform == "youtube",
+                        Source.agent_id == figure.agent_id,
+                        Source.content_platform == "youtube",
                         Source.external_id == video_id,
                     )
                 )
@@ -47,21 +49,26 @@ async def request_manual_ingest(
         if source is None:
             effective_source_url = source_url or f"https://www.youtube.com/watch?v={video_id}"
             source = Source(
-                figure_id=figure.figure_id,
-                platform="youtube",
+                agent_id=figure.agent_id,
+                content_platform="youtube",
                 external_id=video_id,
-                group_id=f"{figure.emos_user_id}:youtube:{video_id}",
+                emos_group_id=f"{figure.slug}:youtube:{video_id}",
                 title=title,
-                source_url=effective_source_url,
-                transcript_status="pending",
-                manual_ingestion_requested_at=now,
+                external_url=effective_source_url,
             )
             session.add(source)
         else:
-            source.manual_ingestion_requested_at = now
             if source_url:
-                source.source_url = source_url
+                source.external_url = source_url
             if title and source.title.startswith("("):
                 source.title = title
+
+        await session.flush()
+        state = await session.get(SourceIngestionState, source.source_id)
+        if state is None:
+            state = SourceIngestionState(source_id=source.source_id)
+            session.add(state)
+        state.manual_requested_at = now
+        state.ingest_status = "pending"
 
         await session.commit()

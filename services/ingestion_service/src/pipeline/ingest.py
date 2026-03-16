@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from bt_common.evermemos_client import EverMemOSClient
-from bt_common.evidence_store.models import Figure, TranscriptBatch
-from bt_common.evidence_store.models import Segment as StoredSegment
-from bt_common.evidence_store.models import Source as StoredSource
+from bt_store.models_core import Agent
+from bt_store.models_evidence import Segment as StoredSegment
+from bt_store.models_evidence import Source as StoredSource
+from bt_store.models_ingestion import SourceIngestionState, SourceTextBatch
 from sqlalchemy import delete, select
 
 from ..domain.errors import IngestError
@@ -143,45 +144,60 @@ def _derive_transcript_batches(segments: list[Any]) -> list[dict[str, Any]]:
 
 async def upsert_source_record(*, index: IngestionIndex, source: Any) -> StoredSource:
     async with index.session_factory() as session:
-        figure = (
-            await session.execute(select(Figure).where(Figure.emos_user_id == source.user_id))
+        agent = (
+            await session.execute(select(Agent).where(Agent.slug == source.user_id))
         ).scalar_one_or_none()
-        if figure is None:
-            raise IngestError(f"Unknown figure slug: {source.user_id}", code="FIGURE_NOT_FOUND")
+        if agent is None:
+            raise IngestError(f"Unknown agent slug: {source.user_id}", code="FIGURE_NOT_FOUND")
 
         stored = (
             await session.execute(
                 select(StoredSource).where(
-                    StoredSource.figure_id == figure.figure_id,
-                    StoredSource.platform == source.platform,
+                    StoredSource.agent_id == agent.agent_id,
+                    StoredSource.content_platform == source.platform,
                     StoredSource.external_id == source.external_id,
                 )
             )
         ).scalar_one_or_none()
         if stored is None:
             stored = StoredSource(
-                figure_id=figure.figure_id,
-                platform=source.platform,
+                agent_id=agent.agent_id,
+                content_platform=source.platform,
                 external_id=source.external_id,
-                group_id=source.group_id or "",
+                emos_group_id=source.group_id or "",
                 title=source.title,
-                source_url=source.source_url,
+                external_url=source.source_url,
             )
             session.add(stored)
 
         subscription_id = getattr(source, "subscription_id", None)
         if subscription_id is not None:
             stored.subscription_id = subscription_id
-        stored.group_id = source.group_id or stored.group_id
+        stored.emos_group_id = source.group_id or stored.emos_group_id
         stored.title = source.title
-        stored.source_url = source.source_url
+        stored.external_url = source.source_url
         stored.channel_name = source.channel_name
         stored.published_at = source.published_at
-        stored.raw_meta_json = (
-            json.dumps(source.raw_meta, ensure_ascii=False) if source.raw_meta else None
-        )
-        if stored.transcript_status in {"failed", "no_transcript"}:
-            stored.transcript_status = "pending"
+        raw_meta = getattr(source, "raw_meta", None)
+        if raw_meta:
+            safe_meta: dict[str, Any]
+            if isinstance(raw_meta, dict):
+                try:
+                    json.dumps(raw_meta, ensure_ascii=False)
+                    safe_meta = raw_meta
+                except TypeError:
+                    safe_meta = {"raw_meta_error": "non_json_serializable"}
+            else:
+                safe_meta = {"raw_meta_error": f"expected_dict_got:{type(raw_meta).__name__}"}
+            stored.raw_meta_json = safe_meta
+
+        await session.flush()
+        state = await session.get(SourceIngestionState, stored.source_id)
+        if state is None:
+            state = SourceIngestionState(source_id=stored.source_id)
+            session.add(state)
+        if state.ingest_status in {"failed", "no_transcript"}:
+            state.ingest_status = "pending"
 
         await session.commit()
         await session.refresh(stored)
@@ -195,20 +211,22 @@ async def _set_source_transcript_status(
     status: str,
 ) -> None:
     async with index.session_factory() as session:
-        stored = await session.get(StoredSource, source_id)
-        if stored is None:
-            return
-        stored.transcript_status = status
+        state = await session.get(SourceIngestionState, source_id)
+        if state is None:
+            state = SourceIngestionState(source_id=source_id)
+            session.add(state)
+        state.ingest_status = status
         if status == "ingested":
-            stored.transcript_failure_count = 0
-            stored.transcript_next_retry_at = None
-            stored.transcript_skip_reason = None
+            state.failure_count = 0
+            state.next_retry_at = None
+            state.skip_reason = None
+        state.updated_at = _now()
         await session.commit()
 
 
 async def _delete_active_source_artifacts(*, index: IngestionIndex, source_id: uuid.UUID) -> None:
     async with index.session_factory() as session:
-        await session.execute(delete(TranscriptBatch).where(TranscriptBatch.source_id == source_id))
+        await session.execute(delete(SourceTextBatch).where(SourceTextBatch.source_id == source_id))
         await session.execute(delete(StoredSegment).where(StoredSegment.source_id == source_id))
         await session.commit()
 
@@ -217,6 +235,8 @@ async def _persist_segment_record(
     *,
     index: IngestionIndex,
     source_id: uuid.UUID,
+    agent_id: uuid.UUID,
+    group_id: str,
     segment: Any,
 ) -> None:
     async with index.session_factory() as session:
@@ -231,9 +251,11 @@ async def _persist_segment_record(
         if stored is None:
             stored = StoredSegment(
                 source_id=source_id,
+                agent_id=agent_id,
                 seq=segment.seq,
                 text=segment.text,
                 sha256=segment.sha256,
+                emos_message_id=f"{group_id}:seg:{segment.seq}",
             )
             session.add(stored)
 
@@ -254,24 +276,30 @@ async def _replace_transcript_batches(
 ) -> None:
     batches = _derive_transcript_batches(segments)
     async with index.session_factory() as session:
-        await session.execute(delete(TranscriptBatch).where(TranscriptBatch.source_id == source_id))
+        await session.execute(delete(SourceTextBatch).where(SourceTextBatch.source_id == source_id))
         for batch in batches:
-            session.add(TranscriptBatch(source_id=source_id, **batch))
+            session.add(SourceTextBatch(source_id=source_id, **batch))
         await session.commit()
 
 
 async def _prepare_manual_reingest(*, index: IngestionIndex, group_id: str) -> None:
     async with index.session_factory() as session:
         stored = (
-            await session.execute(select(StoredSource).where(StoredSource.group_id == group_id))
+            await session.execute(
+                select(StoredSource).where(StoredSource.emos_group_id == group_id)
+            )
         ).scalar_one_or_none()
         if stored is None:
             return
 
-        stored.transcript_status = "pending"
-        stored.manual_ingestion_requested_at = None
+        state = await session.get(SourceIngestionState, stored.source_id)
+        if state is None:
+            state = SourceIngestionState(source_id=stored.source_id)
+            session.add(state)
+        state.ingest_status = "pending"
+        state.manual_requested_at = None
         await session.execute(
-            delete(TranscriptBatch).where(TranscriptBatch.source_id == stored.source_id)
+            delete(SourceTextBatch).where(SourceTextBatch.source_id == stored.source_id)
         )
         await session.execute(
             delete(StoredSegment).where(StoredSegment.source_id == stored.source_id)
@@ -467,7 +495,11 @@ async def ingest_source(
             await client.memorize(payload)
             ingested += 1
             await _persist_segment_record(
-                index=index, source_id=stored_source.source_id, segment=seg
+                index=index,
+                source_id=stored_source.source_id,
+                agent_id=stored_source.agent_id,
+                group_id=seg_group_id,
+                segment=seg,
             )
             if include_segment_details:
                 seg_results.append(

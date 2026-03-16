@@ -44,20 +44,20 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete.
 
-- [X] T011 Create async DB engine + session helpers in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/engine.py`
-- [X] T012 [P] Define SQLAlchemy models for `Agent`, `AgentPlatformIdentity`, `Room` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_core.py`
-- [X] T013 [P] Define SQLAlchemy models for `Source`, `Segment` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_evidence.py`
-- [X] T014 [P] Define SQLAlchemy models for `ChatHistory`, `PlatformPost` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/models_runtime.py`
+- [X] T011 Create async DB engine + session helpers in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/engine.py`
+- [X] T012 [P] Define SQLAlchemy models for `Agent`, `AgentPlatformIdentity`, `Room` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/models_core.py`
+- [X] T013 [P] Define SQLAlchemy models for `Source`, `Segment` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/models_evidence.py`
+- [X] T014 [P] Define SQLAlchemy models for `TalkThread`, `PlatformPost` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/models_runtime.py`
 - [X] T015 Add Alembic config + env for `bt_store` migrations in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic.ini`
 - [X] T016 Create initial schema migration per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/data-model.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic/versions/0001_initial_schema.py`
-- [X] T017 Add citation validation utility (quote substring + agent isolation) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/citations.py`
+- [X] T017 Add citation validation utility (quote substring + agent isolation) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/citations.py`
 - [X] T018 Add settings for Matrix appservice + Spirit namespace in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/config.py`
 - [X] T019 Create `agents_service` HTTP app skeleton (FastAPI) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/server.py`
 - [X] T020 Implement non-streaming fallback `POST /v1/agents/{agent_id}/turn` per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/turns.py`
 - [X] T021 Implement Live Sessions create+WS endpoints per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/live.py`
 - [X] T022 Implement Live-session cancellation/supersede semantics (turn-level cancel; last-turn-wins) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/session_manager.py`
 - [X] T023 Implement voice Live integration with Gemini Live (audio in/out + transcription forwarding) grounded on `/Users/tcai/Projects/Bibliotalk/docs/knowledge/gemini-live-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/gemini_live_backend.py`
-- [X] T024 Persist `ChatHistory` for both user inputs and Spirit outputs in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/audit/chat_history.py`
+- [X] T024 Persist `TalkThread` for both user inputs and Spirit outputs in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/audit/chat_history.py`
 - [X] T025 Add stable error codes + error shape mapping in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/errors.py`
 
 **Checkpoint**: DB schema migrates cleanly; `agents_service` exposes both fallback turn API and Live Sessions API; citation validation is enforced.
@@ -80,7 +80,7 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 - [X] T033 [US1] Implement outbound message renderer (Matrix formatting + `com.bibliotalk.citations`) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/render/matrix_message.ts`
 - [X] T034 [US1] Implement streaming delivery via message edits (`m.replace`) per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/matrix-events.md` in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/render/streaming_edits.ts`
 - [X] T035 [US1] Implement `/_matrix/app/v1/transactions/{txn_id}` handler (parse → route → call `agents_service` Live Sessions/turn fallback → post) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/matrix/appservice.ts`
-- [ ] T036 [US1] Persist Dialogue Room messages + Spirit responses to `ChatHistory` (audit trail) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/audit/write_chat_history.ts`
+- [ ] T036 [US1] Persist Dialogue Room messages + Spirit responses to `TalkThread` (audit trail) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/audit/write_talk_threads.ts`
 - [X] T037 [P] [US1] Add operator CLI command to run matrix_service in `/Users/tcai/Projects/Bibliotalk/packages/bt_cli/src/main.py`
 - [ ] T038 [US1] Validate US1 end-to-end via local Element + Synapse stack using `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/quickstart.md`
 
@@ -92,8 +92,8 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 **Independent Test** (manual): Open a Spirit’s Archive Room from the Space, confirm read-only for humans, confirm a source appears as a single thread root + ordered replies and retries do not duplicate. See `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/spec.md`.
 
-- [ ] T039 [P] [US2] Add `Room.kind` enforcement helpers (archive vs dialogue) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/rooms.py`
-- [ ] T040 [US2] Add `PlatformPost` idempotency key helpers per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/archive-publication.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/bt_store/platform_posts.py`
+- [ ] T039 [P] [US2] Add `Room.kind` enforcement helpers (archive vs dialogue) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/rooms.py`
+- [ ] T040 [US2] Add `PlatformPost` idempotency key helpers per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/archive-publication.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/platform_posts.py`
 - [ ] T041 [US2] Update ingestion pipeline to write `Source` + `Segment` into `bt_store` and store deterministic root summary (from ingestion/EverMemOS metadata) in `/Users/tcai/Projects/Bibliotalk/services/ingestion_service/src/ingestion_service/pipeline/ingest.py`
 - [ ] T042 [US2] Emit Archive publication intents (`PlatformPost`: `archive.thread_root` + `archive.thread_reply`) during/after ingest in `/Users/tcai/Projects/Bibliotalk/services/ingestion_service/src/ingestion_service/pipeline/ingest.py`
 - [ ] T043 [US2] Implement Matrix provisioning (Space + per-agent Archive Room + power levels for read-only) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/provisioning/archive_rooms.ts`

@@ -8,6 +8,7 @@ dependencies = []
 members = [
   "packages/bt_cli",
   "packages/bt_common",
+  "packages/bt_store",
   "services/agents_service",
   "services/discord_service",
   "services/ingestion_service",
