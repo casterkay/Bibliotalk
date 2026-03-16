@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from ..agent.agent_factory import create_spirit_agent
 from ..audit.chat_history import ChatEvent, persist_chat_event
+from ..models.citation import build_verifiable_quote
 from ..store import SQLiteFigureStore
 from .errors import APIError, ErrorCode
 
@@ -81,8 +82,7 @@ async def create_turn(agent_id: UUID, request: TurnRequest) -> TurnResponse:
 
     citations: list[Citation] = []
     for ev in evidence[:10]:
-        quote = " ".join((ev.text or "").split()).strip()
-        quote = quote[:200] if len(quote) > 200 else quote
+        quote = build_verifiable_quote(ev.text, max_chars=200)
         if not quote:
             continue
         citations.append(

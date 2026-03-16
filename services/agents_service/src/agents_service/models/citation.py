@@ -12,6 +12,28 @@ from pydantic import BaseModel, Field
 NO_EVIDENCE_RESPONSE = "I couldn't find relevant supporting evidence for that question."
 
 
+def _normalize_whitespace(text: str) -> str:
+    return " ".join(text.split())
+
+
+def build_verifiable_quote(text: str | None, *, max_chars: int = 200) -> str:
+    """Build a quote that can be verified via substring checks against the source text.
+
+    Do not normalize whitespace, as verification uses `quote in segment.text`.
+    Prefer a single-line prefix (up to max_chars) to keep payloads/UI readable.
+    """
+
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+
+    candidate = raw[:max_chars]
+    newline_indexes = [i for i in (candidate.find("\n"), candidate.find("\r")) if i != -1]
+    if newline_indexes:
+        candidate = candidate[: min(newline_indexes)].rstrip()
+    return candidate
+
+
 class Evidence(BaseModel):
     segment_id: UUID
     source_id: UUID | None = None
@@ -54,7 +76,7 @@ class Evidence(BaseModel):
 def build_inline_link(evidence: Evidence, *, max_chars: int = 120) -> str | None:
     if not evidence.memory_url:
         return None
-    visible_text = " ".join(evidence.text.split())[:max_chars].strip()
+    visible_text = _normalize_whitespace(evidence.text)[:max_chars].strip()
     if not visible_text:
         return None
     return f"[{visible_text}]({evidence.memory_url})"
@@ -124,6 +146,9 @@ def validate_evidence_links(
     figure_emos_user_id: str,
 ) -> str:
     evidence_by_url = {e.memory_url: e for e in evidence_set if e.memory_url}
+    normalized_text_by_url = {
+        url: _normalize_whitespace(evidence.text) for url, evidence in evidence_by_url.items()
+    }
 
     def _replace(match: re.Match[str]) -> str:
         visible_text, url = match.group(1), match.group(2)
@@ -132,7 +157,9 @@ def validate_evidence_links(
             return visible_text
         if evidence.memory_user_id != figure_emos_user_id:
             return visible_text
-        if visible_text not in evidence.text:
+        if visible_text in evidence.text:
+            return match.group(0)
+        if _normalize_whitespace(visible_text) not in normalized_text_by_url.get(url, ""):
             return visible_text
         return match.group(0)
 
