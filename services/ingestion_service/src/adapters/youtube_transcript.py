@@ -10,8 +10,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-import httpx
-
 from ..domain.errors import (
     AccessRestrictedError,
     AdapterError,
@@ -64,6 +62,33 @@ _MEMBERS_ONLY_MARKERS = (
 def _is_members_only_error_message(message: str) -> bool:
     lowered = (message or "").lower()
     return any(marker in lowered for marker in _MEMBERS_ONLY_MARKERS)
+
+
+def _apply_yt_dlp_impersonate(ydl_opts: dict[str, Any], target: str | None) -> None:
+    cleaned = (target or "").strip()
+    if not cleaned:
+        return
+    try:
+        from yt_dlp.networking.impersonate import (  # type: ignore[import-not-found]
+            ImpersonateTarget,
+        )
+    except Exception:
+        return
+    try:
+        ydl_opts["impersonate"] = ImpersonateTarget(cleaned)
+    except Exception:
+        ydl_opts["impersonate"] = cleaned
+
+
+def _extract_yt_dlp_http_status(exc: Exception) -> int | None:
+    response = getattr(exc, "response", None)
+    status = getattr(response, "status", None)
+    if isinstance(status, int):
+        return status
+    status_code = getattr(exc, "status_code", None)
+    if isinstance(status_code, int):
+        return status_code
+    return None
 
 
 _VTT_TIME_RE = re.compile(
@@ -399,10 +424,12 @@ class YtDlpCaptionsProvider:
         timeout_s: float = 20.0,
         allow_auto_captions: bool = True,
         cookiefile: str | None = None,
+        impersonate_target: str | None = "chrome",
     ) -> None:
         self._timeout_s = float(timeout_s)
         self._allow_auto = bool(allow_auto_captions)
         self._cookiefile = cookiefile
+        self._impersonate_target = impersonate_target
 
     def fetch(
         self, video_id: str, *, preferred_languages: Sequence[str] | None
@@ -420,13 +447,38 @@ class YtDlpCaptionsProvider:
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,
+            "socket_timeout": self._timeout_s,
         }
         if self._cookiefile:
             ydl_opts["cookiefile"] = self._cookiefile
+        _apply_yt_dlp_impersonate(ydl_opts, self._impersonate_target)
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
+                selection = _select_caption(
+                    subtitles=info.get("subtitles"),
+                    automatic_captions=info.get("automatic_captions"),
+                    preferred_languages=preferred_languages,
+                    allow_auto=self._allow_auto,
+                )
+                if selection is None:
+                    raise AdapterError(f"yt-dlp found no captions for video_id={video_id}")
+
+                try:
+                    with ydl.urlopen(selection.url) as resp:
+                        caption_text = resp.read().decode("utf-8", errors="replace")
+                except Exception as exc:
+                    status = _extract_yt_dlp_http_status(exc)
+                    if status == 429:
+                        raise RetryLaterError(
+                            f"rate limited downloading captions for video_id={video_id}: {exc}"
+                        ) from exc
+                    raise AdapterError(
+                        f"failed to download captions for video_id={video_id}: {exc}"
+                    ) from exc
+        except (AccessRestrictedError, RetryLaterError):
+            raise
         except Exception as exc:
             if _is_members_only_error_message(str(exc)):
                 raise AccessRestrictedError(
@@ -434,38 +486,6 @@ class YtDlpCaptionsProvider:
                 ) from exc
             raise AdapterError(
                 f"yt-dlp metadata extraction failed for video_id={video_id}: {exc}"
-            ) from exc
-
-        selection = _select_caption(
-            subtitles=info.get("subtitles"),
-            automatic_captions=info.get("automatic_captions"),
-            preferred_languages=preferred_languages,
-            allow_auto=self._allow_auto,
-        )
-        if selection is None:
-            raise AdapterError(f"yt-dlp found no captions for video_id={video_id}")
-
-        try:
-            with httpx.Client(
-                follow_redirects=True,
-                timeout=self._timeout_s,
-                headers={"User-Agent": "Mozilla/5.0"},
-            ) as client:
-                resp = client.get(selection.url)
-                resp.raise_for_status()
-                caption_text = resp.text
-        except httpx.HTTPStatusError as exc:
-            status = exc.response.status_code if exc.response is not None else None
-            if status == 429:
-                raise RetryLaterError(
-                    f"rate limited downloading captions for video_id={video_id}: {exc}"
-                ) from exc
-            raise AdapterError(
-                f"failed to download captions for video_id={video_id}: {exc}"
-            ) from exc
-        except Exception as exc:
-            raise AdapterError(
-                f"failed to download captions for video_id={video_id}: {exc}"
             ) from exc
 
         ext = selection.ext.lower()
@@ -521,8 +541,14 @@ class YtDlpCaptionsProvider:
 
 
 class YtDlpMetadataFetcher:
-    def __init__(self, *, cookiefile: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        cookiefile: str | None = None,
+        impersonate_target: str | None = "chrome",
+    ) -> None:
         self._cookiefile = cookiefile
+        self._impersonate_target = impersonate_target
 
     def fetch(self, video_id: str) -> YouTubeVideoMetadata:
         try:
@@ -541,6 +567,7 @@ class YtDlpMetadataFetcher:
         }
         if self._cookiefile:
             ydl_opts["cookiefile"] = self._cookiefile
+        _apply_yt_dlp_impersonate(ydl_opts, self._impersonate_target)
 
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -576,13 +603,17 @@ class YouTubeTranscriptService:
         preferred_languages: Sequence[str] | None = None,
         allow_auto_captions: bool = True,
         yt_dlp_cookiefile: str | None = None,
+        yt_dlp_impersonate_target: str | None = "chrome",
     ) -> None:
         if not providers:
             raise ValueError("providers must be non-empty")
         self._providers = list(providers)
         self._preferred_languages = list(_preferred_langs(preferred_languages)) or None
         self._allow_auto_captions = bool(allow_auto_captions)
-        self._metadata_fetcher = YtDlpMetadataFetcher(cookiefile=yt_dlp_cookiefile)
+        self._metadata_fetcher = YtDlpMetadataFetcher(
+            cookiefile=yt_dlp_cookiefile,
+            impersonate_target=yt_dlp_impersonate_target,
+        )
 
     @staticmethod
     def build_default(
@@ -591,6 +622,7 @@ class YouTubeTranscriptService:
         preferred_languages: Sequence[str] | None = None,
         allow_auto_captions: bool = True,
         yt_dlp_cookiefile: str | None = None,
+        yt_dlp_impersonate_target: str | None = "chrome",
         timeout_s: float = 20.0,
     ) -> YouTubeTranscriptService:
         providers: list[YouTubeTranscriptProvider] = []
@@ -604,6 +636,7 @@ class YouTubeTranscriptService:
                         timeout_s=timeout_s,
                         allow_auto_captions=allow_auto_captions,
                         cookiefile=yt_dlp_cookiefile,
+                        impersonate_target=yt_dlp_impersonate_target,
                     )
                 )
             elif key in {"youtube_transcript_api", "youtube-transcript-api", "yta"}:
@@ -615,6 +648,7 @@ class YouTubeTranscriptService:
             preferred_languages=preferred_languages,
             allow_auto_captions=allow_auto_captions,
             yt_dlp_cookiefile=yt_dlp_cookiefile,
+            yt_dlp_impersonate_target=yt_dlp_impersonate_target,
         )
 
     async def fetch(self, video_id: str) -> YouTubeTranscriptFetch:

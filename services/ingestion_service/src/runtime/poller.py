@@ -71,11 +71,13 @@ class CollectorPoller:
         client: EverMemOSClient | None = None,
         discovery_fn: Callable[..., Awaitable[list[DiscoveredVideo]]] | None = None,
         transcript_loader: Callable[..., Awaitable[object]] | None = None,
+        sleep: Callable[[float], Awaitable[None]] | None = None,
     ):
         self.config = config
         self.session_factory = session_factory
         self.logger = logger
         self.client = client
+        self._sleep = sleep or asyncio.sleep
         self.discovery_fn = discovery_fn or discover_subscription
         if transcript_loader is not None:
             self._transcript_service = None
@@ -86,6 +88,7 @@ class CollectorPoller:
                 preferred_languages=self.config.youtube_transcript_langs,
                 allow_auto_captions=self.config.youtube_allow_auto_captions,
                 yt_dlp_cookiefile=self.config.yt_dlp_cookiefile,
+                yt_dlp_impersonate_target=self.config.yt_dlp_impersonate_target,
             )
             self.transcript_loader = lambda **kwargs: load_youtube_transcript_source(
                 **kwargs, transcript_service=self._transcript_service
@@ -182,6 +185,7 @@ class CollectorPoller:
         # Manual re-ingests are operator-driven and should not be blocked by discovery backoff.
         for source_row in manual_sources:
             try:
+                await self._sleep_youtube_request_gap()
                 source_content = await self.transcript_loader(
                     user_id=figure.emos_user_id,
                     external_id=source_row.external_id,
@@ -240,6 +244,7 @@ class CollectorPoller:
                         and ingest_state.last_published_at is None
                     )
 
+            await self._sleep_youtube_request_gap()
             discovered = await self.discovery_fn(
                 subscription.subscription_url,
                 last_seen_video_id=last_seen_video_id,
@@ -306,6 +311,14 @@ class CollectorPoller:
                 ingested_count += 1
 
         return (discovered_count, ingested_count, 0)
+
+    async def _sleep_youtube_request_gap(self) -> None:
+        delay = float(getattr(self.config, "youtube_request_delay_s", 0.0) or 0.0)
+        jitter = float(getattr(self.config, "youtube_request_jitter_s", 0.0) or 0.0)
+        total = max(0.0, delay) + (random.random() * max(0.0, jitter))
+        if total <= 0.0:
+            return
+        await self._sleep(total)
 
     async def _upsert_discovered_source(
         self,
@@ -461,6 +474,7 @@ class CollectorPoller:
             await session.commit()
 
         try:
+            await self._sleep_youtube_request_gap()
             source_content = await self.transcript_loader(
                 user_id=figure_slug,
                 external_id=source_row.external_id,

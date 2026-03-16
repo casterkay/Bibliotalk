@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
+from bt_common.evidence_store.engine import database_url_for_path
 from bt_common.evidence_store.models import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -18,7 +19,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
+    url = database_url_for_path()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -38,6 +39,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 def run_migrations_online() -> None:
+    config.set_main_option("sqlalchemy.url", database_url_for_path())
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

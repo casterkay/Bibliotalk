@@ -47,12 +47,17 @@ async def test_poller_handles_naive_retry_timestamps_without_crashing(tmp_path) 
         figure_slug="alan-watts",
         emos_base_url="https://emos.local",
     )
+
+    async def _noop_sleep(_: float) -> None:
+        return
+
     poller = CollectorPoller(
         config=config,
         session_factory=session_factory,
         logger=configure_logging(),
         client=object(),  # non-None to exercise subscription processing
         discovery_fn=fake_discovery,
+        sleep=_noop_sleep,
     )
 
     snapshot = await poller.run_once()

@@ -1,8 +1,8 @@
-"""Initial evidence store schema.
+"""Initial evidence store schema (coalesced).
 
 Revision ID: 0001_initial_schema
 Revises:
-Create Date: 2026-03-07 00:00:00
+Create Date: 2026-03-16 00:00:00
 """
 
 from __future__ import annotations
@@ -45,6 +45,7 @@ def upgrade() -> None:
         "sources",
         sa.Column("source_id", sa.Uuid(), nullable=False),
         sa.Column("figure_id", sa.Uuid(), nullable=False),
+        sa.Column("subscription_id", sa.Uuid(), nullable=True),
         sa.Column("platform", sa.String(length=20), nullable=False),
         sa.Column("external_id", sa.String(length=200), nullable=False),
         sa.Column("group_id", sa.String(length=300), nullable=False),
@@ -53,14 +54,35 @@ def upgrade() -> None:
         sa.Column("channel_name", sa.String(length=300), nullable=True),
         sa.Column("published_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("raw_meta_json", sa.Text(), nullable=True),
+        sa.Column("source_meta_synced_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("transcript_status", sa.String(length=20), nullable=False),
+        sa.Column(
+            "transcript_failure_count",
+            sa.Integer(),
+            nullable=False,
+            server_default="0",
+        ),
+        sa.Column("transcript_last_attempt_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("transcript_next_retry_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("transcript_skip_reason", sa.String(length=80), nullable=True),
         sa.Column("manual_ingestion_requested_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["figure_id"], ["figures.figure_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["subscription_id"],
+            ["subscriptions.subscription_id"],
+            ondelete="SET NULL",
+        ),
         sa.PrimaryKeyConstraint("source_id"),
         sa.UniqueConstraint("figure_id", "platform", "external_id", name="uq_source_identity"),
     )
     op.create_index("ix_sources_figure_id", "sources", ["figure_id"])
     op.create_index("ix_sources_group_id", "sources", ["group_id"])
+    op.create_index("ix_sources_subscription_id", "sources", ["subscription_id"])
+    op.create_index(
+        "ix_sources_transcript_retry",
+        "sources",
+        ["subscription_id", "transcript_next_retry_at"],
+    )
     op.create_table(
         "segments",
         sa.Column("segment_id", sa.Uuid(), nullable=False),
@@ -150,6 +172,8 @@ def downgrade() -> None:
     op.drop_table("transcript_batches")
     op.drop_index("ix_segments_source_id", table_name="segments")
     op.drop_table("segments")
+    op.drop_index("ix_sources_transcript_retry", table_name="sources")
+    op.drop_index("ix_sources_subscription_id", table_name="sources")
     op.drop_index("ix_sources_group_id", table_name="sources")
     op.drop_index("ix_sources_figure_id", table_name="sources")
     op.drop_table("sources")

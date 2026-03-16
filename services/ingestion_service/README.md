@@ -36,4 +36,7 @@ Removed from this package:
   - `BIBLIOTALK_YOUTUBE_TRANSCRIPT_LANGS` (comma-separated, optional; ex: `en,en-US`)
   - `BIBLIOTALK_YOUTUBE_ALLOW_AUTO_CAPTIONS` (default: `true`)
   - `BIBLIOTALK_YT_DLP_COOKIEFILE` (optional; improves access on restricted videos)
+  - `BIBLIOTALK_YT_DLP_IMPERSONATE` (default: `chrome`; set empty to disable)
+  - `BIBLIOTALK_YOUTUBE_REQUEST_DELAY_S` (default: `0.25`; base delay before each YouTube request)
+  - `BIBLIOTALK_YOUTUBE_REQUEST_JITTER_S` (default: `0.5`; added random delay range)
 - The target replacement runtime is documented in `specs/003-discord-bot/plan.md`.

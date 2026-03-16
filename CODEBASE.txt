@@ -69,11 +69,8 @@
 │   │   ├── alembic
 │   │   │   ├── env.py
 │   │   │   └── versions
-│   │   │       ├── 0001_initial_schema.py
-│   │   │       ├── 0002_add_source_meta_synced_at.py
-│   │   │       └── 0003_add_source_retry_fields.py
+│   │   │       └── 0001_initial_schema.py
 │   │   ├── alembic.ini
-│   │   ├── bibliotalk.db
 │   │   ├── pyproject.toml
 │   │   ├── README.md
 │   │   ├── scripts
@@ -106,6 +103,11 @@
 │           ├── entrypoint.py
 │           └── resolver.py
 ├── specs
+│   ├── 001-matrix-mvp
+│   │   ├── checklists
+│   │   │   └── requirements.md
+│   │   ├── plan.md
+│   │   └── spec.md
 │   ├── 002-evermemos-content-ingest
 │   │   ├── checklists
 │   │   │   └── requirements.md
@@ -137,5 +139,5 @@
 │       └── tasks.md
 └── uv.lock
 
-42 directories, 96 files
+44 directories, 96 files
 

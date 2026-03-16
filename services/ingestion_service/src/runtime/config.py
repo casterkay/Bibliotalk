@@ -43,6 +43,15 @@ class IngestSettings(BaseSettings):
     yt_dlp_cookiefile: str | None = Field(
         default=None, validation_alias="BIBLIOTALK_YT_DLP_COOKIEFILE"
     )
+    yt_dlp_impersonate: str | None = Field(
+        default="chrome", validation_alias="BIBLIOTALK_YT_DLP_IMPERSONATE"
+    )
+    youtube_request_delay_s: float = Field(
+        default=0.25, validation_alias="BIBLIOTALK_YOUTUBE_REQUEST_DELAY_S"
+    )
+    youtube_request_jitter_s: float = Field(
+        default=0.5, validation_alias="BIBLIOTALK_YOUTUBE_REQUEST_JITTER_S"
+    )
 
     model_config = SettingsConfigDict(extra="ignore")
 
@@ -64,6 +73,9 @@ class RuntimeConfig:
     youtube_transcript_langs: tuple[str, ...] | None
     youtube_allow_auto_captions: bool
     yt_dlp_cookiefile: str | None
+    yt_dlp_impersonate_target: str | None
+    youtube_request_delay_s: float
+    youtube_request_jitter_s: float
 
 
 def default_index_path() -> Path:
@@ -127,4 +139,7 @@ def load_runtime_config(
         or None,
         youtube_allow_auto_captions=bool(settings.youtube_allow_auto_captions),
         yt_dlp_cookiefile=(settings.yt_dlp_cookiefile or "").strip() or None,
+        yt_dlp_impersonate_target=(settings.yt_dlp_impersonate or "").strip() or None,
+        youtube_request_delay_s=max(0.0, float(settings.youtube_request_delay_s)),
+        youtube_request_jitter_s=max(0.0, float(settings.youtube_request_jitter_s)),
     )

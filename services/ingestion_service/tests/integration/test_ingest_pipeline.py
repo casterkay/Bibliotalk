@@ -64,6 +64,10 @@ def _build_source_content(*, text_a: str = "One.", text_b: str = "Two.") -> Sour
     )
 
 
+async def _noop_sleep(_: float) -> None:
+    return
+
+
 @pytest.mark.anyio
 async def test_ingest_persists_sources_segments_and_batches_without_duplicates(tmp_path) -> None:
     db = tmp_path / "bibliotalk.db"
@@ -306,6 +310,7 @@ async def test_collector_poll_once_ingests_new_video_and_skips_it_on_next_cycle(
         client=client,
         discovery_fn=fake_discovery,
         transcript_loader=fake_loader,
+        sleep=_noop_sleep,
     )
 
     first = await poller.run_once()
@@ -397,6 +402,7 @@ async def test_collector_does_not_advance_cursor_when_ingest_fails(tmp_path) -> 
         client=client,
         discovery_fn=fake_discovery,
         transcript_loader=fake_loader,
+        sleep=_noop_sleep,
     )
 
     snapshot = await poller.run_once()
@@ -474,6 +480,7 @@ async def test_collector_skips_members_only_videos(tmp_path) -> None:
         client=client,
         discovery_fn=fake_discovery,
         transcript_loader=fake_loader,
+        sleep=_noop_sleep,
     )
 
     snapshot = await poller.run_once()
@@ -551,6 +558,7 @@ async def test_collector_schedules_retry_on_rate_limit(tmp_path) -> None:
         client=client,
         discovery_fn=fake_discovery,
         transcript_loader=fake_loader,
+        sleep=_noop_sleep,
     )
 
     snapshot = await poller.run_once()
@@ -660,6 +668,7 @@ async def test_collector_continues_processing_manual_sources_when_one_fails(tmp_
         client=client,
         discovery_fn=fake_discovery,
         transcript_loader=fake_loader,
+        sleep=_noop_sleep,
     )
 
     snapshot = await poller.run_once()
