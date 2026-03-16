@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/deploy-cloud-run-memory-pages.yml"
+      - ".github/workflows/deploy-cloud-run.yml"
       - "deploy/gcp/**"
       - "packages/bt_common/**"
       - "packages/bt_store/**"
@@ -14,7 +14,7 @@ on:
       - "pyproject.toml"
 
 concurrency:
-  group: deploy-cloud-run-memory-pages-${{ github.ref }}
+  group: deploy-cloud-run-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
