@@ -1,586 +1,236 @@
-# Blueprint: YouTube -> EverMemOS -> Discord Figure Bots
+# Bibliotalk Design Blueprint
 
-This document defines the target design for a Discord-only figure bot system. A single Discord bot can role-play as multiple "figures" (digital characters), each backed by EverMemOS and a local verbatim evidence cache. The system continuously discovers new YouTube videos for each figure, ingests transcript segments into EverMemOS, preserves the same segments locally for retrieval and quote validation, publishes a batched ingest feed into Discord, and supports grounded private conversations in per-user talk threads with inline memory links.
+Bibliotalk’s goal is to make real-time voice AI feel like a **research instrument**: fast, interruptible, and *auditable*.
 
-The design intentionally reuses the strongest parts of this repository: YouTube transcript ingestion and chunking, local SQLite indexing patterns, the EverMemOS client wrapper, and evidence retrieval and grounding-validation logic.
+This document defines the target system design for Bibliotalk’s **Matrix-first MVP** (Element UI), aligned with:
+- `specs/001-matrix-mvp/spec.md`
+- `specs/001-matrix-mvp/plan.md`
+- `specs/001-matrix-mvp/contracts/`
 
-## Local Runbook
+Discord support is a **future adapter** and MAY temporarily break during the Matrix MVP refactor.
 
-For daily development, use this sequence:
+## Glossary
 
-1. Sync dependencies:
-  - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
-2. Seed one figure:
-  - `uv run --package bt_cli bibliotalk figure seed --figure alan-watts --subscription-url https://www.youtube.com/@AlanWattsOrg --guild-id <GUILD_ID> --channel-id <CHANNEL_ID>`
-3. Trigger a manual one-shot ingest when needed:
-  - `uv run --package bt_cli bibliotalk ingest request --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>`
-4. Run runtimes:
-  - `uv run --package bt_cli bibliotalk collector run --figure alan-watts`
-  - `uv run --package bt_cli bibliotalk discord run`
-  - `uv run --package bt_cli bibliotalk memory-pages run --host 0.0.0.0 --port 8080`
-5. Optional multi-service boot via Docker Compose:
-  - `docker compose -f deploy/local/docker-compose.yml up`
-
-## Vision
-
-Continuously collect YouTube transcripts for specific individuals, build figure-specific memory in EverMemOS, and expose each figure through Discord as:
-
-- Private talk threads created on-demand from a DM to the bot.
-- A dedicated feed channel that shows ingested transcript threads, containing batched excerpts.
-
-Core principle: 言必有據.
-
-Every non-trivial factual claim must be grounded in verbatim evidence that can be traced back to a cached transcript segment and a source URL.
-
-## Product Goals
-
-### MVP goals
-
-- One Discord bot that can play multiple figures.
-- Users DM the bot to create private talk threads in `#bibliotalk`.
-- One Discord text channel per figure for ingest feed posting.
-- One thread per ingested transcript.
-- Feed posts batched into Discord messages using local transcript grouping rules rather than raw chunk.
-- Grounded talk-thread chat with inline memory links.
-- Idempotent ingest and Discord posting.
-
-### Non-goals
-
-- Multi-agent group conversation.
-- Multi-human room semantics.
-- Non-YouTube sources in MVP.
+- **Agent / Spirit**: A persona that responds only using its own ingested evidence.
+- **Archive Room**: Public, read-only, non-interactive. Per source: thread root = deterministic source summary from ingestion / EverMemOS metadata; replies = ordered verbatim transcript excerpts.
+- **Dialogue Room**: Private, interactive room for grounded text chat and (MVP) 1:1 voice calls.
 
 ## Non-Negotiables
 
-1. Grounding first: every response must search memory before answering.
-2. No evidence means the bot explicitly says it lacks relevant evidence.
-3. Verbatim cache is the source of truth for quote validation.
-4. Figure isolation is strict across memory, cache, and bot runtime.
-5. Ingest and feed posting must be idempotent.
-6. Discord output must respect rate limits and avoid duplicate threads or messages.
-7. DM responses must link directly to memory pages instead of using bracketed citation indices or a trailing sources block.
+1. **Grounding-first**: Every eligible response searches memory before answering.
+2. **No evidence → explicit**: If no relevant evidence exists, the Spirit must say so.
+3. **Verifiable citations**: Every citation quote must be a substring of canonical stored segments for that agent.
+4. **Strict isolation**: Cross-agent evidence leakage is always invalid.
+5. **Archive is non-interactive**: Zero AI responses in Archive Rooms under all conditions.
+6. **Idempotent publication**: Archive publishing is retry-safe (no duplicate thread roots/replies).
+7. **Streaming-first UX**: Users can send messages while a Spirit is streaming output (cancel/supersede semantics).
+8. **Voice transcripts come from Gemini Live**: Use Live API input/output transcription streams; do not reinvent ASR.
 
-## Talk Threads (Private Conversations)
+## MVP user experience (what “done” feels like)
 
-The "private conversation" surface is a **private thread** created under a dedicated Talk Hub channel named `#bibliotalk` in a guild.
+- In a **Dialogue Room**, a user messages `@bt_socrates:server` and sees a Spirit response stream in-place (edits), with citations.
+- The user interrupts mid-stream with a follow-up; the Spirit cancels and pivots.
+- In an **Archive Room**, a new ingested source appears as a thread:
+  - root = deterministic summary artifact (from ingestion/EverMemOS episodic memory)
+  - replies = verbatim excerpt posts (segments)
+- In an Element Call, the Spirit joins as a MatrixRTC participant and speaks; the room receives a paired transcript + citations.
 
-Users initiate a conversation by DMing the bot and invoking `/talk Character A, Character B, ...`. The bot:
-
-1. Selects a guild (using a per-user default when available, otherwise a DM picker).
-2. Finds the Talk Hub channel `#bibliotalk` in that guild.
-3. Creates a private thread, invites the user, and posts a pinned roster/instructions message.
-4. Routes each user message to one or more character responders via an AI facilitator router (with `@name` override).
-
-## High-Level Architecture
+## Service Topology (target)
 
 ```text
-YouTube
-  |
-  | discovery via yt-dlp flat extraction and optional RSS
-  v
-Collector / Ingestion Service
-  - poll subscriptions per figure
-  - fetch transcript via youtube-transcript-api
-  - fetch metadata via yt-dlp
-  - chunk transcript into stable segments
-  - dedup and persist verbatim evidence in SQLite
-  - memorize segments into EverMemOS
-  - ingestion a single video on demand by delete-then-reingest
-  - emit feed-post jobs for Discord
-  v
-EverMemOS
-  - figure-scoped long-term memory
-  - retrieval by semantic / RRF search
-  ^
-  | group_id candidates
-  |
-Evidence Cache (SQLite)
-  - figures
-  - subscriptions
-  - sources
-  - segments
-  - transcript_batches
-  - ingest_state
-  - discord_posts
-  v
-Discord Runtime
-  - feed channel posting
-  - thread creation per video
-  - private talk threads grounded on evidence
+packages/
+  bt_common/        # infra-only (config/logging/exceptions/EverMemOS client)
+  bt_store/         # shared relational schema + migrations (SQLAlchemy + Alembic)
+
+services/
+  agents_service/       # Python: platform-agnostic agent core + Live Sessions
+  ingestion_service/    # Python: ingestion pipeline; writes sources/segments + publish intents
+  matrix_service/       # Node/TS: Matrix AppService adapter + publisher loop (matrix-js-sdk)
+  voice_call_service/   # Node: MatrixRTC/WebRTC sidecar; audio bridge to agents_service
+  memory_page_service/  # optional: public pages for evidence inspection (future UX)
 ```
 
-## Package Boundaries
+### Why `matrix_service` is Node/TS
 
-The system should be split into three clean runtime areas.
+`matrix_service` is implemented in Node.js/TypeScript using `matrix-js-sdk` to align with the most actively used Matrix SDK ecosystem (Element’s primary stack) and reduce integration/maintenance risk.
 
-### Ingestion package
+### Why voice remains a separate sidecar
 
-Responsible for:
+`voice_call_service` stays separate from `matrix_service` to reduce blast radius: real-time media + native deps must not take down text chat (see “voice failures must leave text chat functional” in MVP requirements).
 
-- YouTube discovery from channel and playlist URLs.
-- Transcript and metadata fetch.
-- Transcript chunking.
-- Local evidence persistence.
-- EverMemOS memorization.
-- Idempotent ingest state tracking.
+### Implementation note (current repo state)
 
-### Agent runtime package
+The voice sidecar currently lives at `services/voip_service/` in this repository. The design target name is `voice_call_service` to reflect its role more clearly; renaming is planned.
 
-Responsible for:
+## Contracts (source of truth)
 
-- Persona prompt construction per figure.
-- EverMemOS search.
-- Evidence loading from SQLite.
-- BM25 reranking and evidence packaging.
-- Memory-link emission and grounding validation.
-- Final grounded response generation through Gemini via ADK.
+The Matrix MVP is contract-driven; treat these as normative:
 
-### Discord runtime package
+- Agent interaction (streaming-first Live Sessions + fallback): `specs/001-matrix-mvp/contracts/agent-turn-api.md`
+- Matrix inbound/outbound events + AppService auth (`hs_token`): `specs/001-matrix-mvp/contracts/matrix-events.md`
+- Citation payload + validation: `specs/001-matrix-mvp/contracts/citation-schema.md`
+- Archive publication intents + idempotency keys: `specs/001-matrix-mvp/contracts/archive-publication.md`
+- Voice sidecar ↔ agent core protocol (audio + transcription + interruption): `specs/001-matrix-mvp/contracts/voice-bridge.md`
 
-Responsible for:
-
-- Running one Discord bot that can play multiple figures.
-- Handling DM slash commands (`/talk`, `/talks`) and creating private talk threads under `#bibliotalk`.
-- Routing talk-thread messages to the correct figure runtime.
-- Posting new ingest feed entries.
-- Creating and populating per-video threads.
-- Tracking Discord-side idempotency and retry state.
+### Interaction model (streaming is the product)
 
-The boundaries should stay strict. Do not import Matrix-era orchestration or SQLAlchemy-heavy app baggage into the new runtime unless there is a specific, justified need.
+For MVP, the “turn-based API” exists only as a **fallback** integration path. The first-class product experience is:
 
-## Core Identifiers And Conventions
+- **Text**: stream a Spirit’s response as deltas; allow user interruption; cancel/supersede in-progress output.
+- **Voice**: full-duplex barge-in; keep transcripts and citations as durable artifacts in the Dialogue Room.
 
-Each figure has a stable UUID `figure_id`, `display_name`, and readable-slug `emos_user_id`.
+Hackathon advice: judges feel the difference immediately when the system behaves like a live conversation rather than a request/response bot.
 
-For YouTube ingest:
+### Citation rendering stance
 
-- `group_id = {emos_user_id}:youtube:{video_id}`
-- `message_id = {emos_user_id}:youtube:{video_id}:seg:{seq}`
-- `group_name = {figure_display_name} - {video_title}`
-- `create_time` for each memorized chunk is `video_published_at + transcript_chunk_start_offset`
-- `segment_id` should be stable and derivable from source identity and sequence.
+Citation marker style is **adapter-owned and implementation-defined** per platform. The agent core emits:
+- plain text, and
+- structured citations (validated),
+and the adapter formats markers for Matrix/Discord.
 
-Identifier rules:
+This is not just a UI preference: it prevents platform markup from leaking into the “truth layer”, and lets each adapter pick the best conventions (Matrix HTML vs Discord markdown).
 
-- `figure_id` is an internal UUID primary key.
-- `emos_user_id` is a readable slug in the format `alan-watts`.
-- `emos_user_id` must stay stable forever once deployed.
+## Storage Model (bt_store overview)
 
-## Data Model
-
-SQLite is the local source of truth for verbatim evidence and ingest state.
+The unified relational schema (SQLite dev, Postgres prod) is owned by `bt_store` and shared across services.
 
-### Recommended tables
+Core tables (logical):
+- **agents**: Spirit identity and persona settings
+- **agent_platform_id**: per-platform Spirit IDs (e.g., Matrix virtual user ID)
+- **rooms**: platform room registry (`archive` vs `dialogue`, immutable kind)
+- **sources / segments**: canonical evidence backing grounding + citations and Archive Rooms
+- **chat_history**: audit trail of Dialogue Room turns (text + voice transcripts + citations)
+- **platform_posts**: durable publish intents (e.g., `archive.thread_root`, `archive.thread_reply`)
 
-#### `figures`
+Idempotency:
+- Archive publication uniqueness is enforced via deterministic `idempotency_key` per post intent, derived from `(agent_id, source_id, seq)` (see contract).
 
-- `figure_id`
-- `display_name`
-- `emos_user_id`
-- `persona_summary`
-- `status`
+## Core Flows
 
-#### `subscriptions`
+### 1) Dialogue Room text chat (streaming-first)
 
-- `subscription_id`
-- `figure_id`
-- `platform` with value `youtube`
-- `subscription_type` such as `channel` or `playlist`
-- `subscription_url`
-- `poll_interval_minutes`
-- `is_active`
+```text
+Synapse AppService txn
+  -> matrix_service (auth + parse + routing + guardrails)
+    -> agents_service Live Session (WS)
+      -> grounded retrieval + citation validation
+      -> stream output (text deltas) + final citations
+    -> matrix_service streams to Matrix (message edits) + persists ChatHistory
+```
 
-#### `sources`
+Key invariants:
+- ignore bot loops (Spirit-originated messages never trigger new turns)
+- ignore edits for routing, but outbound edits are used to stream Spirit output
+- users may send a new message during streaming; system cancels/supersedes the prior output
 
-- `source_id`
-- `figure_id`
-- `platform` with value `youtube`
-- `external_id` for video id
-- `group_id`
-- `title`
-- `source_url`
-- `channel_name`
-- `published_at`
-- `raw_meta_json`
-- `transcript_status`
-- `manual_ingestion_requested_at`
+Design advice (to win on stage):
+- Prefer **one** continuously edited Spirit message per turn (stream deltas), and then append a compact “Sources” footer at the end.
+- If streaming fails, fall back to a non-streaming final message rather than hanging (demo resilience > perfection).
+- Keep a tight latency loop: “first token fast” matters more than perfect formatting.
 
-#### `segments`
+### 2) Archive publication (ingestion-backed, retry-safe)
 
-- `segment_id`
-- `source_id`
-- `seq`
-- `text`
-- `sha256`
-- `start_ms`
-- `end_ms`
-- `create_time`
-- `is_superseded`
+```text
+ingestion_service
+  -> writes Source + Segment rows (canonical evidence)
+  -> writes platform_posts intents:
+       archive.thread_root (root summary from ingestion/EverMemOS metadata)
+       archive.thread_reply (verbatim segment replies)
 
-#### `transcript_batches`
+matrix_service publisher loop
+  -> reads pending platform_posts
+  -> posts to Archive Room as Spirit
+  -> records platform_event_id + status
+```
 
-- `batch_id`
-- `source_id`
-- `speaker_label`
-- `start_seq`
-- `end_seq`
-- `start_ms`
-- `end_ms`
-- `text`
-- `batch_rule` with value based on speaker and silence-gap grouping
-- `posted_to_discord`
+Archive Room semantics:
+- root is a deterministic “source summary” artifact (not newly generated at publish time)
+- replies are verbatim transcript excerpts, ordered by `Segment.seq`
 
-#### `ingest_state`
+### 3) Dialogue Room voice calls (1:1 MVP)
 
-- `subscription_id`
-- `last_seen_video_id`
-- `last_published_at`
-- `last_polled_at`
-- `failure_count`
-- `next_retry_at`
+```text
+Element Call (MatrixRTC)
+  -> voice_call_service joins call as Spirit and receives Opus audio
+  -> decode to PCM16k and stream to agents_service (WS bridge)
+  -> agents_service uses Gemini Live for audio I/O + transcription streams
+  -> grounded text reasoning remains authority for content + citations
+  -> voice_call_service publishes Spirit audio back to call (Opus)
+  -> matrix_service posts paired text transcript + citations to the Dialogue Room
+```
 
-#### `discord_map`
+Notes:
+- transcripts are forwarded from Gemini Live’s transcription streams
+- interruption/barge-in is first-class; ongoing output must stop immediately
 
-- `figure_id`
-- `guild_id`
-- `channel_id`
-- `bot_application_id`
-- `bot_user_id`
+Design advice (to win on stage):
+- Treat voice as a **state machine**: `idle → listening → thinking → speaking → idle`, and surface state transitions in logs.
+- Always post the paired transcript + citations even if the call glitches (it’s the proof artifact the judges will remember).
+- Pre-warm Gemini Live sessions where possible to avoid first-response cold-start during a demo.
 
-#### `discord_posts`
+## Matrix Room Taxonomy (MVP)
 
-- `figure_id`
-- `source_id`
-- `parent_message_id`
-- `thread_id`
-- `batch_id`
-- `posted_at`
-- `post_status`
+- Exactly two immutable kinds: **Archive** and **Dialogue**.
+- Archive Rooms are public + read-only for humans (power levels), and non-interactive in the adapter.
+- Dialogue Rooms are invite-only and interactive; calls are allowed.
 
-### Required query patterns
+## Security & abuse-resistance (minimum viable)
 
-The schema must support these queries efficiently:
+- **AppService auth is mandatory**: verify `hs_token` on every inbound transaction (see `specs/001-matrix-mvp/contracts/matrix-events.md`).
+- **Loop prevention**: ignore events sent by Spirit virtual users.
+- **Archive guardrail**: rooms marked `archive` are ignored for routing under all conditions.
+- **Prompt injection posture**: sources are evidence, not instructions; system prompts must enforce “quote-and-cite, or decline”.
 
-- Given EverMemOS search result `group_id` values, fetch all local segments for those groups.
-- Given a `segment_id`, fetch the exact segment text for quote validation.
-- Given EMOS retrieval fields `user_id` and `timestamp`, reconstruct the linked transcript timepoint and memory page id.
-- Given a `source_id`, fetch transcript batches derived from local speaker and silence-gap grouping.
-- Given a `figure_id`, fetch a figure's segment corpus for reranking, debugging, and fallback behavior.
-- Given a `source_id` or YouTube `video_id`, determine whether Discord feed content was already posted.
+Hackathon reality: we don’t need perfect policy, but we do need predictable behavior under adversarial prompts.
 
-## Discovery Design
+## Observability (demo-grade)
 
-### Subscription model
+Make the system legible in real time:
 
-Each figure owns one or more YouTube subscriptions:
+- Structured logs with a `turn_id` / `voice_session_id` that ties together:
+  - Matrix event id → Live session → retrieval result count → citations validation → outbound Matrix edits.
+- Record key timing points (`t0 recv`, `t1 retrieved`, `t2 first token`, `t3 final`, `t4 posted`) so we can optimize latency quickly.
+- Emit “why no answer” reasons (`no_evidence`, `room_guardrail`, `not_addressed`, `rate_limited`).
 
-- Channel URLs.
-- Playlist URLs.
+If we do nothing else for engineering polish, do this: judges can *feel* robustness when debugging is easy.
 
-### Discovery mechanism
+## Latency & reliability targets (practical for demos)
 
-Primary path:
+- **Text**: show visible streaming within ~1s after user send (best-effort; depends on model/network).
+- **Voice**: barge-in cancels output within ~250ms (best-effort); never “talk over” the user.
+- **Degrade gracefully**:
+  - if citations fail validation, respond with “no evidence” instead of hallucinating
+  - if voice is down, text chat continues unaffected
+  - if Matrix edits fail, send a final non-streaming message
 
-- Use `yt-dlp` flat extraction to list recent items and metadata without API keys.
+## Migration Plan (from legacy Discord-era schema)
 
-Fallback path:
+The repository currently contains a legacy schema under `bt_common.evidence_store` that is Discord-oriented.
 
-- Support YouTube RSS where useful if `yt-dlp` becomes flaky for a particular source.
+Target state:
+- Move shared relational schema ownership to `bt_store`.
+- Provide a one-shot backfill script to map:
+  - `figures` → `agents` (preserve UUIDs)
+  - existing `sources/segments` → new evidence tables (agent_id = figure_id)
+- Allow Discord to temporarily break during this migration; reintroduce as an adapter later.
 
-### Incrementality
+## Local Development
 
-- Persist a cursor per subscription in `ingest_state`.
-- On each poll, compute the delta since the last successful cursor.
-- Enqueue only newly discovered videos.
-- Treat YouTube `video_id` as the immutable idempotency key for automated ingest; automated polling never re-ingests an already known video.
+Use the Matrix MVP quickstart as the canonical dev loop:
 
-### Scheduler
+- `specs/001-matrix-mvp/quickstart.md`
 
-- Start with a single asyncio polling loop.
-- Support a configurable poll interval, typically 15 to 60 minutes.
-- Bound concurrency globally and per figure.
-- Apply exponential backoff after repeated failures.
+## Demo plan (3 minutes)
 
-## Ingest Pipeline
+1. **Archive**: open a Spirit’s Archive Room and show a thread: summary root + excerpt replies.
+2. **Chat**: ask a question, show live streaming, then interrupt with a sharper follow-up.
+3. **Proof**: click a citation and show the excerpt contains the quoted substring.
+4. **Voice**: start an Element Call; Spirit speaks; point to posted transcript + citations.
 
-The ingest pipeline for a discovered video is:
+This sequence tells a tight story: “voice is fun, but citations make it trustworthy.”
 
-1. Fetch transcript with `youtube-transcript-api`.
-2. Fetch metadata with `yt-dlp`.
-3. Normalize transcript text.
-4. Chunk into sentence-aware segments of roughly 1200 characters.
-5. Compute each chunk `create_time` as `video_published_at + chunk_start_offset`.
-6. Persist source and segment data in SQLite.
-7. Deduplicate by figure, video, sequence, and content hash.
-8. Memorize each segment into EverMemOS using stable identifiers.
-9. Derive local transcript batches from adjacent segments using speaker continuity and silence-gap threshold rules.
-10. Mark ingest outcome for later Discord feed posting.
+## Future Work (post-MVP)
 
-### Idempotency rules
-
-- Automated ingestion never re-ingests an already known `video_id`.
-- Rerunning Discord feed publication must not create duplicate parent posts or threads.
-- Manual single-video ingestion is allowed through an explicit API path that first deletes existing EverMemOS memories for that video's `group_id` and then re-inserts the transcript.
-
-### Manual ingestion endpoint
-
-In addition to automated polling, the system may expose an API endpoint for one-off ingestion of a specific video.
-
-Behavior:
-
-1. Resolve `group_id = {emos_user_id}:youtube:{video_id}`.
-2. Delete existing EverMemOS memories belonging to that `group_id`.
-3. Clear or replace the corresponding local source, segment, and transcript-batch cache rows.
-4. Fetch transcript and metadata again.
-5. Recompute chunk `create_time` values from publish time plus transcript offsets.
-6. Re-memorize the video into EverMemOS.
-7. Rebuild the local transcript-batch feed state for that video.
-
-This path is explicitly separate from automated polling so that routine ingestion remains simple and strictly idempotent by `video_id`.
-
-### Error handling
-
-- If a transcript is unavailable, record the failure and skip the video.
-- If metadata fetch fails, ingest should fail clearly and retry according to policy.
-- If EverMemOS is unavailable, ingest should fail without losing local state needed for retry.
-
-## Memory Search And Evidence Selection
-
-Each DM turn should follow the same retrieval discipline.
-
-1. Search EverMemOS for relevant groups using RRF-style retrieval.
-2. If retrieval quality is weak, allow an agentic fallback strategy.
-3. Fetch candidate verbatim segments from SQLite for the returned `group_id` values.
-4. BM25-rerank the local segments against the user query.
-5. Select the top evidence set for prompting and citation.
-
-### Evidence object
-
-The agent runtime should work with explicit evidence objects containing:
-
-- `segment_id`
-- `figure_id`
-- `group_id`
-- `memory_user_id`
-- `memory_timestamp`
-- `memory_page_id`
-- `quote_snippet`
-- `source_title`
-- `source_url`
-- `memory_url`
-- `published_at`
-- `platform`
-- optional timestamped URL when available
-
-## Agent Runtime
-
-Gemini via ADK is the LLM runtime for MVP.
-
-### Persona contract
-
-Each figure should define:
-
-- Name.
-- Brief bio.
-- Conversational style constraints.
-- A hard rule that unsupported claims must be declined.
-
-### Response contract
-
-The model receives:
-
-- The user message.
-- Short recent DM context.
-- Structured evidence blocks.
-- Explicit instructions to answer only from evidence.
-
-The model must return:
-
-- A natural-language answer.
-- Any grounded reference rendered directly as an inline markdown link in the form `[text](memory_url)`.
-- No citation indices.
-- No trailing `Sources:` section.
-
-### Citation validation
-
-Before sending a response to Discord:
-
-- Validate that every linked memory belongs to the current figure and current retrieval set.
-- Validate that every generated `memory_url` points to a resolvable memory page.
-- Validate that every `memory_url` is derived from the EMOS `user_id` and `timestamp` pair returned by retrieval.
-- Validate that any quoted span is a substring of cached local transcript text.
-- Strip or repair invalid links before the final message is sent.
-
-If no usable evidence remains after validation, the bot should respond that it could not find relevant supporting evidence.
-
-### Memory URL pages
-
-Grounded references in DM responses should point to lightweight public memory pages:
-
-- URL pattern: `https://www.bibliotalk.space/memory/{user_id}_{timestamp}`.
-- Pages are generated dynamically by a serverless worker.
-- Each page should contain exactly one memory item retrieved from EMOS.
-- Each page should contain the minimal EMOS summary for that single memory item and a link to the original video.
-- The original video link should include the reconstructed transcript timepoint derived from `timestamp - video_published_at`.
-- Pages should stay intentionally minimal and should not add extra commentary or unrelated chrome.
-
-## Discord UX
-
-### Bot topology
-
-The product decision is one Discord application and token per figure.
-
-Runtime model:
-
-- One OS process per bot.
-- Each process owns one Discord client and one figure runtime.
-
-This is the default operational model for MVP because it maximizes isolation, keeps failure domains simple, and avoids thread-safety ambiguity in the Discord runtime.
-
-### Feed channel
-
-For each newly ingested video:
-
-1. Send one parent message containing the video title and YouTube link.
-2. Create one thread under that message.
-3. Post batched transcript messages derived from local grouping rules in sequence order.
-
-Feed batching model:
-
-- Raw transcript chunks are still the atomic ingestion unit sent to `POST /memories`.
-- Discord feed posts are not one-message-per-chunk.
-- EverMemOS MemCells are internal and are not used for feed construction.
-- Instead, successive chunks are grouped locally by speaker continuity and silence-gap threshold.
-- Each Discord message should contain original transcript text, not an EMOS-generated summary.
-
-Hard requirements:
-
-- No duplicate thread for the same video.
-- No duplicate parent post for the same video.
-- No duplicate Discord post for the same local transcript batch.
-- Sequential posting to reduce Discord rate-limit pressure.
-- Clear retry handling if a thread is created but chunk posting fails partway through.
-
-### DM chat
-
-When a user sends a DM to a figure bot:
-
-1. Route the message to that figure's agent runtime.
-2. Retrieve evidence through EverMemOS and the local cache.
-3. Generate a grounded response.
-4. Validate memory links and quoted spans.
-5. Send the final answer back to the user.
-
-Short per-user DM context may be kept in memory or SQLite, but it must not replace evidence retrieval. Grounding remains mandatory on every meaningful turn.
-
-## Operations And Configuration
-
-### Required secrets
-
-- `EMOS_BASE_URL`
-- `EMOS_API_KEY`
-- One `DISCORD_TOKEN` per figure
-
-### Runtime configuration
-
-- Per-figure polling interval override
-- Global ingest concurrency
-- Per-source ingest concurrency, where each source is a single channel or playlist subscription
-- Discord posting rate controls
-- Retry and backoff policy
-- SQLite database path
-
-### Local development
-
-- Use a single SQLite database for evidence cache, ingest state, and Discord post tracking.
-- Persist transcript-batch feed state so Discord posting can resume idempotently.
-- Prefer rich structured logs for ingest failures, retry decisions, and Discord API failures.
-
-### Deployment
-
-Initial deployment target:
-
-- One host or VPS.
-- Collector and Discord runtime deployed via systemd or Docker Compose.
-
-## Migration And Extraction Guidance
-
-This repository is being repurposed. Reuse should be selective.
-
-- Reuse proven ingestion and chunking logic.
-- Reuse EverMemOS client logic.
-- Reuse retrieval, reranking, and link-validation patterns.
-- Do not carry forward Matrix-specific transport code.
-- Do not let legacy SQLAlchemy app structure dictate the new design if SQLite suffices.
-
-When extracting logic into the new runtime, copy and simplify aggressively instead of preserving old abstractions that only made sense for the prior system.
-
-## Reusable References In This Repository
-
-- YouTube transcript ingestion: [services/ingestion_service/src/adapters/youtube_transcript.py](services/ingestion_service/src/adapters/youtube_transcript.py)
-- Chunking logic: [services/ingestion_service/src/pipeline/chunking.py](services/ingestion_service/src/pipeline/chunking.py)
-- Ingest orchestration: [services/ingestion_service/src/pipeline/ingest.py](services/ingestion_service/src/pipeline/ingest.py)
-- Incremental index pattern: [services/ingestion_service/src/pipeline/index.py](services/ingestion_service/src/pipeline/index.py)
-- Figure manifest and playlist expansion precedent: [services/ingestion_service/scripts/ingest_from_figures_json.py](services/ingestion_service/scripts/ingest_from_figures_json.py)
-- EverMemOS client wrapper: [packages/bt_common/src/evermemos_client.py](packages/bt_common/src/evermemos_client.py)
-- Memory search tool: [services/agents_service/src/agent/tools/memory_search.py](services/agents_service/src/agent/tools/memory_search.py)
-- Citation emission tool: [services/agents_service/src/agent/tools/emit_citations.py](services/agents_service/src/agent/tools/emit_citations.py)
-- Citation model: [services/agents_service/src/models/citation.py](services/agents_service/src/models/citation.py)
-- Segment model: [services/agents_service/src/models/segment.py](services/agents_service/src/models/segment.py)
-
-## Verification Plan
-
-### Ingest validation
-
-1. Run a one-shot ingest for a known public video with transcripts enabled.
-2. Confirm EverMemOS receives the expected `group_id`, `message_id`, and chunk `create_time` sequence.
-3. Confirm SQLite contains source metadata, segment text, segment `create_time`, and transcript-batch rows for that video.
-4. Poll again and verify that the same `video_id` is skipped by automated ingestion without duplicate memorization.
-
-### Manual ingestion validation
-
-1. Trigger the single-video ingestion endpoint for an already ingested video.
-2. Confirm existing EverMemOS memories for that `group_id` are deleted first.
-3. Confirm the transcript is inserted again and local transcript-batch feed state is rebuilt cleanly.
-
-### Discovery validation
-
-1. Subscribe a test figure to a playlist or channel.
-2. Poll twice.
-3. Confirm that only newly discovered videos are enqueued on the second poll.
-
-### Discord feed validation
-
-1. In a test guild, confirm that a parent message and thread are created for a newly ingested video.
-2. Confirm speaker-and-silence-gap batched messages appear in order.
-3. Confirm each posted Discord message maps to one unique local transcript batch.
-4. Re-run the publish path and confirm no duplicate thread, parent message, or transcript-batch post is created.
-
-### Talk thread validation
-
-1. DM the bot and start a talk via `/talk Alan Watts` (or another seeded figure).
-2. Confirm a private thread is created under `#bibliotalk` and the user is invited.
-3. Send a question that should match a known transcript chunk.
-4. Confirm the response uses inline markdown links in the form `[text](memory_url)`.
-5. Confirm the linked page shows exactly one EMOS memory item and the original video link with the reconstructed timepoint.
-6. Intentionally corrupt a cached quote or memory link and confirm validation strips the bad link before sending.
-7. Ask a question with no supporting evidence and confirm the bot explicitly says that it lacks relevant evidence.
-
-## Decisions
-
-- Discord is the only UI surface in MVP.
-- There is one Discord bot that can play multiple figures.
-- YouTube discovery uses `yt-dlp` first and can optionally fall back to RSS.
-- Gemini via ADK is the LLM runtime.
-- `figure_id` is a UUID.
-- `emos_user_id` is a readable, stable slug in the format `alan-watts`.
-- `group_id` is `emos_user_id:youtube:video_id`.
-- Automated ingest uses `video_id` as the no-reingest key.
-- Manual single-video ingestion deletes existing EverMemOS data for the video's `group_id` before re-ingesting.
-- Chunk `create_time` is computed as `video_published_at + transcript_chunk_start_offset` so EMOS retrieval timestamps can be mapped back to video timepoints.
-- Feed UX is one parent post per video plus one thread containing locally batched original transcript messages.
-- Talk UX is private threads under `#bibliotalk` created from DM `/talk`.
-- SQLite is the local evidence cache and ingest-state store.
-- EverMemOS MemCells are internal and are not part of the feed UX.
-- Grounded references are inline markdown links to `www.bibliotalk.space/memory/{id}` pages, where `{id}` is derived from EMOS `user_id` and `timestamp`.
-- Runtime model is single-process (one bot) for MVP.
+- Group voice calls + floor control (see `_ref/matrix-feature/contracts/discussion-floor-control.md` for ideas)
+- Voice E2EE (deferred)
+- Discord adapter parity on top of the same `agents_service` + `bt_store` contracts

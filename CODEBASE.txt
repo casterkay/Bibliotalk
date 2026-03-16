@@ -24,16 +24,31 @@
 │   │   ├── pyproject.toml
 │   │   └── src
 │   │       └── main.py
-│   └── bt_common
+│   ├── bt_common
+│   │   ├── pyproject.toml
+│   │   └── src
+│   │       ├── config.py
+│   │       ├── evermemos_client.py
+│   │       ├── evidence_store
+│   │       │   ├── engine.py
+│   │       │   └── models.py
+│   │       ├── exceptions.py
+│   │       └── logging.py
+│   └── bt_store
+│       ├── alembic
+│       │   ├── env.py
+│       │   └── versions
+│       │       └── 0001_initial_schema.py
+│       ├── alembic.ini
 │       ├── pyproject.toml
 │       └── src
-│           ├── config.py
-│           ├── evermemos_client.py
-│           ├── evidence_store
-│           │   ├── engine.py
-│           │   └── models.py
-│           ├── exceptions.py
-│           └── logging.py
+│           └── bt_store
+│               ├── citations.py
+│               ├── engine.py
+│               ├── models_base.py
+│               ├── models_core.py
+│               ├── models_evidence.py
+│               └── models_runtime.py
 ├── pyproject.toml
 ├── README.md
 ├── ROSTER.md
@@ -50,6 +65,14 @@
 │   │       │   ├── orchestrator.py
 │   │       │   ├── providers
 │   │       │   └── tools
+│   │       ├── agents_service
+│   │       │   ├── agent
+│   │       │   ├── api
+│   │       │   ├── audit
+│   │       │   ├── live
+│   │       │   ├── models
+│   │       │   ├── server.py
+│   │       │   └── store.py
 │   │       ├── models
 │   │       │   ├── citation.py
 │   │       │   └── segment.py
@@ -108,6 +131,24 @@
 │   │           ├── config.py
 │   │           ├── poller.py
 │   │           └── reporting.py
+│   ├── matrix_service
+│   │   ├── eslint.config.js
+│   │   ├── package.json
+│   │   ├── pyproject.toml
+│   │   ├── src
+│   │   │   ├── matrix
+│   │   │   │   ├── appservice.ts
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── client.ts
+│   │   │   │   ├── events.ts
+│   │   │   │   ├── guards.ts
+│   │   │   │   ├── membership.ts
+│   │   │   │   └── routing.ts
+│   │   │   ├── render
+│   │   │   │   ├── matrix_message.ts
+│   │   │   │   └── streaming_edits.ts
+│   │   │   └── server.ts
+│   │   └── tsconfig.json
 │   ├── memory_page_service
 │   │   ├── pyproject.toml
 │   │   └── src
@@ -118,6 +159,7 @@
 │   └── voip_service
 │       ├── eslint.config.js
 │       ├── package.json
+│       ├── pyproject.toml
 │       └── src
 │           ├── audio_bridge.js
 │           ├── index.js
@@ -139,6 +181,10 @@
 │   │   ├── research.md
 │   │   ├── spec.md
 │   │   └── tasks.md
+│   ├── 001-spirit-duo-dialogue
+│   │   ├── checklists
+│   │   │   └── requirements.md
+│   │   └── spec.md
 │   ├── 002-evermemos-content-ingest
 │   │   ├── checklists
 │   │   │   └── requirements.md
@@ -170,5 +216,5 @@
 │       └── tasks.md
 └── uv.lock
 
-51 directories, 120 files
+68 directories, 149 files
 

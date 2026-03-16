@@ -1,3 +1,13 @@
+# Spirit Roster (sources of truth)
+
+This file lists the planned **Spirits** and the primary sources they will be ingested from. Sources are intentionally constrained to:
+
+- Project Gutenberg E-books
+- YouTube playlists
+- Direct file URLs
+
+## Spirits
+
 - **Socrates**: Plato's Apology (PG #1656), Crito (PG #1657), Phaedo (PG #1658), Phaedrus (PG #1636), Symposium (PG #1600), Theaetetus (PG #1726); Xenophon' Memorabilia (PG #1177), Apology (PG #1171)
 - **Confucius**: Analects (PG #3330), The Sayings of Confucius (PG #24055)
 - **Buddha**: Dhammapada (PG #2017), Diamond Sutra (PG #64623)
@@ -22,6 +32,3 @@
 - **Naval Ravikant**: www.youtube.com/playlist?list=PL5QAQBV5zCqXqrXaWACI3ZACs5XgWPJup, https://www.youtube.com/playlist?list=PL3bSdFK6-qbPCQN33G4XhnuUa0nCApNPE
 - **Elon Musk**: https://www.youtube.com/playlist?list=PLAnGYT90HVdPRaRP4Tf24ZKfYHH7PkT-n, https://www.youtube.com/playlist?list=PLDRiqmdNLxaVnVGVJQ513C4KDN_oQGent
 - **Andrew Huberman**: https://www.youtube.com/playlist?list=PLPNW_gerXa4OGNy1yE-W9IX-tPu-tJa7S
-
-Notes:
-- Project Gutenberg Books, YouTube Playlists, and File URLs only.
