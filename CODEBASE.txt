@@ -106,7 +106,16 @@
 │   ├── 001-matrix-mvp
 │   │   ├── checklists
 │   │   │   └── requirements.md
+│   │   ├── contracts
+│   │   │   ├── agent-turn-api.md
+│   │   │   ├── archive-publication.md
+│   │   │   ├── citation-schema.md
+│   │   │   ├── matrix-events.md
+│   │   │   └── voice-bridge.md
+│   │   ├── data-model.md
 │   │   ├── plan.md
+│   │   ├── quickstart.md
+│   │   ├── research.md
 │   │   └── spec.md
 │   ├── 002-evermemos-content-ingest
 │   │   ├── checklists
@@ -139,5 +148,5 @@
 │       └── tasks.md
 └── uv.lock
 
-44 directories, 96 files
+45 directories, 104 files
 
