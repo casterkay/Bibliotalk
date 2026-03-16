@@ -16,7 +16,7 @@
 **NOTE:** Read `CODEBASE.txt` for the current codebase structure.
 
 ## Active Technologies
-- Python 3.11+ (backend services), Node.js 20+ (Matrix voice sidecar) + `fastapi`, `uvicorn`, `httpx`, `pydantic>=2`, `SQLAlchemy>=2`, `aiosqlite`, `alembic`, `tenacity`, EverMemOS SDK (`bt_common.evermemos_client`), Gemini via ADK (text) and Gemini Live (voice), `matrix-js-sdk`, `ws` (001-matrix-mvp)
+- Python 3.11+ (backend services), Node.js 20+ (Matrix service) + `fastapi`, `uvicorn`, `httpx`, `pydantic>=2`, `SQLAlchemy>=2`, `aiosqlite`, `alembic`, `tenacity`, EverMemOS SDK (`bt_common.evermemos_client`), Gemini via ADK (text) and Gemini Live (voice), `matrix-js-sdk`, `ws` (001-matrix-mvp)
 - SQLite for local development; Postgres for production; one logical relational schema shared by ingestion + agent + Matrix adapter (001-matrix-mvp)
 
 - Python 3.11+
@@ -52,7 +52,7 @@
 Python 3.11+: Follow standard conventions
 
 ## Recent Changes
-- 001-matrix-mvp: Added Python 3.11+ (backend services), Node.js 20+ (Matrix voice sidecar) + `fastapi`, `uvicorn`, `httpx`, `pydantic>=2`, `SQLAlchemy>=2`, `aiosqlite`, `alembic`, `tenacity`, EverMemOS SDK (`bt_common.evermemos_client`), Gemini via ADK (text) and Gemini Live (voice), `matrix-js-sdk`, `ws`
+- 001-matrix-mvp: Added Python 3.11+ (backend services), Node.js 20+ (Matrix service) + `fastapi`, `uvicorn`, `httpx`, `pydantic>=2`, `SQLAlchemy>=2`, `aiosqlite`, `alembic`, `tenacity`, EverMemOS SDK (`bt_common.evermemos_client`), Gemini via ADK (text) and Gemini Live (voice), `matrix-js-sdk`, `ws`
 
 - This repository is being repurposed toward a YouTube → EverMemOS → Discord figure-bot pipeline.
 

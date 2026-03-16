@@ -1,0 +1,46 @@
+services:
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: bibliotalk-synapse
+    restart: unless-stopped
+    command:
+      - run
+      - --config-path=/data/homeserver.yaml
+      - --config-path=/data/homeserver.local.yaml
+    environment:
+      - SYNAPSE_SERVER_NAME=${MATRIX_SERVER_NAME:-localhost}
+      - SYNAPSE_REPORT_STATS=no
+      - http_proxy=${MATRIX_HTTP_PROXY:-}
+      - https_proxy=${MATRIX_HTTPS_PROXY:-}
+      - HTTP_PROXY=${MATRIX_HTTP_PROXY:-}
+      - HTTPS_PROXY=${MATRIX_HTTPS_PROXY:-}
+      - no_proxy=${MATRIX_NO_PROXY:-localhost,127.0.0.1}
+      - NO_PROXY=${MATRIX_NO_PROXY:-localhost,127.0.0.1}
+    volumes:
+      - ./synapse/data:/data
+      - ./appservice:/data/appservices:ro
+    ports:
+      - "${SYNAPSE_PORT:-8008}:8008"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8008/_matrix/client/versions').read()",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  element:
+    image: vectorim/element-web:latest
+    container_name: bibliotalk-element
+    restart: unless-stopped
+    depends_on:
+      synapse:
+        condition: service_healthy
+    volumes:
+      - ./element/config.json:/app/config.json:ro
+    ports:
+      - "${ELEMENT_PORT:-8081}:80"

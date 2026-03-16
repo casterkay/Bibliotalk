@@ -8,4 +8,4 @@ export PATH="/opt/homebrew/bin:$PATH"
   echo ""
 } > CODEBASE.txt
 
-git add CODEBASE.txt
+git add CODEBASE.txt >/dev/null 2>&1 || true

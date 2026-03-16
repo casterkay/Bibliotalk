@@ -30,11 +30,11 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 - [ ] T003 [P] Scaffold `matrix_service` Node/TS service (`/Users/tcai/Projects/Bibliotalk/services/matrix_service/package.json`)
 - [ ] T004 [P] Scaffold `voip_service` Node sidecar (`/Users/tcai/Projects/Bibliotalk/services/voip_service/package.json`)
 - [ ] T005 [P] Add Matrix+voice env placeholders and documentation in `/Users/tcai/Projects/Bibliotalk/deploy/local/.env.example`
-- [ ] T006 [P] Add local Matrix dev stack skeleton (Synapse + Element + appservice registration) in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/docker-compose.yml`
-- [ ] T007 [P] Add Synapse appservice registration template in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/appservice/bibliotalk.yaml`
-- [ ] T008 [P] Add Matrix stack README for local dev in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/README.md`
-- [ ] T009 Update quickstart compose path + prerequisites in `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/quickstart.md`
-- [ ] T010 Update repo structure overview in `/Users/tcai/Projects/Bibliotalk/CODEBASE.txt`
+- [X] T006 [P] Add local Matrix dev stack skeleton (Synapse + Element + appservice registration) in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/docker-compose.yml`
+- [X] T007 [P] Add Synapse appservice registration template in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/appservice/bibliotalk.yaml`
+- [X] T008 [P] Add Matrix stack README for local dev in `/Users/tcai/Projects/Bibliotalk/deploy/local/matrix/README.md`
+- [X] T009 Update quickstart compose path + prerequisites in `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/quickstart.md`
+- [X] T010 Update repo structure overview in `/Users/tcai/Projects/Bibliotalk/CODEBASE.txt`
 
 ---
 

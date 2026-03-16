@@ -5,6 +5,17 @@
 ├── deploy
 │   └── local
 │       ├── docker-compose.yml
+│       ├── matrix
+│       │   ├── appservice
+│       │   │   ├── bibliotalk.local.yaml
+│       │   │   └── bibliotalk.yaml
+│       │   ├── docker-compose.yml
+│       │   ├── element
+│       │   │   ├── config.example.json
+│       │   │   └── config.json
+│       │   ├── README.md
+│       │   ├── state.json
+│       │   └── synapse
 │       └── spirits.yaml
 ├── DESIGN.md
 ├── OPERATIONS.md
@@ -27,6 +38,7 @@
 ├── README.md
 ├── ROSTER.md
 ├── scripts
+│   ├── matrix-dev.sh
 │   ├── outline-codebase.sh
 │   └── replace-terms.py
 ├── services
@@ -158,5 +170,5 @@
 │       └── tasks.md
 └── uv.lock
 
-47 directories, 112 files
+51 directories, 120 files
 

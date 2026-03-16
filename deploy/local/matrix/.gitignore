@@ -1,0 +1,6 @@
+/.env
+/state.json
+
+/appservice/bibliotalk.local.yaml
+/synapse/data/
+/element/config.json

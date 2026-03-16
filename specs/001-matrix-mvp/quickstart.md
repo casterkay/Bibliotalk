@@ -61,7 +61,7 @@ MATRIX_SPIRIT_USER_PREFIX=bt_
 Start the local Matrix stack (Synapse + Element Web):
 
 ```bash
-docker compose -f deploy/local/matrix/docker-compose.yml up -d
+./scripts/matrix-dev.sh provision
 ```
 
 Expected outcome:

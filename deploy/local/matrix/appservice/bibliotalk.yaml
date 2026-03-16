@@ -1,0 +1,23 @@
+# Bibliotalk Matrix AppService registration (TEMPLATE)
+#
+# Copy to `bibliotalk.local.yaml` (gitignored) and fill tokens / URL, or run:
+#   ./scripts/matrix-dev.sh init
+#
+# Docs:
+# - https://matrix-org.github.io/synapse/latest/application_services.html
+#
+id: bibliotalk
+url: http://host.docker.internal:9009
+as_token: "REPLACE_ME"
+hs_token: "REPLACE_ME"
+sender_localpart: "bt_system"
+rate_limited: false
+
+namespaces:
+  users:
+    - exclusive: true
+      regex: "@bt_.*:localhost"
+  aliases:
+    - exclusive: true
+      regex: "#bt_.*:localhost"
+  rooms: []

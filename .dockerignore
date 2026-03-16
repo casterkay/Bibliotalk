@@ -7,7 +7,16 @@ Dockerfile*
 coverage/
 __pycache__/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .venv/
 venv/
 dist/
 build/
+.DS_Store
+.vscode/
+.idea/
+.ingestion_service/
+.agents_service/
+.bibliotalk/
