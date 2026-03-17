@@ -11,6 +11,6 @@ members = [
   "packages/bt_store",
   "services/agents_service",
   "services/discord_service",
-  "services/ingestion_service",
+  "services/memory_service",
   "services/memory_page_service",
 ]

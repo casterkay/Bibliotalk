@@ -63,7 +63,7 @@ venv/
 *.egg-info/
 dist/
 *.log
-.ingestion_service/
+.memory_service/
 .agents_service/
 .evermemos_ingest/
 .env*

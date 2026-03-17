@@ -112,7 +112,7 @@ The end-to-end MVP loop (ingest → archive publish → dialogue chat → voice)
 - Install deps: `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
 - Run tests (per package to avoid pytest root collisions):
   - `uv --directory services/agents_service run --package agents_service -m pytest`
-  - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
+  - `uv --directory services/memory_service run --package memory_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - CLI help: `uv run --package bt_cli bibliotalk --help`
 

@@ -1,6 +1,6 @@
 # Contract: Ingestion Manifest (Batch Input)
 
-**Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`  
+**Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`
 **Created**: 2026-03-01
 
 This contract defines the batch ingestion manifest format. The ingestion CLI must accept this manifest and process each source independently.
@@ -45,7 +45,7 @@ Exactly one content input mode MUST be provided:
 
 ## Draft (Not Implemented): Top-Level Schema (v2)
 
-This v2 schema is **not implemented** in `services/ingestion_service` as of 2026-03-06.
+This v2 schema is **not implemented** in `services/memory_service` as of 2026-03-06.
 The CLI/server currently accept **only** `version: "1"` and must reject v2 inputs with a clear error.
 
 `v2` extends `v1` with non-interactive web and document URL ingestion, plus blog-specialized discovery.

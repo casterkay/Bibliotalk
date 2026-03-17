@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ..domain.errors import ConfigError
 
-# Ensure the shared repo-root `.env` is loaded for ingestion_service.
+# Ensure the shared repo-root `.env` is loaded for memory_service.
 # Use `override=True` so local runs are deterministic even if the parent shell
 # already has stale env vars exported.
 load_repo_dotenv(override=True)
@@ -80,7 +80,7 @@ class RuntimeConfig:
 
 def default_index_path() -> Path:
     # Local, repo-friendly default. This directory is expected to be gitignored.
-    return Path.cwd() / ".ingestion_service" / "index.sqlite3"
+    return Path.cwd() / ".memory_service" / "index.sqlite3"
 
 
 def load_runtime_config(

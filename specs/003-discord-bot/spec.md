@@ -182,7 +182,7 @@ A Discord user DMs the Bibliotalk bot and starts a talk via `/talk Character A, 
 - `emos_user_id` slugs are immutable once deployed; rename is not a supported operation.
 - The EverMemOS API supports delete-by-`group_id` for manual re-ingest.
 - YouTube video IDs are stable and globally unique.
-- The `bibliotalk.space/memory/` page service is implemented as a small standalone runtime within this feature, even if it is deployed separately from the Discord and ingestion services.
+- The `bibliotalk.space/memory/` page service is implemented as a small standalone runtime within this feature, even if it is deployed separately from the Discord and memory services.
 - Discord token provisioning (one bot token for the deployment) is done by the operator out-of-band.
 - A single SQLite file per deployment instance is sufficient for MVP scale.
 - Silence-gap and speaker-label thresholds for transcript batching will be tuned empirically; reasonable defaults are chosen at implementation time.

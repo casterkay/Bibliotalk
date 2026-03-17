@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 
-from ingestion_service.domain.models import Source, TranscriptLine
-from ingestion_service.pipeline.chunking import chunk_plain_text, chunk_transcript
+from memory_service.domain.models import Source, TranscriptLine
+from memory_service.pipeline.chunking import chunk_plain_text, chunk_transcript
 
 
 def test_chunk_plain_text_is_deterministic() -> None:

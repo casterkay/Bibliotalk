@@ -94,8 +94,8 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 - [ ] T039 [P] [US2] Add `Room.kind` enforcement helpers (archive vs dialogue) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/rooms.py`
 - [ ] T040 [US2] Add `PlatformPost` idempotency key helpers per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/archive-publication.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/platform_posts.py`
-- [ ] T041 [US2] Update ingestion pipeline to write `Source` + `Segment` into `bt_store` and store deterministic root summary (from ingestion/EverMemOS metadata) in `/Users/tcai/Projects/Bibliotalk/services/ingestion_service/src/ingestion_service/pipeline/ingest.py`
-- [ ] T042 [US2] Emit Archive publication intents (`PlatformPost`: `archive.thread_root` + `archive.thread_reply`) during/after ingest in `/Users/tcai/Projects/Bibliotalk/services/ingestion_service/src/ingestion_service/pipeline/ingest.py`
+- [ ] T041 [US2] Update ingestion pipeline to write `Source` + `Segment` into `bt_store` and store deterministic root summary (from ingestion/EverMemOS metadata) in `/Users/tcai/Projects/Bibliotalk/services/memory_service/src/memory_service/pipeline/ingest.py`
+- [ ] T042 [US2] Emit Archive publication intents (`PlatformPost`: `archive.thread_root` + `archive.thread_reply`) during/after ingest in `/Users/tcai/Projects/Bibliotalk/services/memory_service/src/memory_service/pipeline/ingest.py`
 - [ ] T043 [US2] Implement Matrix provisioning (Space + per-agent Archive Room + power levels for read-only) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/provisioning/archive_rooms.ts`
 - [ ] T044 [US2] Implement Archive publisher loop (fetch pending posts → send root/reply thread messages → mark posted) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/publish/archive_publisher.ts`
 - [ ] T045 [US2] Ensure Archive publication is retry-safe (no duplicate root/replies; resume partial) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/publish/archive_publisher.ts`

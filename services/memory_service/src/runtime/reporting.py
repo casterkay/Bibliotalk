@@ -14,7 +14,7 @@ _BEARER_RE = re.compile(r"Bearer\\s+[^\\s]+", flags=re.IGNORECASE)
 
 
 def configure_logging(*, level: str = "INFO") -> logging.Logger:
-    logger = logging.getLogger("ingestion_service")
+    logger = logging.getLogger("memory_service")
     if not logger.handlers:
         handler = logging.StreamHandler()
         handler.setFormatter(JsonFormatter())

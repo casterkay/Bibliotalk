@@ -7,9 +7,9 @@ from datetime import UTC, datetime
 import pytest
 from bt_store.engine import get_session_factory, init_database
 from bt_store.models_core import Agent
-from ingestion_service.domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
-from ingestion_service.pipeline.index import IngestionIndex
-from ingestion_service.pipeline.ingest import ingest_sources
+from memory_service.domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
+from memory_service.pipeline.index import IngestionIndex
+from memory_service.pipeline.ingest import ingest_sources
 
 
 class StubEverMemOS:

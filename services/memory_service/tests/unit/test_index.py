@@ -7,7 +7,7 @@ from bt_store.engine import get_session_factory, init_database
 from bt_store.models_core import Agent
 from bt_store.models_evidence import Source
 from bt_store.models_ingestion import SourceIngestionState
-from ingestion_service.pipeline.index import IngestionIndex
+from memory_service.pipeline.index import IngestionIndex
 from sqlalchemy import select
 
 

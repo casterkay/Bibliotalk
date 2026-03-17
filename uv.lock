@@ -20,7 +20,7 @@ members = [
     "bt-common",
     "bt-store",
     "discord-service",
-    "ingestion-service",
+    "memory-service",
     "memory-page-service",
 ]
 
@@ -399,7 +399,7 @@ dependencies = [
     { name = "bt-common" },
     { name = "bt-store" },
     { name = "discord-service" },
-    { name = "ingestion-service" },
+    { name = "memory-service" },
     { name = "memory-page-service" },
     { name = "rich" },
     { name = "typer" },
@@ -416,7 +416,7 @@ requires-dist = [
     { name = "bt-common", editable = "packages/bt_common" },
     { name = "bt-store", editable = "packages/bt_store" },
     { name = "discord-service", editable = "services/discord_service" },
-    { name = "ingestion-service", editable = "services/ingestion_service" },
+    { name = "memory-service", editable = "services/memory_service" },
     { name = "memory-page-service", editable = "services/memory_page_service" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
     { name = "rich", specifier = ">=13.9.0" },
@@ -1753,9 +1753,9 @@ wheels = [
 ]
 
 [[package]]
-name = "ingestion-service"
+name = "memory-service"
 version = "0.1.0"
-source = { editable = "services/ingestion_service" }
+source = { editable = "services/memory_service" }
 dependencies = [
     { name = "aiosqlite" },
     { name = "bt-common" },

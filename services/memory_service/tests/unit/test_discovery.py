@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
-from ingestion_service.adapters.rss_feed import FeedEntry
-from ingestion_service.domain.errors import AdapterError
-from ingestion_service.pipeline.discovery import (
+from memory_service.adapters.rss_feed import FeedEntry
+from memory_service.domain.errors import AdapterError
+from memory_service.pipeline.discovery import (
     DiscoveredVideo,
     compute_discovery_delta,
     discover_subscription,

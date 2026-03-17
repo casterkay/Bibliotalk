@@ -16,9 +16,9 @@
 - [X] T003 Delete SQLAdmin UI code in `services/agents_service/src/admin/`
 - [X] T004 Delete legacy database layer in `services/agents_service/src/database/`
 - [X] T005 Delete unused Gemini alternatives and server entrypoint in `services/agents_service/src/agent/providers/aws_nova.py` and `services/agents_service/src/server.py`
-- [X] T006 Delete non-YouTube adapters in `services/ingestion_service/src/adapters/blog_crawl.py`, `services/ingestion_service/src/adapters/document.py`, `services/ingestion_service/src/adapters/gutenberg.py`, `services/ingestion_service/src/adapters/http_fetch.py`, `services/ingestion_service/src/adapters/local_text.py`, `services/ingestion_service/src/adapters/url_tools.py`, and `services/ingestion_service/src/adapters/web_page.py`
-- [X] T007 Delete non-MVP ingestion entrypoints in `services/ingestion_service/src/server.py` and `services/ingestion_service/src/pipeline/manifest.py`
-- [X] T008 Update retained package dependencies in `services/ingestion_service/pyproject.toml` and `services/agents_service/pyproject.toml` to match the trimmed MVP scope
+- [X] T006 Delete non-YouTube adapters in `services/memory_service/src/adapters/blog_crawl.py`, `services/memory_service/src/adapters/document.py`, `services/memory_service/src/adapters/gutenberg.py`, `services/memory_service/src/adapters/http_fetch.py`, `services/memory_service/src/adapters/local_text.py`, `services/memory_service/src/adapters/url_tools.py`, and `services/memory_service/src/adapters/web_page.py`
+- [X] T007 Delete non-MVP ingestion entrypoints in `services/memory_service/src/server.py` and `services/memory_service/src/pipeline/manifest.py`
+- [X] T008 Update retained package dependencies in `services/memory_service/pyproject.toml` and `services/agents_service/pyproject.toml` to match the trimmed MVP scope
 - [X] T009 Create the shared evidence-store package skeleton in `packages/bt_common/src/evidence_store/__init__.py`, `packages/bt_common/src/evidence_store/engine.py`, and `packages/bt_common/src/evidence_store/models.py`
 - [X] T010 [P] Create the new Discord runtime package skeleton in `services/discord_service/pyproject.toml`, `services/discord_service/src/__init__.py`, `services/discord_service/src/__main__.py`, and `services/discord_service/tests/__init__.py`
 - [X] T011 [P] Create the new memory-page service package skeleton in `services/memory_page_service/pyproject.toml`, `services/memory_page_service/src/__init__.py`, and `services/memory_page_service/src/__main__.py`
@@ -33,16 +33,16 @@
 
 - [X] T012 Create the SQLAlchemy async engine and session factory in `packages/bt_common/src/evidence_store/engine.py`
 - [X] T013 Create the shared ORM schema in `packages/bt_common/src/evidence_store/models.py`
-- [X] T014 Create the initial Alembic environment and first migration in `services/ingestion_service/alembic/env.py` and `services/ingestion_service/alembic/versions/0001_initial_schema.py`
-- [X] T015 [P] Create standalone collector configuration models in `services/ingestion_service/src/runtime/config.py`
+- [X] T014 Create the initial Alembic environment and first migration in `services/memory_service/alembic/env.py` and `services/memory_service/alembic/versions/0001_initial_schema.py`
+- [X] T015 [P] Create standalone collector configuration models in `services/memory_service/src/runtime/config.py`
 - [X] T016 [P] Create Discord runtime configuration models in `services/discord_service/src/config.py`
-- [X] T017 [P] Add structured logging bootstrap for the collector and Discord runtimes in `services/ingestion_service/src/runtime/reporting.py` and `services/discord_service/src/runtime.py`
-- [X] T018 Refactor `services/ingestion_service/src/pipeline/index.py` to use `AsyncSession` from `packages/bt_common/src/evidence_store/engine.py`
-- [X] T019 Refactor `services/ingestion_service/src/domain/models.py` to keep only YouTube and evidence-cache fields needed by the MVP in `services/ingestion_service/src/domain/models.py`
+- [X] T017 [P] Add structured logging bootstrap for the collector and Discord runtimes in `services/memory_service/src/runtime/reporting.py` and `services/discord_service/src/runtime.py`
+- [X] T018 Refactor `services/memory_service/src/pipeline/index.py` to use `AsyncSession` from `packages/bt_common/src/evidence_store/engine.py`
+- [X] T019 Refactor `services/memory_service/src/domain/models.py` to keep only YouTube and evidence-cache fields needed by the MVP in `services/memory_service/src/domain/models.py`
 - [X] T020 Refactor `services/agents_service/src/models/citation.py` to the new `Evidence` and link-validation contract from `specs/003-discord-bot/contracts/evidence.md`
-- [X] T021 Create the standalone collector process bootstrap in `services/ingestion_service/src/__main__.py` and `services/ingestion_service/src/runtime/poller.py`
+- [X] T021 Create the standalone collector process bootstrap in `services/memory_service/src/__main__.py` and `services/memory_service/src/runtime/poller.py`
 - [X] T022 Create the Discord bot process bootstrap in `services/discord_service/src/runtime.py` and `services/discord_service/src/__main__.py`
-- [X] T023 [P] Add foundational database and startup tests in `packages/bt_common/tests/test_evidence_store_models.py`, `services/ingestion_service/tests/integration/test_runtime_startup.py`, and `services/discord_service/tests/integration/test_runtime_startup.py`
+- [X] T023 [P] Add foundational database and startup tests in `packages/bt_common/tests/test_evidence_store_models.py`, `services/memory_service/tests/integration/test_runtime_startup.py`, and `services/discord_service/tests/integration/test_runtime_startup.py`
 
 **Checkpoint**: Shared DB infra, collector runtime, and Discord runtime boundaries are ready for story implementation.
 
@@ -56,22 +56,22 @@
 
 ### Tests for User Story 1
 
-- [X] T024 [P] [US1] Add unit tests for YouTube discovery delta logic in `services/ingestion_service/tests/unit/test_discovery.py`
-- [X] T025 [P] [US1] Add unit tests for SQLAlchemy-backed ingest index behavior in `services/ingestion_service/tests/unit/test_index.py`
-- [X] T026 [P] [US1] Add unit tests for per-source concurrency gates keyed by `subscription_id` in `services/ingestion_service/tests/unit/test_poller_concurrency.py`
-- [X] T027 [P] [US1] Add integration tests for ingest, transcript-batch derivation, dedup, and manual re-ingest in `services/ingestion_service/tests/integration/test_ingest_pipeline.py`
+- [X] T024 [P] [US1] Add unit tests for YouTube discovery delta logic in `services/memory_service/tests/unit/test_discovery.py`
+- [X] T025 [P] [US1] Add unit tests for SQLAlchemy-backed ingest index behavior in `services/memory_service/tests/unit/test_index.py`
+- [X] T026 [P] [US1] Add unit tests for per-source concurrency gates keyed by `subscription_id` in `services/memory_service/tests/unit/test_poller_concurrency.py`
+- [X] T027 [P] [US1] Add integration tests for ingest, transcript-batch derivation, dedup, and manual re-ingest in `services/memory_service/tests/integration/test_ingest_pipeline.py`
 - [X] T028 [P] [US1] Add contract tests for EverMemOS memorize, conversation-meta, and delete-by-group-id calls in `packages/bt_common/tests/test_evermemos_client_contract.py`
 
 ### Implementation for User Story 1
 
-- [X] T029 [P] [US1] Implement yt-dlp flat extraction and RSS fallback discovery in `services/ingestion_service/src/pipeline/discovery.py`
-- [X] T030 [P] [US1] Adapt transcript and metadata loading for the trimmed MVP in `services/ingestion_service/src/adapters/youtube_transcript.py` and `services/ingestion_service/src/adapters/rss_feed.py`
-- [X] T031 [P] [US1] Preserve stable YouTube identifier builders in `services/ingestion_service/src/domain/ids.py`
-- [X] T032 [US1] Refactor the ingest pipeline to persist `Source`, `Segment`, and `TranscriptBatch` rows through SQLAlchemy in `services/ingestion_service/src/pipeline/ingest.py`
-- [X] T033 [US1] Implement standalone collector orchestration for subscription polling, queueing, backoff, and per-source concurrency controls in `services/ingestion_service/src/runtime/poller.py`
-- [X] T034 [US1] Implement end-to-end collector workflow and manual re-ingest handling in `services/ingestion_service/src/pipeline/ingest.py` and `services/ingestion_service/src/runtime/poller.py`
-- [X] T035 [US1] Wire the collector into the standalone ingestion process in `services/ingestion_service/src/__main__.py`
-- [X] T036 [US1] Add ingest-specific structured logs and failure state updates in `services/ingestion_service/src/runtime/poller.py` and `services/ingestion_service/src/pipeline/ingest.py`
+- [X] T029 [P] [US1] Implement yt-dlp flat extraction and RSS fallback discovery in `services/memory_service/src/pipeline/discovery.py`
+- [X] T030 [P] [US1] Adapt transcript and metadata loading for the trimmed MVP in `services/memory_service/src/adapters/youtube_transcript.py` and `services/memory_service/src/adapters/rss_feed.py`
+- [X] T031 [P] [US1] Preserve stable YouTube identifier builders in `services/memory_service/src/domain/ids.py`
+- [X] T032 [US1] Refactor the ingest pipeline to persist `Source`, `Segment`, and `TranscriptBatch` rows through SQLAlchemy in `services/memory_service/src/pipeline/ingest.py`
+- [X] T033 [US1] Implement standalone collector orchestration for subscription polling, queueing, backoff, and per-source concurrency controls in `services/memory_service/src/runtime/poller.py`
+- [X] T034 [US1] Implement end-to-end collector workflow and manual re-ingest handling in `services/memory_service/src/pipeline/ingest.py` and `services/memory_service/src/runtime/poller.py`
+- [X] T035 [US1] Wire the collector into the standalone ingestion process in `services/memory_service/src/__main__.py`
+- [X] T036 [US1] Add ingest-specific structured logs and failure state updates in `services/memory_service/src/runtime/poller.py` and `services/memory_service/src/pipeline/ingest.py`
 
 **Checkpoint**: User Story 1 is functional when a single figure can discover, ingest, derive transcript batches, deduplicate, enforce per-source concurrency, and manually re-ingest YouTube videos without any Discord feed or DM chat features enabled.
 
@@ -138,7 +138,7 @@
 **Purpose**: Finalize operational readiness, documentation, and full-system validation.
 
 - [X] T061 [P] Update deployment and local runtime docs in `README.md`, `DESIGN.md`, and `deploy/local/docker-compose.yml`
-- [X] T062 [P] Add developer seed and manual-ingest helper scripts in `services/discord_service/scripts/seed_figure.py` and `services/ingestion_service/scripts/trigger_ingest.py`
+- [X] T062 [P] Add developer seed and manual-ingest helper scripts in `services/discord_service/scripts/seed_figure.py` and `services/memory_service/scripts/trigger_ingest.py`
 - [X] T063 Add end-to-end quickstart validation coverage in `services/discord_service/tests/integration/test_quickstart_flow.py` and `services/memory_page_service/tests/integration/test_quickstart_memory_pages.py`
 - [X] T064 Run and fix the documented quickstart workflow in `specs/003-discord-bot/quickstart.md`
 - [X] T065 Remove stale references to Matrix, voice, and non-YouTube ingestion from `AGENTS.md`, `README.md`, and `.github/agents/copilot-instructions.md`
@@ -180,13 +180,13 @@
 ## Parallel Example: User Story 1
 
 ```bash
-Task: "T024 [US1] Add unit tests for YouTube discovery delta logic in services/ingestion_service/tests/unit/test_discovery.py"
-Task: "T025 [US1] Add unit tests for SQLAlchemy-backed ingest index behavior in services/ingestion_service/tests/unit/test_index.py"
+Task: "T024 [US1] Add unit tests for YouTube discovery delta logic in services/memory_service/tests/unit/test_discovery.py"
+Task: "T025 [US1] Add unit tests for SQLAlchemy-backed ingest index behavior in services/memory_service/tests/unit/test_index.py"
 Task: "T028 [US1] Add contract tests for EverMemOS memorize, conversation-meta, and delete-by-group-id calls in packages/bt_common/tests/test_evermemos_client_contract.py"
 
-Task: "T029 [US1] Implement yt-dlp flat extraction and RSS fallback discovery in services/ingestion_service/src/pipeline/discovery.py"
-Task: "T030 [US1] Adapt transcript and metadata loading for the trimmed MVP in services/ingestion_service/src/adapters/youtube_transcript.py and services/ingestion_service/src/adapters/rss_feed.py"
-Task: "T031 [US1] Preserve stable YouTube identifier builders in services/ingestion_service/src/domain/ids.py"
+Task: "T029 [US1] Implement yt-dlp flat extraction and RSS fallback discovery in services/memory_service/src/pipeline/discovery.py"
+Task: "T030 [US1] Adapt transcript and metadata loading for the trimmed MVP in services/memory_service/src/adapters/youtube_transcript.py and services/memory_service/src/adapters/rss_feed.py"
+Task: "T031 [US1] Preserve stable YouTube identifier builders in services/memory_service/src/domain/ids.py"
 ```
 
 ## Parallel Example: User Story 2

@@ -44,7 +44,7 @@ packages/
 
 services/
   agents_service/       # Python: platform-agnostic agent core + Live Sessions
-  ingestion_service/    # Python: ingestion pipeline; writes sources/segments + publish intents
+  memory_service/    # Python: ingestion pipeline; writes sources/segments + publish intents
   matrix_service/       # Node/TS: Matrix AppService adapter + publisher loop (matrix-js-sdk)
   voice_call_service/   # Node: MatrixRTC/WebRTC sidecar; audio bridge to agents_service
   memory_page_service/  # optional: public pages for evidence inspection (future UX)
@@ -131,7 +131,7 @@ Design advice (to win on stage):
 ### 2) Archive publication (ingestion-backed, retry-safe)
 
 ```text
-ingestion_service
+memory_service
   -> writes Source + Segment rows (canonical evidence)
   -> writes platform_posts intents:
        archive.thread_root (root summary from ingestion/EverMemOS metadata)

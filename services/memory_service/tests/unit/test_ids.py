@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ingestion_service.domain.ids import build_group_id, build_message_id
+from memory_service.domain.ids import build_group_id, build_message_id
 
 
 def test_build_group_id() -> None:
@@ -8,4 +8,7 @@ def test_build_group_id() -> None:
 
 
 def test_build_message_id() -> None:
-    assert build_message_id(user_id="u1", platform="local", external_id="x", seq=7) == "u1:local:x:seg:7"
+    assert (
+        build_message_id(user_id="u1", platform="local", external_id="x", seq=7)
+        == "u1:local:x:seg:7"
+    )

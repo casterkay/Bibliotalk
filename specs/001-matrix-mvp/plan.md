@@ -62,7 +62,7 @@ packages/
 └── bt_store/                       # shared relational schema + migrations (service-agnostic)
 
 services/
-├── ingestion_service/              # writes sources/segments; triggers Archive publication intents
+├── memory_service/              # writes sources/segments; triggers Archive publication intents
 ├── agents_service/                 # platform-agnostic Spirit core (turn handling, grounding, citations, voice orchestration)
 ├── matrix_service/                 # Node/TS Matrix appservice adapter (Archive/Dialogue semantics, event routing, posting)
 ├── voip_service/             # Node MatrixRTC/WebRTC sidecar; audio bridge to agents_service

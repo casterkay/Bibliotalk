@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ingestion_service"
+name = "memory_service"
 version = "0.1.0"
-description = "Bibliotalk ingestion service"
+description = "Bibliotalk memory service"
 requires-python = ">=3.11"
 dependencies = [
   "aiosqlite>=0.20.0",
@@ -33,15 +33,15 @@ web = [
 
 [tool.setuptools]
 packages = [
-  "ingestion_service",
-  "ingestion_service.adapters",
-  "ingestion_service.domain",
-  "ingestion_service.pipeline",
-  "ingestion_service.runtime",
+  "memory_service",
+  "memory_service.adapters",
+  "memory_service.domain",
+  "memory_service.pipeline",
+  "memory_service.runtime",
 ]
 
 [tool.setuptools.package-dir]
-"ingestion_service" = "src"
+"memory_service" = "src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -19,9 +19,9 @@ from discord_service.ops.feed import (
     source_feed_status_by_video,
 )
 from discord_service.ops.talks import close_talk_by_thread_id, list_talks
-from ingestion_service.entrypoint import run_collector
-from ingestion_service.ops import request_manual_ingest
 from memory_page_service.entrypoint import run_memory_pages
+from memory_service.entrypoint import run_collector
+from memory_service.ops import request_manual_ingest
 from rich.console import Console
 from rich.table import Table
 
@@ -164,7 +164,7 @@ def ingest_request(
         )
 
 
-collector_app = typer.Typer(no_args_is_help=True, help="Collector runtime (ingestion_service).")
+collector_app = typer.Typer(no_args_is_help=True, help="Collector runtime (memory_service).")
 app.add_typer(collector_app, name="collector")
 
 

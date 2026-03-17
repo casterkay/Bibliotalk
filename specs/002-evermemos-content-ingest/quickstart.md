@@ -32,13 +32,13 @@ Environment variables (recommended):
 Intended CLI shape:
 
 - Ingest local text:
-  - `uv run --package ingestion_service -m ingestion_service ingest text --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --text "<TEXT>"`
+  - `uv run --package memory_service -m memory_service ingest text --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --text "<TEXT>"`
 - Ingest a local file:
-  - `uv run --package ingestion_service -m ingestion_service ingest file --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --path /absolute/path/to/file.txt`
+  - `uv run --package memory_service -m memory_service ingest file --user-id <USER_ID> --title "<TITLE>" --canonical-url "<URL>" --platform local --external-id "<ID>" --path /absolute/path/to/file.txt`
 
 Expected output:
 - human-readable summary to stdout
-- a JSON report file written to an operator-specified `--report-path`, or by default to `.ingestion_service/reports/<run_id>.json`
+- a JSON report file written to an operator-specified `--report-path`, or by default to `.memory_service/reports/<run_id>.json`
 
 ## Re-Run Safely (P2)
 
@@ -50,7 +50,7 @@ Re-running the same command with unchanged content is expected to:
 
 Intended CLI shape:
 
-- `uv run --package ingestion_service -m ingestion_service ingest manifest --path /absolute/path/to/manifest.yaml`
+- `uv run --package memory_service -m memory_service ingest manifest --path /absolute/path/to/manifest.yaml`
 
 The manifest format and report format are defined in:
 - `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/contracts/ingest-manifest.md`
@@ -70,7 +70,7 @@ deploy/local/bin/setup-all.sh
 This will:
 
 - run the local ingestion manifest at `deploy/local/ingest/manifest.yaml` against EverMemOS,
-- write reports + segment cache under `.ingestion_service/`, and
+- write reports + segment cache under `.memory_service/`, and
 - import the segment cache into the `agents_service` SQLite store for citations.
 
 See `specs/001-agent-service/quickstart.md` for the end-to-end Matrix flow and how to chat with Spirits once data is ingested.

@@ -26,10 +26,10 @@ UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras
 
 ## 2. Set up the database
 
-Run Alembic migrations (from the `ingestion_service` directory):
+Run Alembic migrations (from the `memory_service` directory):
 
 ```bash
-cd services/ingestion_service
+cd services/memory_service
 uv run alembic upgrade head
 ```
 
@@ -95,11 +95,11 @@ uv run --package bt_cli bibliotalk memory-pages run
 Expected output:
 
 ```
-INFO  [ingestion_service] Starting collector for figure: alan-watts (Alan Watts)
+INFO  [memory_service] Starting collector for figure: alan-watts (Alan Watts)
 INFO  [discord_service] Starting discord runtime db_path=... command_guild_id=...
 INFO  [discord_service] Connected to Discord as AlanWattsBot#1234
 INFO  [discord_service] Feed publication complete figure_slug=alan-watts attempted=... published=... failed=...
-INFO  [ingestion_service] Collector polling loop started (interval: 60 min)
+INFO  [memory_service] Collector polling loop started (interval: 60 min)
 ```
 
 ---
@@ -145,8 +145,8 @@ uv run --package bt_cli bibliotalk collector run --figure alan-watts --once
 ## Running tests
 
 ```bash
-# ingestion_service unit tests
-uv --directory services/ingestion_service run --package ingestion_service -m pytest
+# memory_service unit tests
+uv --directory services/memory_service run --package memory_service -m pytest
 
 # agents_service unit tests (citation validation, BM25)
 uv --directory services/agents_service run --package agents_service -m pytest

@@ -7,9 +7,9 @@ import pytest
 from bt_store.engine import get_session_factory, init_database
 from bt_store.models_core import Agent
 from bt_store.models_ingestion import Subscription, SubscriptionState
-from ingestion_service.runtime.config import load_runtime_config
-from ingestion_service.runtime.poller import CollectorPoller
-from ingestion_service.runtime.reporting import configure_logging
+from memory_service.runtime.config import load_runtime_config
+from memory_service.runtime.poller import CollectorPoller
+from memory_service.runtime.reporting import configure_logging
 
 
 @pytest.mark.anyio

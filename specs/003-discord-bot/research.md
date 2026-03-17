@@ -93,11 +93,11 @@ The existing `Citation.index: int` field and citation-index-based validation are
 
 | Component                                          | Disposition    | Notes                                                                         |
 | -------------------------------------------------- | -------------- | ----------------------------------------------------------------------------- |
-| `ingestion_service/pipeline/chunking.py`           | Keep unchanged | 1,200-char sentence-aware chunking matches FR-003 exactly                     |
-| `ingestion_service/adapters/youtube_transcript.py` | Adapt (minor)  | Remove non-YouTube metadata fields; keep transcript fetch + yt-dlp shell-out  |
-| `ingestion_service/adapters/rss_feed.py`           | Keep           | Wire as FR-015 optional fallback                                              |
-| `ingestion_service/pipeline/ingest.py`             | Adapt          | Replace `index.py` SQLite client with `AsyncSession` calls                    |
-| `ingestion_service/pipeline/index.py`              | Adapt          | Replace raw `sqlite3` with SQLAlchemy ORM reads/writes                        |
+| `memory_service/pipeline/chunking.py`           | Keep unchanged | 1,200-char sentence-aware chunking matches FR-003 exactly                     |
+| `memory_service/adapters/youtube_transcript.py` | Adapt (minor)  | Remove non-YouTube metadata fields; keep transcript fetch + yt-dlp shell-out  |
+| `memory_service/adapters/rss_feed.py`           | Keep           | Wire as FR-015 optional fallback                                              |
+| `memory_service/pipeline/ingest.py`             | Adapt          | Replace `index.py` SQLite client with `AsyncSession` calls                    |
+| `memory_service/pipeline/index.py`              | Adapt          | Replace raw `sqlite3` with SQLAlchemy ORM reads/writes                        |
 | `agents_service/agent/tools/memory_search.py`      | Adapt          | Figure-scoped `user_id`; import updated `Evidence`                            |
 | `agents_service/agent/tools/emit_citations.py`     | Adapt          | Drop index field; emit inline `[text](memory_url)` Markdown                   |
 | `agents_service/models/citation.py`                | Rebuild        | New `Evidence` shape; remove `Citation.index`; add `memory_url` fields        |
@@ -112,12 +112,12 @@ The existing `Citation.index: int` field and citation-index-based validation are
 | `agents_service/agent/providers/aws_nova.py`       | **DELETE**     | Non-Gemini provider                                                           |
 | `agents_service/database/`                         | **DELETE**     | Old SQLAlchemy schema; replaced by shared evidence-store infra in `bt_common` |
 | `agents_service/server.py`                         | **DELETE**     | Litestar HTTP server — not needed                                             |
-| `ingestion_service/adapters/blog_crawl.py`         | **DELETE**     | Non-YouTube                                                                   |
-| `ingestion_service/adapters/document.py`           | **DELETE**     | Non-YouTube                                                                   |
-| `ingestion_service/adapters/gutenberg.py`          | **DELETE**     | Non-YouTube                                                                   |
-| `ingestion_service/adapters/http_fetch.py`         | **DELETE**     | Non-YouTube                                                                   |
-| `ingestion_service/adapters/local_text.py`         | **DELETE**     | Non-YouTube                                                                   |
-| `ingestion_service/adapters/url_tools.py`          | **DELETE**     | Non-YouTube utilities                                                         |
-| `ingestion_service/adapters/web_page.py`           | **DELETE**     | Non-YouTube                                                                   |
-| `ingestion_service/server.py`                      | **DELETE**     | FastAPI HTTP server — not needed                                              |
-| `ingestion_service/pipeline/manifest.py`           | **DELETE**     | Manifest batch ingest — not MVP                                               |
+| `memory_service/adapters/blog_crawl.py`         | **DELETE**     | Non-YouTube                                                                   |
+| `memory_service/adapters/document.py`           | **DELETE**     | Non-YouTube                                                                   |
+| `memory_service/adapters/gutenberg.py`          | **DELETE**     | Non-YouTube                                                                   |
+| `memory_service/adapters/http_fetch.py`         | **DELETE**     | Non-YouTube                                                                   |
+| `memory_service/adapters/local_text.py`         | **DELETE**     | Non-YouTube                                                                   |
+| `memory_service/adapters/url_tools.py`          | **DELETE**     | Non-YouTube utilities                                                         |
+| `memory_service/adapters/web_page.py`           | **DELETE**     | Non-YouTube                                                                   |
+| `memory_service/server.py`                      | **DELETE**     | FastAPI HTTP server — not needed                                              |
+| `memory_service/pipeline/manifest.py`           | **DELETE**     | Manifest batch ingest — not MVP                                               |

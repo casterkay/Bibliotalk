@@ -4,7 +4,7 @@
 **Entry point:** `python -m discord_service`
 **Date:** 2026-03-10
 
-The Discord runtime runs as a **single bot process**. YouTube ingestion/collection runs separately in `ingestion_service`.
+The Discord runtime runs as a **single bot process**. YouTube ingestion/collection runs separately in `memory_service`.
 
 ---
 

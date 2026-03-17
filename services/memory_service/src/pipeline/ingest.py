@@ -28,7 +28,7 @@ from ..runtime.reporting import redact_text
 from .chunking import ChunkingConfig, chunk_transcript, normalize_text
 from .index import IngestionIndex
 
-logger = logging.getLogger("ingestion_service")
+logger = logging.getLogger("memory_service")
 
 # NOTE: `transcript_batches` are consumed by `discord_service` as message bodies.
 # Discord messages have a hard 2000-character limit, and the rendered feed batch
@@ -42,7 +42,7 @@ def _now() -> datetime:
 
 
 def _default_segment_cache_dir() -> Path:
-    return Path.cwd() / ".ingestion_service" / "segment_cache"
+    return Path.cwd() / ".memory_service" / "segment_cache"
 
 
 def _append_segment_cache_record(

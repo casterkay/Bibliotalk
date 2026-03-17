@@ -5,7 +5,7 @@ import time
 from uuid import uuid4
 
 import pytest
-from ingestion_service.runtime.poller import SubscriptionConcurrencyGate
+from memory_service.runtime.poller import SubscriptionConcurrencyGate
 
 
 @pytest.mark.anyio

@@ -14,14 +14,14 @@ from bt_store.models_ingestion import (
     Subscription,
     SubscriptionState,
 )
-from ingestion_service.domain.errors import AccessRestrictedError, RetryLaterError
-from ingestion_service.domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
-from ingestion_service.pipeline.discovery import DiscoveredVideo
-from ingestion_service.pipeline.index import IngestionIndex
-from ingestion_service.pipeline.ingest import ingest_source, manual_reingest_source
-from ingestion_service.runtime.config import load_runtime_config
-from ingestion_service.runtime.poller import CollectorPoller
-from ingestion_service.runtime.reporting import configure_logging
+from memory_service.domain.errors import AccessRestrictedError, RetryLaterError
+from memory_service.domain.models import Source, SourceContent, TranscriptContent, TranscriptLine
+from memory_service.pipeline.discovery import DiscoveredVideo
+from memory_service.pipeline.index import IngestionIndex
+from memory_service.pipeline.ingest import ingest_source, manual_reingest_source
+from memory_service.runtime.config import load_runtime_config
+from memory_service.runtime.poller import CollectorPoller
+from memory_service.runtime.reporting import configure_logging
 from sqlalchemy import func, select
 
 

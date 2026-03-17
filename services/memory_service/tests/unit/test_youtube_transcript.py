@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from ingestion_service.adapters.youtube_transcript import (
+from memory_service.adapters.youtube_transcript import (
     _select_caption,
     parse_json3,
     parse_ttml,

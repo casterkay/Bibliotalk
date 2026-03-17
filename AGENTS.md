@@ -32,7 +32,7 @@
 - Run tests (run from each package directory to avoid pytest root collisions):
   - `uv --directory services/discord_service run --package discord_service -m pytest`
   - `uv --directory services/memory_page_service run --package memory_page_service -m pytest`
-  - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
+  - `uv --directory services/memory_service run --package memory_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Unified CLI help:
   - `uv run --package bt_cli bibliotalk --help`
@@ -63,19 +63,19 @@ Python 3.11+: Follow standard conventions
 
 - Treat current repository file layout as the source of truth for imports and ownership.
 - `bt_common` is infra-only (`evermemos_client`, `config`, `logging`, `exceptions`). Do not put agent-domain models here.
-- The ingestion pipeline (YouTube transcript fetch + chunking + dedup + memorize) lives in `services/ingestion_service/`.
+- The ingestion pipeline (YouTube transcript fetch + chunking + dedup + memorize) lives in `services/memory_service/`.
 
-### ingestion_service
+### memory_service
 
 - Standalone EverMemOS ingestion library + CLI (see `specs/002-evermemos-content-ingest/`).
-- Local artifacts (gitignored): `.ingestion_service/` (SQLite index + JSON reports).
+- Local artifacts (gitignored): `.memory_service/` (SQLite index + JSON reports).
 
 ### Common Commands
 
 - Sync deps (workspace; installs all Python members):
   - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
 - Run tests:
-  - `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
+  - `uv --directory services/memory_service run --package memory_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Ingestion CLI help:
   - `uv run --package bt_cli bibliotalk collector run --help`

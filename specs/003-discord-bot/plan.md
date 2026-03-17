@@ -7,7 +7,7 @@
 
 Build the complete YouTube → EverMemOS → Discord figure-bot pipeline from the skeleton left after ruthlessly deleting all out-of-scope code (Matrix, voice, non-YouTube adapters, AWS Nova provider, FastAPI/Litestar servers, SQLAdmin). The successor system has four runtime packages sharing one SQLite database through a shared infra layer in `bt_common`:
 
-1. **Collector** (`ingestion_service`, trimmed but standalone): asyncio polling loop per subscription source, yt-dlp discovery, transcript fetch, chunking, SQLAlchemy-persisted evidence, and EverMemOS memorization.
+1. **Collector** (`memory_service`, trimmed but standalone): asyncio polling loop per subscription source, yt-dlp discovery, transcript fetch, chunking, SQLAlchemy-persisted evidence, and EverMemOS memorization.
 2. **Agent runtime** (`agents_service`, trimmed): Gemini/ADK `LlmAgent` per figure, EverMemOS search, BM25 rerank, inline `memory_url` citation, and grounding validation.
 3. **Discord runtime** (`discord_service`, new): one `discord.py` `Client` per deployment, feed channel + thread posting, DM slash commands (`/talk`, `/talks`), private talk-thread creation under `#bibliotalk`, and thread-message routing to character agents.
 4. **Memory page service** (`memory_page_service`, new): lightweight HTTP/serverless handler that resolves one `{user_id}_{timestamp}` page into one public memory view plus a timestamped source-video link.
@@ -66,7 +66,7 @@ Code deletion is a hard prerequisite before any new code is written.
 | `src/models/citation.py`            | Rebuild — new `Evidence` shape with `memory_url`, `memory_user_id`, `memory_timestamp`; remove `Citation.index` |
 | `src/models/segment.py`             | Keep unchanged — `Segment` + `bm25_rerank` reused directly                                                      |
 
-### `services/ingestion_service/` — delete
+### `services/memory_service/` — delete
 
 | Path                         | Reason                                                                            |
 | ---------------------------- | --------------------------------------------------------------------------------- |
@@ -80,7 +80,7 @@ Code deletion is a hard prerequisite before any new code is written.
 | `src/server.py`              | FastAPI HTTP server — collector runs as a standalone process, not an HTTP service |
 | `src/pipeline/manifest.py`   | Manifest-driven batch ingest — not MVP                                            |
 
-### `services/ingestion_service/` — keep and adapt
+### `services/memory_service/` — keep and adapt
 
 | Path                                 | Action                                                                                 |
 | ------------------------------------ | -------------------------------------------------------------------------------------- |
@@ -128,7 +128,7 @@ packages/bt_common/src/
 ├── exceptions.py
 └── logging.py
 
-services/ingestion_service/src/   # standalone collector / ingestion runtime
+services/memory_service/src/   # standalone collector / ingestion runtime
 ├── adapters/
 │   ├── base.py
 │   ├── youtube_transcript.py      # transcript fetch + yt-dlp metadata
@@ -188,14 +188,14 @@ services/memory_page_service/
     └── integration/
 ```
 
-**Structure Decision**: `ingestion_service` owns the standalone collector runtime and write-path into the shared evidence store. `discord_service` owns only the Discord bot runtime, feed publication, DM slash commands (`/talk`, `/talks`), and private talk-thread routing. `memory_page_service` owns public memory page resolution. Shared SQLAlchemy engine/models live in `bt_common/evidence_store` so no service imports another service's runtime internals.
+**Structure Decision**: `memory_service` owns the standalone collector runtime and write-path into the shared evidence store. `discord_service` owns only the Discord bot runtime, feed publication, DM slash commands (`/talk`, `/talks`), and private talk-thread routing. `memory_page_service` owns public memory page resolution. Shared SQLAlchemy engine/models live in `bt_common/evidence_store` so no service imports another service's runtime internals.
 
 ## Phased Delivery
 
 | Phase          | Deliverable                                                                                                                                                                            | User Story   |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | A — Deletion   | Remove all out-of-scope code; existing tests still pass on retained modules                                                                                                            | Prerequisite |
-| B — P1 Ingest  | standalone `ingestion_service`; shared ORM schema + Alembic in `bt_common`; yt-dlp discovery; transcript ingest pipeline; EverMemOS memorization; dedup; per-source concurrency limits | US-1         |
+| B — P1 Ingest  | standalone `memory_service`; shared ORM schema + Alembic in `bt_common`; yt-dlp discovery; transcript ingest pipeline; EverMemOS memorization; dedup; per-source concurrency limits | US-1         |
 | C — P2 Feed    | Transcript batch grouping; Discord feed publisher; idempotent thread posting; `discord_posts` tracking                                                                                 | US-2         |
 | D — P3 Talks   | Gemini/ADK figure agent; EverMemOS search; BM25 rerank; inline `memory_url` citations; citation validation; DM `/talk` + private threads; memory-page service                     | US-3         |
 | E — Operations | Env-based config; structured logging; retry/backoff; Docker Compose deployment                                                                                                         | All          |
@@ -205,4 +205,4 @@ services/memory_page_service/
 | Deviation                                                                               | Why Needed                                                                                                                                  | Simpler Alternative Rejected Because                                                                                              |
 | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | SQLAlchemy ORM over raw `aiosqlite`                                                     | Operator directive; typed models, Alembic migration tooling, async session management, shared DB access across runtimes                     | Raw SQL would lose type safety and require manual schema management across packages reading the same DB                           |
-| Four packages (ingestion_service, agents_service, discord_service, memory_page_service) | Each has a distinct runtime and failure domain; the public page service has a different deployment model from the collector and Discord bot | Merging collector, Discord, and public-page handlers into one service couples unrelated deployment concerns and weakens isolation |
+| Four packages (memory_service, agents_service, discord_service, memory_page_service) | Each has a distinct runtime and failure domain; the public page service has a different deployment model from the collector and Discord bot | Merging collector, Discord, and public-page handlers into one service couples unrelated deployment concerns and weakens isolation |

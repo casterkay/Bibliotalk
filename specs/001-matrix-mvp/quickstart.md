@@ -140,7 +140,7 @@ Expected outcome:
 
 ```bash
 uv --directory services/agents_service run --package agents_service -m pytest
-uv --directory services/ingestion_service run --package ingestion_service -m pytest
+uv --directory services/memory_service run --package memory_service -m pytest
 cd services/matrix_service && npm test
 uv --directory packages/bt_store run --package bt_store -m pytest
 ```

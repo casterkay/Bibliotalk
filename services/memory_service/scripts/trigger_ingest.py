@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from ingestion_service.ops import request_manual_ingest
+from memory_service.ops import request_manual_ingest
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -52,7 +52,7 @@ def main() -> int:
         return 1
 
     print(
-        f"Manual ingest requested for '{args.figure_slug}' video '{args.video_id}'. Run ingestion_service with --once to process it."
+        f"Manual ingest requested for '{args.figure_slug}' video '{args.video_id}'. Run memory_service with --once to process it."
     )
     return 0
 

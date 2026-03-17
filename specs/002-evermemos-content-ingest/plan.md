@@ -13,7 +13,7 @@ Create a standalone Python library + CLI that ingests curated, operator-provided
 **Primary Dependencies**: `bt_common` (EverMemOS client wrapper), `httpx`, `pydantic`, `typer`, `rich`, `fastapi`
 **Storage**: EverMemOS for memory storage; local SQLite ingestion index (default) for idempotency and reporting continuity
 **Testing**: `pytest`, `pytest-asyncio`
-**Target Platform**: CLI for macOS/Linux; library usable from `ingestion_service` or other Python services
+**Target Platform**: CLI for macOS/Linux; library usable from `memory_service` or other Python services
 **Project Type**: Python package (library + CLI)
 **Performance Goals**: Ingest 50 typical sources in a single run with actionable reporting; segmenting throughput supports multi-hour transcripts without operator intervention
 **Constraints**: No interactive browsing; deterministic segmentation; stable message/group IDs; secrets never logged; safe retries on transient EverMemOS failures
@@ -57,9 +57,9 @@ Create a standalone Python library + CLI that ingests curated, operator-provided
 
 ```text
 /Users/tcai/Projects/Bibliotalk/
-services/ingestion_service/src/
+services/memory_service/src/
 ├── __init__.py
-├── __main__.py              # `uv run --package ingestion_service -m ingestion_service ...`
+├── __main__.py              # `uv run --package memory_service -m memory_service ...`
 ├── server.py                # FastAPI server (optional operator API)
 ├── adapters/
 │   ├── base.py              # adapter interface for input sources
@@ -79,11 +79,11 @@ services/ingestion_service/src/
     ├── config.py            # env + CLI override loading
     └── reporting.py         # report emission + redaction
 
-services/ingestion_service/tests/unit/
+services/memory_service/tests/unit/
 packages/bt_common/tests/contract/     # EverMemOS response-shape contract tests
 ```
 
-**Structure Decision**: Single standalone package (`ingestion_service`) with a small adapter layer for supported non-interactive inputs. It is intentionally independent of Matrix/Supabase so it can be reused by `ingestion_service` or external operators.
+**Structure Decision**: Single standalone package (`memory_service`) with a small adapter layer for supported non-interactive inputs. It is intentionally independent of Matrix/Supabase so it can be reused by `memory_service` or external operators.
 
 ## Phased Delivery (maps to spec priorities)
 

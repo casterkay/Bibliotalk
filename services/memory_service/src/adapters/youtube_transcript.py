@@ -359,7 +359,7 @@ class YouTubeTranscriptApiProvider:
             )
         except ModuleNotFoundError as exc:
             raise UnsupportedSourceError(
-                "youtube-transcript-api is not installed. Install with `pip install 'ingestion_service[ingest]'`."
+                "youtube-transcript-api is not installed. Install with `pip install 'memory_service[ingest]'`."
             ) from exc
 
         try:
@@ -438,7 +438,7 @@ class YtDlpCaptionsProvider:
             from yt_dlp import YoutubeDL  # type: ignore[import-not-found]
         except ModuleNotFoundError as exc:  # pragma: no cover
             raise UnsupportedSourceError(
-                "yt-dlp is not installed. Install with `pip install 'ingestion_service'`."
+                "yt-dlp is not installed. Install with `pip install 'memory_service'`."
             ) from exc
 
         url = f"https://www.youtube.com/watch?v={video_id}"
@@ -555,7 +555,7 @@ class YtDlpMetadataFetcher:
             from yt_dlp import YoutubeDL  # type: ignore[import-not-found]
         except ModuleNotFoundError as exc:  # pragma: no cover
             raise UnsupportedSourceError(
-                "yt-dlp is not installed. Install with `pip install 'ingestion_service'`."
+                "yt-dlp is not installed. Install with `pip install 'memory_service'`."
             ) from exc
 
         url = f"https://www.youtube.com/watch?v={video_id}"

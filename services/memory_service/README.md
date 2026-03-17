@@ -1,4 +1,4 @@
-# ingestion_service
+# memory_service
 
 This package now keeps only the ingestion primitives that still matter to the Discord MVP:
 
@@ -20,7 +20,7 @@ Removed from this package:
 ## Development
 
 - Sync deps in the workspace: `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
-- Run tests: `uv --directory services/ingestion_service run --package ingestion_service -m pytest`
+- Run tests: `uv --directory services/memory_service run --package memory_service -m pytest`
 - Unified CLI help: `uv run --package bt_cli bibliotalk --help`
 
 ## Optional Extras

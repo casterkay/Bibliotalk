@@ -36,8 +36,8 @@ jobs:
       - name: agents_service tests
         run: uv --directory services/agents_service run --package agents_service -m pytest
 
-      - name: ingestion_service tests
-        run: uv --directory services/ingestion_service run --package ingestion_service -m pytest
+      - name: memory_service tests
+        run: uv --directory services/memory_service run --package memory_service -m pytest
 
       - name: discord_service tests
         run: uv --directory services/discord_service run --package discord_service -m pytest
