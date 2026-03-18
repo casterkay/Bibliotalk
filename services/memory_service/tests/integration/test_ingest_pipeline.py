@@ -331,7 +331,7 @@ async def test_collector_poll_once_ingests_new_video_and_skips_it_on_next_cycle(
 
     config = load_runtime_config(
         db_path=str(db),
-        figure_slug="alan-watts",
+        agent_slug="alan-watts",
         emos_base_url="https://emos.local",
         index_path=str(tmp_path / "index.sqlite3"),
     )
@@ -431,7 +431,7 @@ async def test_collector_does_not_advance_cursor_when_ingest_fails(tmp_path) -> 
 
     config = load_runtime_config(
         db_path=str(db),
-        figure_slug="alan-watts",
+        agent_slug="alan-watts",
         emos_base_url="https://emos.local",
         index_path=str(tmp_path / "index.sqlite3"),
     )
@@ -519,7 +519,7 @@ async def test_collector_skips_members_only_videos(tmp_path) -> None:
 
     config = load_runtime_config(
         db_path=str(db),
-        figure_slug="alan-watts",
+        agent_slug="alan-watts",
         emos_base_url="https://emos.local",
         index_path=str(tmp_path / "index.sqlite3"),
     )
@@ -608,7 +608,7 @@ async def test_collector_schedules_retry_on_rate_limit(tmp_path) -> None:
 
     config = load_runtime_config(
         db_path=str(db),
-        figure_slug="alan-watts",
+        agent_slug="alan-watts",
         emos_base_url="https://emos.local",
         index_path=str(tmp_path / "index.sqlite3"),
     )
@@ -743,7 +743,7 @@ async def test_collector_continues_processing_manual_sources_when_one_fails(tmp_
 
     config = load_runtime_config(
         db_path=str(db),
-        figure_slug="alan-watts",
+        agent_slug="alan-watts",
         emos_base_url="https://emos.local",
         index_path=str(tmp_path / "index.sqlite3"),
     )

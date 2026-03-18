@@ -42,4 +42,4 @@ async def test_discord_runtime_builds_single_bot_client(tmp_path) -> None:
     runtime = await build_live_discord_runtime(config, session_factory=session_factory)
 
     assert runtime.client is not None
-    assert runtime.client.figure_directory.resolve_token("alan-watts") is not None
+    assert runtime.client.agent_directory.resolve_token("alan-watts") is not None

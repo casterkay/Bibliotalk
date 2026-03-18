@@ -43,13 +43,13 @@ async def test_collector_runtime_startup(tmp_path) -> None:
         await session.commit()
 
     config = load_runtime_config(
-        db_path=str(db), figure_slug="alan-watts", emos_base_url="https://emos.local"
+        db_path=str(db), agent_slug="alan-watts", emos_base_url="https://emos.local"
     )
     poller = CollectorPoller(
         config=config, session_factory=session_factory, logger=configure_logging()
     )
     snapshot = await poller.run_once()
 
-    assert snapshot.figure_slug == "alan-watts"
+    assert snapshot.agent_slug == "alan-watts"
     assert snapshot.active_subscriptions == 1
     assert snapshot.failed_subscriptions == 0

@@ -1,4 +1,4 @@
-# Research: YouTube → EverMemOS → Discord Figure Bots
+# Research: YouTube → EverMemOS → Discord Agent Bots
 
 **Phase 0 output for:** `003-discord-bot`
 **Date:** 2026-03-07
@@ -34,19 +34,19 @@
 
 **Decision:** Subclass `discord.Client` (not `commands.Bot`). Override `on_ready` (start the collector polling task) and `on_message` (route DMs to the agent orchestrator). Launch with `asyncio.run(client.start(DISCORD_TOKEN))`. The collector polling loop runs as a `discord.ext.tasks.loop` task, started inside `on_ready`, sharing the same asyncio event loop as the Discord client.
 
-**Rationale:** `discord.Client` is the minimal surface needed: receive DM events + call REST API for feed posting. `commands.Bot` adds prefix-command and slash-command machinery that is not needed and increases the attack surface. `discord.ext.tasks.loop` integrates natively with the running event loop, avoiding a second thread or subprocess for the polling loop. Each figure runs as a separate OS process, providing fault isolation: a crash in Figure A's bot does not affect Figure B.
+**Rationale:** `discord.Client` is the minimal surface needed: receive DM events + call REST API for feed posting. `commands.Bot` adds prefix-command and slash-command machinery that is not needed and increases the attack surface. `discord.ext.tasks.loop` integrates natively with the running event loop, avoiding a second thread or subprocess for the polling loop. Each agent can run as a separate OS process, providing fault isolation: a crash in one agent's bot does not affect others.
 
 **Alternatives considered:**
-- Separate asyncio processes for bot and collector with IPC: Adds inter-process plumbing. Rejected — both the bot and collector share the same figure context and the same SQLite session factory.
+- Separate asyncio processes for bot and collector with IPC: Adds inter-process plumbing. Rejected — both the bot and collector share the same agent context and the same SQLite session factory.
 - Sharded gateway: Not needed at MVP scale (2–10 bots, each low-traffic).
 
 ---
 
 ## 4. google-adk LlmAgent Pattern
 
-**Decision:** Use `google.adk.agents.LlmAgent` with two registered tool functions: `memory_search` (EMOS RRF search + BM25 rerank) and `emit_citations` (inline `memory_url` link construction). The agent is instantiated once per figure at process startup with a figure-specific system prompt. Each DM turn is dispatched via `await orchestrator.run_async(message, user_id=discord_user_id)`.
+**Decision:** Use `google.adk.agents.LlmAgent` with two registered tool functions: `memory_search` (EMOS RRF search + BM25 rerank) and `emit_citations` (inline `memory_url` link construction). The agent is instantiated once per agent at process startup with an agent-specific system prompt. Each DM turn is dispatched via `await orchestrator.run_async(message, user_id=discord_user_id)`.
 
-**Rationale:** The existing `agent_factory.py` and `orchestrator.py` already implement this pattern for the prior Matrix runtime. `LlmAgent` handles the Gemini function-calling loop; tools are Python callables decorated with `@adk.tool`. The figure-scoped system prompt enforces the persona contract and the evidence-only response rule. The `orchestrator.py` already has the multi-turn context window logic that can be adapted.
+**Rationale:** The existing `agent_factory.py` and `orchestrator.py` already implement this pattern for the prior Matrix runtime. `LlmAgent` handles the Gemini function-calling loop; tools are Python callables decorated with `@adk.tool`. The agent-scoped system prompt enforces the persona contract and the evidence-only response rule. The `orchestrator.py` already has the multi-turn context window logic that can be adapted.
 
 **Alternatives considered:**
 - Raw `genai.GenerativeModel.generate_content` without ADK: Requires manually implementing the function-calling loop and tool dispatch. Rejected — ADK already handles this correctly.
@@ -64,7 +64,7 @@
 
 The `batch_rule` column records the trigger (`"silence_gap"`, `"char_limit"`, or `"speaker_change"`). When segments lack `start_ms`/`end_ms` (uncommon for YouTube transcripts), fall back to character-limit-only grouping.
 
-**Rationale:** 3 s is the standard paragraph-boundary heuristic for auto-captioned speech. The 1,800-char ceiling keeps each Discord batch message reliably under Discord's 2,000-char per-message limit with headroom for speaker labels or timestamps. These thresholds are soft defaults, tunable via `FigureConfig`. DESIGN.md explicitly forbids EMOS MemCell summaries in feed posts; batches use only verbatim segment text.
+**Rationale:** 3 s is the standard paragraph-boundary heuristic for auto-captioned speech. The 1,800-char ceiling keeps each Discord batch message reliably under Discord's 2,000-char per-message limit with headroom for speaker labels or timestamps. These thresholds are soft defaults, tunable via agent/subscription config. DESIGN.md explicitly forbids EMOS MemCell summaries in feed posts; batches use only verbatim segment text.
 
 **Alternatives considered:**
 - Fixed N-segment batches: Ignores natural speech cadence. Rejected.
@@ -74,14 +74,14 @@ The `batch_rule` column records the trigger (`"silence_gap"`, `"char_limit"`, or
 
 ## 6. Memory URL Shape and Citation Model
 
-**Decision:** Memory URLs follow the pattern `https://www.bibliotalk.space/memory/{emos_user_id}_{timestamp_iso8601}` where `timestamp_iso8601` is the ISO-8601 `create_time` of the segment as returned by EMOS retrieval (the EMOS `timestamp` field). The `Evidence` Pydantic model includes `memory_url`, `memory_user_id`, `memory_timestamp` fields, fully derivable from EMOS retrieval response fields — no extra API call required.
+**Decision:** Memory URLs follow the pattern `https://www.bibliotalk.space/memories/{user_id}_{YYYYMMDDTHHMMSSZ}` where the timestamp is the EverMemOS MemCell `timestamp` (UTC, compact). The `Evidence` Pydantic model includes `memory_url`, `memory_user_id`, `memory_timestamp` fields, fully derivable from EMOS retrieval/search response fields — no extra API call required.
 
 The existing `Citation.index: int` field and citation-index-based validation are removed. `validate_citations` is replaced with `validate_evidence_links` which checks:
-1. `memory_user_id == figure.emos_user_id` (cross-figure isolation)
+1. `memory_user_id == agent_slug` (cross-agent isolation)
 2. The `(memory_user_id, memory_timestamp)` pair appears in the current retrieval result set (not stale from a prior turn)
 3. Any `quote_snippet` in the response text is a substring of the corresponding cached `segment.text`
 
-**Rationale:** DESIGN.md specifies inline markdown links as the only citation format (FR-024, FR-025). The `memory_url` is fully constructible from `user_id` + `timestamp` returned by EMOS without a secondary lookup. ISO-8601 timestamps are URL-safe when colons are encoded (or use compact form `20260307T160000Z`).
+**Rationale:** DESIGN.md specifies inline markdown links as the only citation format. The `memory_url` is fully constructible from `user_id` + `timestamp` returned by EMOS without a secondary lookup.
 
 **Alternatives considered:**
 - Separate citation resolution API call per link: Unnecessary round-trip. Rejected.
@@ -98,7 +98,7 @@ The existing `Citation.index: int` field and citation-index-based validation are
 | `memory_service/adapters/rss_feed.py`           | Keep           | Wire as FR-015 optional fallback                                              |
 | `memory_service/pipeline/ingest.py`             | Adapt          | Replace `index.py` SQLite client with `AsyncSession` calls                    |
 | `memory_service/pipeline/index.py`              | Adapt          | Replace raw `sqlite3` with SQLAlchemy ORM reads/writes                        |
-| `agents_service/agent/tools/memory_search.py`      | Adapt          | Figure-scoped `user_id`; import updated `Evidence`                            |
+| `agents_service/agent/tools/memory_search.py`      | Adapt          | Agent-scoped `user_id`; import updated `Evidence`                             |
 | `agents_service/agent/tools/emit_citations.py`     | Adapt          | Drop index field; emit inline `[text](memory_url)` Markdown                   |
 | `agents_service/models/citation.py`                | Rebuild        | New `Evidence` shape; remove `Citation.index`; add `memory_url` fields        |
 | `agents_service/models/segment.py`                 | Keep unchanged | `Segment` + `bm25_rerank` reused directly                                     |

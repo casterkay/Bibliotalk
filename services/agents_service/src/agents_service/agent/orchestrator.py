@@ -14,8 +14,8 @@ AgentFactory = Callable[[UUID], Awaitable[Any]]
 
 @dataclass(frozen=True, slots=True)
 class DMContext:
-    figure_id: UUID
-    figure_slug: str
+    agent_id: UUID
+    agent_slug: str
     discord_user_id: str
     discord_channel_id: str
     content: str
@@ -33,7 +33,7 @@ class DMOrchestrator:
         self.agent_factory = agent_factory
 
     async def run(self, context: DMContext) -> DMResponse:
-        agent = await self.agent_factory(context.figure_id)
+        agent = await self.agent_factory(context.agent_id)
         result = await agent.run(context.content)
         return DMResponse(
             response_text=result.get("text", ""),

@@ -21,7 +21,7 @@ from ..live.gemini_live_backend import (
     GeminiLiveConfig,
 )
 from ..live.session_manager import LiveSessionManager
-from ..store import SQLiteFigureStore
+from ..store import SQLiteAgentStore
 from .errors import APIError, ErrorCode
 
 router = APIRouter()
@@ -55,7 +55,7 @@ async def create_live_session(
     agent_id: UUID, request: Request, body: CreateSessionRequest
 ) -> CreateSessionResponse:
     session_factory = get_session_factory()
-    store = SQLiteFigureStore(session_factory)
+    store = SQLiteAgentStore(session_factory)
     try:
         agent = await create_spirit_agent(agent_id, store=store)
     except AgentNotFoundError as exc:
@@ -85,7 +85,7 @@ async def live_ws(websocket: WebSocket, session_id: str):
     await websocket.accept()
 
     session_factory = get_session_factory()
-    store = SQLiteFigureStore(session_factory)
+    store = SQLiteAgentStore(session_factory)
     try:
         agent = await create_spirit_agent(session.agent_id, store=store)
     except AgentNotFoundError:

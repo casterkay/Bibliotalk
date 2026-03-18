@@ -43,7 +43,7 @@ async def test_segment_cache_matches_memorize_payload_and_skips_do_not_append(
                 agent_id=uuid.uuid4(),
                 kind="figure",
                 slug="u1",
-                display_name="Test Figure",
+                display_name="Test Agent",
                 persona_summary=None,
                 is_active=True,
                 created_at=datetime.now(tz=UTC),

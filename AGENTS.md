@@ -31,7 +31,6 @@
   - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
 - Run tests (run from each package directory to avoid pytest root collisions):
   - `uv --directory services/discord_service run --package discord_service -m pytest`
-  - `uv --directory services/memory_page_service run --package memory_page_service -m pytest`
   - `uv --directory services/memory_service run --package memory_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Unified CLI help:
@@ -39,9 +38,9 @@
 - Run runtimes:
   - `uv run --package bt_cli bibliotalk collector run --help`
   - `uv run --package bt_cli bibliotalk discord run --help`
-  - `uv run --package bt_cli bibliotalk memory-pages run --help`
-- Seed figure/local mapping:
-  - `uv run --package bt_cli bibliotalk figure seed --help`
+  - `uv run --package bt_cli bibliotalk memories run --help`
+- Seed agent/local mapping:
+  - `uv run --package bt_cli bibliotalk agent seed --help`
 - Trigger manual one-shot ingest:
   - `uv run --package bt_cli bibliotalk ingest request --help`
 - Publish pending Discord feeds (without restarting bot):
@@ -54,7 +53,7 @@ Python 3.11+: Follow standard conventions
 ## Recent Changes
 - 001-matrix-mvp: Added Python 3.11+ (backend services), Node.js 20+ (Matrix service) + `fastapi`, `uvicorn`, `httpx`, `pydantic>=2`, `SQLAlchemy>=2`, `aiosqlite`, `alembic`, `tenacity`, EverMemOS SDK (`bt_common.evermemos_client`), Gemini via ADK (text) and Gemini Live (voice), `matrix-js-sdk`, `ws`
 
-- This repository is being repurposed toward a YouTube → EverMemOS → Discord figure-bot pipeline.
+- This repository is being repurposed toward a YouTube → EverMemOS → Discord agent-bot pipeline.
 
 <!-- MANUAL ADDITIONS START -->
 ## Manual Notes

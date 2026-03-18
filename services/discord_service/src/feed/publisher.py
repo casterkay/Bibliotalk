@@ -325,7 +325,7 @@ class FeedPublisher:
 
             if not parent_post.platform_event_id:
                 message = FeedParentMessage(
-                    figure_id=source.agent_id,
+                    agent_id=source.agent_id,
                     source_id=source.source_id,
                     channel_id=channel_id,
                     text=_build_parent_text(source),
@@ -385,7 +385,7 @@ class FeedPublisher:
                     continue
 
                 message = FeedBatchMessage(
-                    figure_id=source.agent_id,
+                    agent_id=source.agent_id,
                     source_id=source.source_id,
                     batch_id=batch.batch_id,
                     thread_id=parent_post.thread_id or "",

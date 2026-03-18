@@ -1,13 +1,13 @@
 # Data Model: EverMemOS Content Ingestion Package
 
-**Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`  
+**Feature**: `/Users/tcai/Projects/Bibliotalk/specs/002-evermemos-content-ingest/spec.md`
 **Created**: 2026-03-01
 
 This data model describes the core entities used by the ingestion package. It is intentionally independent of Bibliotalk’s Supabase schema so the package can run standalone.
 
 ## Entities
 
-### Person/Figure
+### Agent
 
 Represents the EverMemOS tenant/user whose memory is being populated.
 
@@ -87,4 +87,3 @@ Local persistence used for idempotency and re-run safety. Default implementation
 ### Per Segment (within a source)
 
 `pending` → (`ingested` | `skipped_unchanged` | `failed`)
-

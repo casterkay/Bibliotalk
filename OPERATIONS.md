@@ -23,11 +23,11 @@ Optional:
 
 ## Common workflows
 
-### 1) Seed or update a figure
+### 1) Seed or update an agent
 
 ```
-uv run --package bt_cli bibliotalk figure seed \
-  --figure alan-watts \
+uv run --package bt_cli bibliotalk agent seed \
+  --agent alan-watts \
   --subscription-url https://www.youtube.com/@AlanWattsOrg \
   --guild-id <GUILD_ID> \
   --channel-id <FEED_CHANNEL_ID>
@@ -36,20 +36,20 @@ uv run --package bt_cli bibliotalk figure seed \
 ### 2) Run the collector (poll + ingest)
 
 ```
-uv run --package bt_cli bibliotalk collector run --figure alan-watts
+uv run --package bt_cli bibliotalk collector run --agent alan-watts
 ```
 
 Run one cycle and exit:
 
 ```
-uv run --package bt_cli bibliotalk collector run --figure alan-watts --once
+uv run --package bt_cli bibliotalk collector run --agent alan-watts --once
 ```
 
 ### 3) Request a manual one-shot ingest of a specific video
 
 ```
-uv run --package bt_cli bibliotalk ingest request --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>
-uv run --package bt_cli bibliotalk collector run --figure alan-watts --once
+uv run --package bt_cli bibliotalk ingest request --agent alan-watts --video-id <YOUTUBE_VIDEO_ID>
+uv run --package bt_cli bibliotalk collector run --agent alan-watts --once
 ```
 
 ### 4) Run the Discord bot
@@ -64,10 +64,10 @@ uv run --package bt_cli bibliotalk discord run
 uv run --package bt_cli bibliotalk feed publish
 ```
 
-Limit to one figure:
+Limit to one agent:
 
 ```
-uv run --package bt_cli bibliotalk feed publish --figure alan-watts
+uv run --package bt_cli bibliotalk feed publish --agent alan-watts
 ```
 
 ### 6) Repair feed publication for one video
@@ -75,25 +75,25 @@ uv run --package bt_cli bibliotalk feed publish --figure alan-watts
 Status:
 
 ```
-uv run --package bt_cli bibliotalk feed status --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>
+uv run --package bt_cli bibliotalk feed status --agent alan-watts --video-id <YOUTUBE_VIDEO_ID>
 ```
 
 Retry failed posts and publish missing pieces:
 
 ```
-uv run --package bt_cli bibliotalk feed retry-failed --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>
+uv run --package bt_cli bibliotalk feed retry-failed --agent alan-watts --video-id <YOUTUBE_VIDEO_ID>
 ```
 
 Resume publishing for a single video without resetting state:
 
 ```
-uv run --package bt_cli bibliotalk feed republish --figure alan-watts --video-id <YOUTUBE_VIDEO_ID>
+uv run --package bt_cli bibliotalk feed republish --agent alan-watts --video-id <YOUTUBE_VIDEO_ID>
 ```
 
-### 7) Run the public memory pages service
+### 7) Run the Memories API
 
 ```
-uv run --package bt_cli bibliotalk memory-pages run --host 0.0.0.0 --port 8080
+uv run --package bt_cli bibliotalk memories run --host 0.0.0.0 --port 8080
 ```
 
 ## Notes

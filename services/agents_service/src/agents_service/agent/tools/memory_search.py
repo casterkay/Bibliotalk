@@ -176,7 +176,7 @@ class MemorySearchTool:
                 Evidence(
                     segment_id=segment.id,
                     source_id=segment.source_id,
-                    figure_id=segment.figure_id,
+                    agent_id=segment.agent_id,
                     memory_user_id=memory_user_id,
                     memory_timestamp=memory_timestamp,
                     emos_message_id=segment.emos_message_id,

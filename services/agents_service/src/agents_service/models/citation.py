@@ -37,10 +37,10 @@ def build_verifiable_quote(text: str | None, *, max_chars: int = 200) -> str:
 class Evidence(BaseModel):
     segment_id: UUID
     source_id: UUID | None = None
-    figure_id: UUID | None = None
+    agent_id: UUID | None = None
     memory_user_id: str = ""
     memory_timestamp: datetime | None = None
-    memory_page_id: str | None = None
+    memory_id: str | None = None
     memory_url: str | None = None
     source_title: str
     source_url: str
@@ -52,16 +52,12 @@ class Evidence(BaseModel):
     emos_message_id: str | None = None
 
     def model_post_init(self, __context: object) -> None:
-        if (
-            self.memory_page_id is None
-            and self.memory_user_id
-            and self.memory_timestamp is not None
-        ):
-            self.memory_page_id = (
+        if self.memory_id is None and self.memory_user_id and self.memory_timestamp is not None:
+            self.memory_id = (
                 f"{self.memory_user_id}_{self.memory_timestamp.strftime('%Y%m%dT%H%M%SZ')}"
             )
-        if self.memory_url is None and self.memory_page_id:
-            self.memory_url = f"https://www.bibliotalk.space/memory/{self.memory_page_id}"
+        if self.memory_url is None and self.memory_id:
+            self.memory_url = f"https://www.bibliotalk.space/memories/{self.memory_id}"
         if (
             self.video_url_with_timestamp is None
             and self.published_at is not None
@@ -135,7 +131,7 @@ def validate_citations(
     return valid
 
 
-_INLINE_LINK_RE = re.compile(r"\[([^\]]+)\]\((https://www\.bibliotalk\.space/memory/[^)]+)\)")
+_INLINE_LINK_RE = re.compile(r"\[([^\]]+)\]\((https://www\.bibliotalk\.space/memories/[^)]+)\)")
 _QUOTED_TEXT_RE = re.compile(r'"([^"]+)"')
 
 
@@ -143,7 +139,7 @@ def validate_evidence_links(
     response_text: str,
     evidence_set: list[Evidence],
     *,
-    figure_emos_user_id: str,
+    agent_emos_user_id: str,
 ) -> str:
     evidence_by_url = {e.memory_url: e for e in evidence_set if e.memory_url}
     normalized_text_by_url = {
@@ -155,7 +151,7 @@ def validate_evidence_links(
         evidence = evidence_by_url.get(url)
         if evidence is None:
             return visible_text
-        if evidence.memory_user_id != figure_emos_user_id:
+        if evidence.memory_user_id != agent_emos_user_id:
             return visible_text
         if visible_text in evidence.text:
             return match.group(0)

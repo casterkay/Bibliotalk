@@ -43,7 +43,7 @@ For the feed publisher, we keep strict Pydantic boundary models in `services/dis
 - **Constraints:**
   - ≤ 2,000 characters per Discord message
   - Long responses are split at sentence boundaries
-  - Grounding links are inline markdown links: `[visible text]({BIBLIOTALK_WEB_URL}/memory/{id})`
+  - Grounding links are inline markdown links: `[visible text]({BIBLIOTALK_WEB_URL}/memories/{id})`
   - No citation indices and no trailing `Sources:` blocks
 
 ---
@@ -55,9 +55,9 @@ These models are defined in `services/discord_service/src/bot/message_models.py`
 ### `FeedParentMessage`
 
 - One parent feed message per ingested source.
-- Fields: `figure_id`, `source_id`, `channel_id`, `text`
+- Fields: `agent_id`, `source_id`, `channel_id`, `text`
 
 ### `FeedBatchMessage`
 
 - One transcript batch message posted inside a per-video thread.
-- Fields: `figure_id`, `source_id`, `batch_id`, `thread_id`, `text`, `seq_label`
+- Fields: `agent_id`, `source_id`, `batch_id`, `thread_id`, `text`, `seq_label`

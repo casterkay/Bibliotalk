@@ -15,8 +15,8 @@ services:
       - bibliotalk
       - collector
       - run
-      - --figure
-      - ${BIBLIOTALK_FIGURE}
+      - --agent
+      - ${BIBLIOTALK_AGENT}
 
   discord:
     image: ghcr.io/astral-sh/uv:python3.11-bookworm
@@ -37,7 +37,7 @@ services:
     depends_on:
       - ingestion
 
-  memory-pages:
+  memories:
     image: ghcr.io/astral-sh/uv:python3.11-bookworm
     working_dir: /workspace
     env_file:
@@ -46,19 +46,19 @@ services:
       - ../..:/workspace
       - bibliotalk_data:/data
     ports:
-      - "${MEMORY_PAGE_PORT:-8080}:${MEMORY_PAGE_PORT:-8080}"
+      - "${MEMORIES_PORT:-8080}:${MEMORIES_PORT:-8080}"
     command:
       - uv
       - run
       - --package
       - bt_cli
       - bibliotalk
-      - memory-pages
+      - memories
       - run
       - --host
-      - ${MEMORY_PAGE_HOST:-0.0.0.0}
+      - ${MEMORIES_HOST:-0.0.0.0}
       - --port
-      - ${MEMORY_PAGE_PORT:-8080}
+      - ${MEMORIES_PORT:-8080}
 
 volumes:
   bibliotalk_data:

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import discord
 from agents_service.agent.agent_factory import create_spirit_agent
 from agents_service.agent.orchestrator import DMOrchestrator
-from agents_service.store import SQLiteFigureStore
+from agents_service.store import SQLiteAgentStore
 from bt_common.logging import JsonFormatter
 from bt_store.engine import get_session_factory, init_database
 from bt_store.models_core import Agent
@@ -19,7 +19,7 @@ from .bot.concierge import DMConcierge
 from .config import DiscordRuntimeConfig
 from .feed.discord_transport import DiscordPyFeedTransport
 from .feed.publisher import DiscordFeedTransport, FeedPublisher
-from .talks.directory import FigureDirectory
+from .talks.agent_directory import AgentDirectory
 from .talks.router import FacilitatorRouter
 from .talks.service import TalkService
 from .talks.transport import DiscordPyTalkTransport, TalkTransport
@@ -43,7 +43,7 @@ class LiveDiscordRuntime:
 
 @dataclass(frozen=True, slots=True)
 class FeedPublicationSummary:
-    attempted_figures: int = 0
+    attempted_agents: int = 0
     attempted_sources: int = 0
     published_sources: int = 0
     failed_sources: int = 0
@@ -53,7 +53,7 @@ async def publish_pending_feeds(
     config: DiscordRuntimeConfig,
     *,
     transport: DiscordFeedTransport,
-    figure_slug: str | None = None,
+    agent_slug: str | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
     logger_: logging.Logger | None = None,
 ) -> FeedPublicationSummary:
@@ -71,8 +71,8 @@ async def publish_pending_feeds(
                 PlatformRoute.purpose == "feed",
             )
         )
-        if figure_slug:
-            query = query.where(Agent.slug == figure_slug)
+        if agent_slug:
+            query = query.where(Agent.slug == agent_slug)
         rows = (await session.execute(query.order_by(Agent.slug))).all()
 
     publisher = FeedPublisher(session_factory, transport=transport)
@@ -85,7 +85,7 @@ async def publish_pending_feeds(
             channel_id=str(channel_id),
         )
         logger_.info(
-            "feed publication complete figure_slug=%s attempted=%s published=%s failed=%s",
+            "feed publication complete agent_slug=%s attempted=%s published=%s failed=%s",
             agent_slug,
             publication.attempted_sources,
             publication.published_sources,
@@ -96,7 +96,7 @@ async def publish_pending_feeds(
         failed_sources += publication.failed_sources
 
     return FeedPublicationSummary(
-        attempted_figures=len(rows),
+        attempted_agents=len(rows),
         attempted_sources=attempted_sources,
         published_sources=published_sources,
         failed_sources=failed_sources,
@@ -113,12 +113,12 @@ async def build_live_discord_runtime(
     await init_database(config.db_path)
     session_factory = session_factory or get_session_factory(config.db_path)
 
-    store = SQLiteFigureStore(session_factory)
+    store = SQLiteAgentStore(session_factory)
     orchestrator = DMOrchestrator(
-        agent_factory=lambda figure_id: create_spirit_agent(figure_id, store=store)
+        agent_factory=lambda agent_id: create_spirit_agent(agent_id, store=store)
     )
 
-    directory = FigureDirectory(session_factory=session_factory)
+    directory = AgentDirectory(session_factory=session_factory)
     await directory.refresh()
 
     router = FacilitatorRouter()
@@ -128,7 +128,7 @@ async def build_live_discord_runtime(
     talk_transport: TalkTransport = DiscordPyTalkTransport(client=None)
     talk_service = TalkService(
         session_factory=session_factory,
-        figure_directory=directory,
+        agent_directory=directory,
         router=router,
         orchestrator=orchestrator,
         transport=talk_transport,
@@ -145,8 +145,8 @@ async def build_live_discord_runtime(
     client = BibliotalkDiscordClient(
         config=config,
         talk_service=talk_service,
-        figure_directory=directory,
-        dm_concierge=DMConcierge(figure_directory=directory, logger_=logger_),
+        agent_directory=directory,
+        dm_concierge=DMConcierge(agent_directory=directory, logger_=logger_),
         on_ready_callback=None,
         logger=logger_,
         intents=intents,

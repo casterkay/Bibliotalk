@@ -71,7 +71,7 @@ async def _with_discord_client(
 async def publish_pending_feeds_once(
     config: DiscordRuntimeConfig,
     *,
-    figure_slug: str | None = None,
+    agent_slug: str | None = None,
     logger_: logging.Logger | None = None,
 ) -> FeedPublicationSummary:
     logger_ = logger_ or logging.getLogger("discord_service")
@@ -86,7 +86,7 @@ async def publish_pending_feeds_once(
             transport=transport,
             session_factory=get_session_factory(config.db_path),
             logger_=logger_,
-            figure_slug=figure_slug,
+            agent_slug=agent_slug,
         )
 
     value = await _with_discord_client(token, logger_=logger_, fn=_publish)
@@ -97,21 +97,21 @@ async def publish_pending_feeds_once(
 async def _lookup_source_by_video(
     session: AsyncSession,
     *,
-    figure_slug: str,
+    agent_slug: str,
     video_id: str,
 ) -> tuple[Agent, Source]:
-    figure = (
-        (await session.execute(select(Agent).where(Agent.slug == figure_slug)))
+    agent = (
+        (await session.execute(select(Agent).where(Agent.slug == agent_slug)))
         .scalars()
         .first()
     )
-    if figure is None:
-        raise LookupError(f"Unknown figure: {figure_slug}")
+    if agent is None:
+        raise LookupError(f"Unknown agent: {agent_slug}")
     source = (
         (
             await session.execute(
                 select(Source).where(
-                    Source.agent_id == figure.agent_id,
+                    Source.agent_id == agent.agent_id,
                     Source.content_platform == "youtube",
                     Source.external_id == video_id,
                 )
@@ -121,21 +121,21 @@ async def _lookup_source_by_video(
         .first()
     )
     if source is None:
-        raise LookupError(f"Unknown video_id for {figure_slug}: {video_id}")
-    return figure, source
+        raise LookupError(f"Unknown video_id for {agent_slug}: {video_id}")
+    return agent, source
 
 
 async def source_feed_status_by_video(
     *,
     db_path: str | None,
-    figure_slug: str,
+    agent_slug: str,
     video_id: str,
 ) -> SourceFeedStatus:
     await init_database(db_path)
     session_factory = get_session_factory(db_path)
     async with session_factory() as session:
-        _figure, source = await _lookup_source_by_video(
-            session, figure_slug=figure_slug, video_id=video_id
+        _agent, source = await _lookup_source_by_video(
+            session, agent_slug=agent_slug, video_id=video_id
         )
 
         parent_posted = (
@@ -259,7 +259,7 @@ async def _publish_source_once(
 async def retry_failed_posts_by_video(
     *,
     db_path: str | None,
-    figure_slug: str,
+    agent_slug: str,
     video_id: str,
     discord_config: DiscordRuntimeConfig,
     logger_: logging.Logger | None = None,
@@ -271,8 +271,8 @@ async def retry_failed_posts_by_video(
     source_id: uuid.UUID
     channel_id: str
     async with session_factory() as session:
-        figure, source = await _lookup_source_by_video(
-            session, figure_slug=figure_slug, video_id=video_id
+        agent, source = await _lookup_source_by_video(
+            session, agent_slug=agent_slug, video_id=video_id
         )
         route = (
             (
@@ -280,7 +280,7 @@ async def retry_failed_posts_by_video(
                     select(PlatformRoute).where(
                         PlatformRoute.platform == "discord",
                         PlatformRoute.purpose == "feed",
-                        PlatformRoute.agent_id == figure.agent_id,
+                        PlatformRoute.agent_id == agent.agent_id,
                     )
                 )
             )
@@ -288,7 +288,7 @@ async def retry_failed_posts_by_video(
             .first()
         )
         if route is None:
-            raise LookupError(f"Missing discord feed route for figure: {figure_slug}")
+            raise LookupError(f"Missing discord feed route for agent: {agent_slug}")
         await _reset_failed_posts_for_source(session, source_id=source.source_id)
         source_id = source.source_id
         channel_id = str(route.container_id)
@@ -303,7 +303,7 @@ async def retry_failed_posts_by_video(
 
     # Report summary for just this source.
     return FeedPublicationSummary(
-        attempted_figures=1,
+        attempted_agents=1,
         attempted_sources=1,
         published_sources=1 if result.status == "done" else 0,
         failed_sources=1 if result.status != "done" else 0,
@@ -313,7 +313,7 @@ async def retry_failed_posts_by_video(
 async def republish_source_by_video(
     *,
     db_path: str | None,
-    figure_slug: str,
+    agent_slug: str,
     video_id: str,
     discord_config: DiscordRuntimeConfig,
     logger_: logging.Logger | None = None,
@@ -324,8 +324,8 @@ async def republish_source_by_video(
     session_factory = get_session_factory(db_path)
 
     async with session_factory() as session:
-        figure, source = await _lookup_source_by_video(
-            session, figure_slug=figure_slug, video_id=video_id
+        agent, source = await _lookup_source_by_video(
+            session, agent_slug=agent_slug, video_id=video_id
         )
         route = (
             (
@@ -333,7 +333,7 @@ async def republish_source_by_video(
                     select(PlatformRoute).where(
                         PlatformRoute.platform == "discord",
                         PlatformRoute.purpose == "feed",
-                        PlatformRoute.agent_id == figure.agent_id,
+                        PlatformRoute.agent_id == agent.agent_id,
                     )
                 )
             )
@@ -341,7 +341,7 @@ async def republish_source_by_video(
             .first()
         )
         if route is None:
-            raise LookupError(f"Missing discord feed route for figure: {figure_slug}")
+            raise LookupError(f"Missing discord feed route for agent: {agent_slug}")
         source_id = source.source_id
         channel_id = str(route.container_id)
 

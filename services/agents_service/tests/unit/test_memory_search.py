@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
+
 from agents_service.agent.tools.memory_search import MemorySearchTool
 
 
@@ -48,7 +49,7 @@ async def test_memory_search_reranks_local_segments_and_builds_evidence() -> Non
         segments_by_source_ids_provider=lambda source_ids: [
             {
                 "id": str(uuid4()),
-                "figure_id": str(uuid4()),
+                "agent_id": str(uuid4()),
                 "source_id": source_ids[0],
                 "platform": "youtube",
                 "seq": 0,
@@ -62,7 +63,7 @@ async def test_memory_search_reranks_local_segments_and_builds_evidence() -> Non
             },
             {
                 "id": str(uuid4()),
-                "figure_id": str(uuid4()),
+                "agent_id": str(uuid4()),
                 "source_id": source_ids[0],
                 "platform": "youtube",
                 "seq": 1,
@@ -84,5 +85,6 @@ async def test_memory_search_reranks_local_segments_and_builds_evidence() -> Non
     assert evidence[0].memory_user_id == "alan-watts"
     assert evidence[0].memory_timestamp == datetime(2026, 3, 8, 12, 0, 0, tzinfo=UTC)
     assert (
-        evidence[0].memory_url == "https://www.bibliotalk.space/memory/alan-watts_20260308T120000Z"
+        evidence[0].memory_url
+        == "https://www.bibliotalk.space/memories/alan-watts_20260308T120000Z"
     )

@@ -1,3 +1,3 @@
-from .figure import seed_figure
+from .agent import seed_agent
 
-__all__ = ["seed_figure"]
+__all__ = ["seed_agent"]

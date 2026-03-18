@@ -18,7 +18,7 @@ load_repo_dotenv(override=True)
 
 class IngestSettings(BaseSettings):
     bibliotalk_db_path: str | None = Field(default=None, validation_alias="BIBLIOTALK_DB_PATH")
-    figure_slug: str | None = Field(default=None, validation_alias="BIBLIOTALK_FIGURE")
+    agent_slug: str | None = Field(default=None, validation_alias="BIBLIOTALK_AGENT")
     global_concurrency: int = Field(default=4, validation_alias="BIBLIOTALK_GLOBAL_CONCURRENCY")
     source_concurrency: int = Field(default=1, validation_alias="BIBLIOTALK_SOURCE_CONCURRENCY")
     poll_interval_minutes: int = Field(
@@ -59,7 +59,7 @@ class IngestSettings(BaseSettings):
 @dataclass(frozen=True, slots=True)
 class RuntimeConfig:
     db_path: Path
-    figure_slug: str | None
+    agent_slug: str | None
     global_concurrency: int
     source_concurrency: int
     poll_interval_minutes: int
@@ -86,7 +86,7 @@ def default_index_path() -> Path:
 def load_runtime_config(
     *,
     db_path: str | None = None,
-    figure_slug: str | None = None,
+    agent_slug: str | None = None,
     log_level: str | None = None,
     emos_base_url: str | None = None,
     emos_api_key: str | None = None,
@@ -111,7 +111,7 @@ def load_runtime_config(
 
     return RuntimeConfig(
         db_path=resolved_db_path,
-        figure_slug=(figure_slug or settings.figure_slug or "").strip() or None,
+        agent_slug=(agent_slug or settings.agent_slug or "").strip() or None,
         global_concurrency=max(1, int(settings.global_concurrency)),
         source_concurrency=max(1, int(settings.source_concurrency)),
         poll_interval_minutes=max(1, int(settings.poll_interval_minutes)),

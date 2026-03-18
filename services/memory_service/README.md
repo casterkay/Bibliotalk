@@ -1,6 +1,6 @@
 # memory_service
 
-This package now keeps only the ingestion primitives that still matter to the Discord MVP:
+This package contains the ingestion pipeline plus the unified Memories API (HTML + `/v1/*`) used for evidence inspection and search.
 
 - YouTube transcript loading via a swappable provider service:
   - `yt-dlp` captions (subtitles + auto-captions when available)
@@ -9,12 +9,13 @@ This package now keeps only the ingestion primitives that still matter to the Di
 - RSS feed parsing via `feedparser`
 - deterministic chunking
 - local indexing and EverMemOS ingest helpers
+- FastAPI Memories API (`GET /memories/{id}`, `GET /v1/search`, etc.)
 
 Removed from this package:
 
-- legacy HTTP server entrypoints
+- legacy HTTP server entrypoints (replaced by the unified Memories API)
 - document/blog/web-page ingestion adapters
-- figure JSON conversion scripts
+- legacy JSON conversion scripts
 - Matrix-era or non-YouTube ingestion surfaces
 
 ## Development

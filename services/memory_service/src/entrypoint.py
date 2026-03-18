@@ -12,12 +12,12 @@ from .runtime.reporting import configure_logging
 
 async def run_collector(
     *,
-    figure_slug: str | None = None,
+    agent_slug: str | None = None,
     db_path: str | None = None,
     log_level: str | None = None,
     once: bool = False,
 ) -> int:
-    config = load_runtime_config(db_path=db_path, figure_slug=figure_slug, log_level=log_level)
+    config = load_runtime_config(db_path=db_path, agent_slug=agent_slug, log_level=log_level)
     logger = configure_logging(level=config.log_level)
     await init_database(config.db_path)
     client = EverMemOSClient(

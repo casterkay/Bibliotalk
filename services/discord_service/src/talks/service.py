@@ -18,7 +18,7 @@ from bt_store.models_runtime import PlatformUserSettings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from .directory import FigureDirectory, FigureInfo
+from .agent_directory import AgentDirectory, AgentInfo
 from .router import FacilitatorRouter
 from .transport import EligibleGuild, TalkTransport
 
@@ -66,7 +66,7 @@ class TalkService:
         self,
         *,
         session_factory: async_sessionmaker[AsyncSession],
-        figure_directory: FigureDirectory,
+        agent_directory: AgentDirectory,
         router: FacilitatorRouter,
         orchestrator: DMOrchestrator,
         transport: TalkTransport,
@@ -75,7 +75,7 @@ class TalkService:
         max_participants: int = 6,
     ) -> None:
         self._session_factory = session_factory
-        self._directory = figure_directory
+        self._directory = agent_directory
         self._router = router
         self._orchestrator = orchestrator
         self._transport = transport
@@ -103,18 +103,18 @@ class TalkService:
                 message=f"Too many characters. Max is {self._max_participants}.",
             )
 
-        resolved: list[FigureInfo] = []
+        resolved: list[AgentInfo] = []
         for token in participants:
             info = self._directory.resolve_token(token)
             if info is None:
                 available = ", ".join(
-                    sorted({f.display_name for f in self._directory.list_figures()})
+                    sorted({a.display_name for a in self._directory.list_agents()})
                 )
                 return TalkStartResult(
                     kind="error",
                     message=f"Unknown character: `{token}`. Available: {available}",
                 )
-            if info.figure_id not in {item.figure_id for item in resolved}:
+            if info.agent_id not in {item.agent_id for item in resolved}:
                 resolved.append(info)
 
         chosen_guild = await self._resolve_guild_id(
@@ -129,7 +129,7 @@ class TalkService:
                     kind="choose_guild",
                     message="Choose which server should host this talk:",
                     eligible_guilds=chosen_guild,
-                    participant_slugs=[f.figure_slug for f in resolved],
+                    participant_slugs=[a.agent_slug for a in resolved],
                 )
         else:
             chosen_guild_id = chosen_guild
@@ -155,13 +155,13 @@ class TalkService:
                     message=(
                         "I couldn't find any server with a `#bibliotalk` channel where I can create private threads."
                     ),
-                    participant_slugs=[f.figure_slug for f in resolved],
+                    participant_slugs=[a.agent_slug for a in resolved],
                 )
             return TalkStartResult(
                 kind="choose_guild",
                 message="Choose which server should host this talk:",
                 eligible_guilds=guilds,
-                participant_slugs=[f.figure_slug for f in resolved],
+                participant_slugs=[a.agent_slug for a in resolved],
             )
 
         async with self._session_factory() as session:
@@ -169,7 +169,7 @@ class TalkService:
                 session,
                 owner_discord_user_id=owner_discord_user_id,
                 guild_id=chosen_guild_id,
-                participant_ids={p.figure_id for p in resolved},
+                participant_ids={p.agent_id for p in resolved},
             )
             if existing is not None:
                 if await self._transport.thread_exists(thread_id=existing.room_id):
@@ -194,7 +194,7 @@ class TalkService:
                         talk_id=existing.room_pk,
                         guild_id=chosen_guild_id,
                         thread_id=existing.room_id,
-                        participant_slugs=[f.figure_slug for f in resolved],
+                        participant_slugs=[a.agent_slug for a in resolved],
                     )
 
                 existing.status = "closed"
@@ -256,8 +256,8 @@ class TalkService:
                     RoomMember(
                         room_pk=room.room_pk,
                         platform="discord",
-                        platform_user_id=f"agent:{info.figure_slug}",
-                        agent_id=info.figure_id,
+                        platform_user_id=f"agent:{info.agent_slug}",
+                        agent_id=info.agent_id,
                         member_kind="agent",
                         role="participant",
                         display_order=idx,
@@ -277,7 +277,7 @@ class TalkService:
             talk_id=talk_id,
             guild_id=chosen_guild_id,
             thread_id=thread_id,
-            participant_slugs=[f.figure_slug for f in resolved],
+            participant_slugs=[a.agent_slug for a in resolved],
         )
 
     async def list_talks(
@@ -360,12 +360,12 @@ class TalkService:
                 return True
 
             override_token = self._directory.resolve_override_prefix(content)
-            speaker_infos: list[FigureInfo] = []
+            speaker_infos: list[AgentInfo] = []
             effective_content = content
             if override_token:
                 override_info = self._directory.resolve_token(override_token)
-                if override_info and override_info.figure_id in {
-                    p.figure_id for p in participants
+                if override_info and override_info.agent_id in {
+                    p.agent_id for p in participants
                 }:
                     speaker_infos = [override_info]
                     effective_content = content.lstrip()[
@@ -384,7 +384,7 @@ class TalkService:
                 last_routed_id = None
             if last_routed_id:
                 last_info = self._directory.get_by_id(last_routed_id)
-                last_slug = last_info.figure_slug if last_info else None
+                last_slug = last_info.agent_slug if last_info else None
 
             if not speaker_infos:
                 decision = await self._router.route(
@@ -396,7 +396,7 @@ class TalkService:
                     speaker_infos = [
                         info
                         for info in participants
-                        if info.figure_slug in set(decision.speaker_slugs)
+                        if info.agent_slug in set(decision.speaker_slugs)
                     ]
                     if decision.facilitator_note:
                         await self._transport.send_bot_message(
@@ -423,7 +423,7 @@ class TalkService:
                 if refreshed is not None:
                     refreshed.last_activity_at = _utc_now()
                     meta = dict(refreshed.meta_json or {})
-                    meta["last_routed_agent_id"] = str(speaker_infos[-1].figure_id)
+                    meta["last_routed_agent_id"] = str(speaker_infos[-1].agent_id)
                     refreshed.meta_json = meta
                 await session.commit()
 
@@ -539,7 +539,7 @@ class TalkService:
                 )
             ).scalar_one_or_none()
 
-    async def _get_talk_participants(self, talk_id: uuid.UUID) -> list[FigureInfo]:
+    async def _get_talk_participants(self, talk_id: uuid.UUID) -> list[AgentInfo]:
         async with self._session_factory() as session:
             rows = (
                 await session.execute(
@@ -549,28 +549,28 @@ class TalkService:
                     .order_by(RoomMember.display_order)
                 )
             ).all()
-        infos: list[FigureInfo] = []
-        for figure, _participant in rows:
-            info = self._directory.get_by_id(figure.agent_id)
+        infos: list[AgentInfo] = []
+        for agent, _participant in rows:
+            info = self._directory.get_by_id(agent.agent_id)
             if info is None:
-                info = FigureInfo(
-                    figure_id=figure.agent_id,
-                    figure_slug=figure.slug,
-                    display_name=figure.display_name,
-                    persona_summary=figure.persona_summary,
+                info = AgentInfo(
+                    agent_id=agent.agent_id,
+                    agent_slug=agent.slug,
+                    display_name=agent.display_name,
+                    persona_summary=agent.persona_summary,
                 )
             infos.append(info)
         return infos
 
     def _pick_next_speaker(
-        self, participants: list[FigureInfo], last_slug: str | None
-    ) -> FigureInfo:
+        self, participants: list[AgentInfo], last_slug: str | None
+    ) -> AgentInfo:
         if not participants:
             raise ValueError("participants cannot be empty")
         if not last_slug:
             return participants[0]
         for idx, info in enumerate(participants):
-            if info.figure_slug == last_slug:
+            if info.agent_slug == last_slug:
                 return participants[(idx + 1) % len(participants)]
         return participants[0]
 
@@ -581,13 +581,13 @@ class TalkService:
         hub_channel_id: str,
         thread_id: str,
         author_discord_user_id: str,
-        speaker: FigureInfo,
+        speaker: AgentInfo,
         content: str,
     ) -> None:
         result = await self._orchestrator.run(
             DMContext(
-                figure_id=speaker.figure_id,
-                figure_slug=speaker.figure_slug,
+                agent_id=speaker.agent_id,
+                agent_slug=speaker.agent_slug,
                 discord_user_id=author_discord_user_id,
                 discord_channel_id=thread_id,
                 content=content,
@@ -596,7 +596,7 @@ class TalkService:
         validated_text = validate_evidence_links(
             result.response_text,
             list(result.evidence),
-            figure_emos_user_id=speaker.figure_slug,
+            agent_emos_user_id=speaker.agent_slug,
         )
         if not extract_memory_links(validated_text):
             validated_text = NO_EVIDENCE_RESPONSE
@@ -610,16 +610,16 @@ class TalkService:
                 content=chunk,
             )
 
-    def _build_thread_name(self, participants: list[FigureInfo]) -> str:
+    def _build_thread_name(self, participants: list[AgentInfo]) -> str:
         date = _utc_now().strftime("%Y-%m-%d")
         names = " + ".join(p.display_name for p in participants[:3])
         if len(participants) > 3:
             names = f"{names} +{len(participants) - 3}"
         return f"talk: {names} — {date}"[:100]
 
-    def _build_roster_message(self, participants: list[FigureInfo]) -> str:
+    def _build_roster_message(self, participants: list[AgentInfo]) -> str:
         roster = "\n".join(
-            f"- {p.display_name} (`@{p.figure_slug}`)" for p in participants
+            f"- {p.display_name} (`@{p.agent_slug}`)" for p in participants
         )
         return (
             "Welcome to your private Bibliotalk thread.\n\n"

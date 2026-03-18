@@ -1,4 +1,4 @@
-# Tasks: YouTube → EverMemOS → Discord Figure Bots
+# Tasks: YouTube → EverMemOS → Discord Agent Bots
 
 **Input**: Design documents from `/specs/003-discord-bot/`
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
@@ -15,13 +15,13 @@
 - [X] T002 Delete voice runtime code in `services/agents_service/src/voice/`
 - [X] T003 Delete SQLAdmin UI code in `services/agents_service/src/admin/`
 - [X] T004 Delete legacy database layer in `services/agents_service/src/database/`
-- [X] T005 Delete unused Gemini alternatives and server entrypoint in `services/agents_service/src/agent/providers/aws_nova.py` and `services/agents_service/src/server.py`
+- [X] T005 Delete unused Gemini alternatives and legacy server entrypoint code in `services/agents_service/src/agents_service/server.py`
 - [X] T006 Delete non-YouTube adapters in `services/memory_service/src/adapters/blog_crawl.py`, `services/memory_service/src/adapters/document.py`, `services/memory_service/src/adapters/gutenberg.py`, `services/memory_service/src/adapters/http_fetch.py`, `services/memory_service/src/adapters/local_text.py`, `services/memory_service/src/adapters/url_tools.py`, and `services/memory_service/src/adapters/web_page.py`
 - [X] T007 Delete non-MVP ingestion entrypoints in `services/memory_service/src/server.py` and `services/memory_service/src/pipeline/manifest.py`
 - [X] T008 Update retained package dependencies in `services/memory_service/pyproject.toml` and `services/agents_service/pyproject.toml` to match the trimmed MVP scope
 - [X] T009 Create the shared evidence-store package skeleton in `packages/bt_common/src/evidence_store/__init__.py`, `packages/bt_common/src/evidence_store/engine.py`, and `packages/bt_common/src/evidence_store/models.py`
 - [X] T010 [P] Create the new Discord runtime package skeleton in `services/discord_service/pyproject.toml`, `services/discord_service/src/__init__.py`, `services/discord_service/src/__main__.py`, and `services/discord_service/tests/__init__.py`
-- [X] T011 [P] Create the new memory-page service package skeleton in `services/memory_page_service/pyproject.toml`, `services/memory_page_service/src/__init__.py`, and `services/memory_page_service/src/__main__.py`
+- [X] T011 [P] Create the unified Memories API (FastAPI) inside `services/memory_service/src/api/` (HTML `/memories/{id}` + JSON `/v1/*`)
 
 ---
 
@@ -50,9 +50,9 @@
 
 ## Phase 3: User Story 1 - Ingest a YouTube Channel Into EverMemOS (Priority: P1) 🎯 MVP
 
-**Goal**: Discover new YouTube videos for a figure, ingest transcripts into SQLite and EverMemOS, derive transcript batches, and support clean manual re-ingest.
+**Goal**: Discover new YouTube videos for an agent, ingest transcripts into SQLite and EverMemOS, derive transcript batches, and support clean manual re-ingest.
 
-**Independent Test**: Configure one figure with one subscription source, run a poll once, and verify `sources`, `segments`, and `transcript_batches` are created while EverMemOS receives stable `group_id` and `message_id` values. Poll again and confirm the same `video_id` is skipped.
+**Independent Test**: Configure one agent with one subscription source, run a poll once, and verify `sources`, `segments`, and `transcript_batches` are created while EverMemOS receives stable `group_id` and `message_id` values. Poll again and confirm the same `video_id` is skipped.
 
 ### Tests for User Story 1
 
@@ -73,7 +73,7 @@
 - [X] T035 [US1] Wire the collector into the standalone ingestion process in `services/memory_service/src/__main__.py`
 - [X] T036 [US1] Add ingest-specific structured logs and failure state updates in `services/memory_service/src/runtime/poller.py` and `services/memory_service/src/pipeline/ingest.py`
 
-**Checkpoint**: User Story 1 is functional when a single figure can discover, ingest, derive transcript batches, deduplicate, enforce per-source concurrency, and manually re-ingest YouTube videos without any Discord feed or DM chat features enabled.
+**Checkpoint**: User Story 1 is functional when a single agent can discover, ingest, derive transcript batches, deduplicate, enforce per-source concurrency, and manually re-ingest YouTube videos without any Discord feed or DM chat features enabled.
 
 ---
 
@@ -103,11 +103,11 @@
 
 ---
 
-## Phase 5: User Story 3 - Grounded DM Chat With a Figure Bot (Priority: P3)
+## Phase 5: User Story 3 - Grounded DM Chat With an Agent Bot (Priority: P3)
 
-**Goal**: Route Discord DMs through a Gemini/ADK figure runtime that retrieves evidence, emits inline memory links, validates links and quotes before sending, and resolves those links through the public memory-page service.
+**Goal**: Route Discord DMs through a Gemini/ADK agent runtime that retrieves evidence, emits inline memory links, validates links and quotes before sending, and resolves those links through the unified Memories API in `memory_service`.
 
-**Independent Test**: DM a figure bot with a question that matches ingested transcript text and verify the response includes at least one valid inline `memory_url` link. Load the linked page and verify it resolves exactly one memory item plus a timestamped source-video link. Ask a question without supporting evidence and verify the explicit no-evidence response.
+**Independent Test**: DM an agent bot with a question that matches ingested transcript text and verify the response includes at least one valid inline `memory_url` link. Load the linked page and verify it resolves exactly one MemCell plus a timestamped source link when applicable. Ask a question without supporting evidence and verify the explicit no-evidence response.
 
 ### Tests for User Story 3
 
@@ -116,20 +116,20 @@
 - [X] T049 [P] [US3] Add integration tests for talk-thread response generation and no-evidence fallback in `services/discord_service/tests/integration/test_talk_chat.py`
 - [X] T050 [P] [US3] Add contract tests for `Evidence` construction and link validation in `services/agents_service/tests/contract/test_evidence_contract.py`
 - [X] T051 [P] [US3] Add contract tests for EverMemOS search/retrieval calls in `packages/bt_common/tests/test_evermemos_search_contract.py`
-- [X] T052 [P] [US3] Add contract and integration tests for public memory pages in `services/memory_page_service/tests/contract/test_memory_pages_contract.py` and `services/memory_page_service/tests/integration/test_memory_pages.py`
+- [X] T052 [P] [US3] Add contract and integration tests for public memory pages in `services/memory_service/tests/contract/test_memory_id_contract.py` and `services/memory_service/tests/integration/test_memories_api.py`
 
 ### Implementation for User Story 3
 
-- [X] T053 [P] [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in `services/agents_service/src/agent/tools/memory_search.py`
-- [X] T054 [P] [US3] Replace citation-index emission with inline `memory_url` emission in `services/agents_service/src/agent/tools/emit_citations.py`
-- [X] T055 [P] [US3] Adapt Gemini agent construction for figure personas and evidence-only responses in `services/agents_service/src/agent/agent_factory.py` and `services/agents_service/src/agent/providers/gemini.py`
-- [X] T056 [US3] Adapt agent orchestration for Discord DM context in `services/agents_service/src/agent/orchestrator.py`
+- [X] T053 [P] [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in `services/agents_service/src/agents_service/agent/tools/memory_search.py`
+- [X] T054 [P] [US3] Replace citation-index emission with inline `memory_url` emission in `services/agents_service/src/agents_service/agent/tools/emit_citations.py`
+- [X] T055 [P] [US3] Adapt Gemini agent construction for agent personas and evidence-only responses in `services/agents_service/src/agents_service/agent/agent_factory.py` and `services/agents_service/src/agents_service/agent/providers/gemini.py`
+- [X] T056 [US3] Adapt agent orchestration for Discord DM context in `services/agents_service/src/agents_service/agent/orchestrator.py`
 - [X] T057 [US3] Implement the talk-thread chat service and routing in `services/discord_service/src/talks/service.py`
 - [X] T058 [US3] Implement the Discord client subclass (DM `/talk` + thread routing) in `services/discord_service/src/bot/client.py`
-- [X] T059 [US3] Implement the memory page resolver and HTTP/serverless handler in `services/memory_page_service/src/resolver.py` and `services/memory_page_service/src/app.py`
-- [X] T060 [US3] Add final link-validation, quote-validation, no-evidence fallback, and page-resolution enforcement in `services/discord_service/src/talks/service.py`, `services/agents_service/src/models/citation.py`, and `services/memory_page_service/src/resolver.py`
+- [X] T059 [US3] Implement the memory page resolver and HTTP handler in `services/memory_service/src/api/memories_service.py` and `services/memory_service/src/api/app.py`
+- [X] T060 [US3] Add final link-validation, quote-validation, no-evidence fallback, and page-resolution enforcement in `services/discord_service/src/talks/service.py`, `services/agents_service/src/agents_service/models/citation.py`, and `services/memory_service/src/api/app.py`
 
-**Checkpoint**: User Story 3 is functional when a figure bot can answer supported questions with valid inline memory links, linked pages resolve correctly, and unsupported questions are declined without cross-figure leakage.
+**Checkpoint**: User Story 3 is functional when an agent bot can answer supported questions with valid inline memory links, linked pages resolve correctly, and unsupported questions are declined without cross-agent leakage.
 
 ---
 
@@ -138,8 +138,8 @@
 **Purpose**: Finalize operational readiness, documentation, and full-system validation.
 
 - [X] T061 [P] Update deployment and local runtime docs in `README.md`, `DESIGN.md`, and `deploy/local/docker-compose.yml`
-- [X] T062 [P] Add developer seed and manual-ingest helper scripts in `services/discord_service/scripts/seed_figure.py` and `services/memory_service/scripts/trigger_ingest.py`
-- [X] T063 Add end-to-end quickstart validation coverage in `services/discord_service/tests/integration/test_quickstart_flow.py` and `services/memory_page_service/tests/integration/test_quickstart_memory_pages.py`
+- [X] T062 [P] Add developer seed and manual-ingest helper scripts in `services/discord_service/scripts/seed_agent.py` and `services/memory_service/scripts/trigger_ingest.py`
+- [X] T063 Add end-to-end quickstart validation coverage in `services/discord_service/tests/integration/test_quickstart_flow.py` and `services/memory_service/tests/integration/test_memories_api.py`
 - [X] T064 Run and fix the documented quickstart workflow in `specs/003-discord-bot/quickstart.md`
 - [X] T065 Remove stale references to Matrix, voice, and non-YouTube ingestion from `AGENTS.md`, `README.md`, and `.github/agents/copilot-instructions.md`
 
@@ -205,11 +205,11 @@ Task: "T042 [US2] Implement typed Discord boundary models in services/discord_se
 ```bash
 Task: "T047 [US3] Add unit tests for BM25-backed evidence selection in services/agents_service/tests/unit/test_memory_search.py"
 Task: "T048 [US3] Add unit tests for inline link and quote validation in services/agents_service/tests/unit/test_citation_validation.py"
-Task: "T052 [US3] Add contract and integration tests for public memory pages in services/memory_page_service/tests/contract/test_memory_pages_contract.py and services/memory_page_service/tests/integration/test_memory_pages.py"
+Task: "T052 [US3] Add contract and integration tests for public memory pages in services/memory_service/tests/contract/test_memory_id_contract.py and services/memory_service/tests/integration/test_memories_api.py"
 
-Task: "T053 [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in services/agents_service/src/agent/tools/memory_search.py"
-Task: "T054 [US3] Replace citation-index emission with inline memory_url emission in services/agents_service/src/agent/tools/emit_citations.py"
-Task: "T059 [US3] Implement the memory page resolver and HTTP/serverless handler in services/memory_page_service/src/resolver.py and services/memory_page_service/src/app.py"
+Task: "T053 [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in services/agents_service/src/agents_service/agent/tools/memory_search.py"
+Task: "T054 [US3] Replace citation-index emission with inline memory_url emission in services/agents_service/src/agents_service/agent/tools/emit_citations.py"
+Task: "T059 [US3] Implement the memory page resolver and HTTP handler in services/memory_service/src/api/memories_service.py and services/memory_service/src/api/app.py"
 ```
 
 ## Implementation Strategy
@@ -223,7 +223,7 @@ Task: "T059 [US3] Implement the memory page resolver and HTTP/serverless handler
 
 ### Incremental Delivery
 
-1. Deliver **US1** to prove figure-scoped ingest and evidence persistence.
+1. Deliver **US1** to prove agent-scoped ingest and evidence persistence.
 2. Deliver **US2** to expose ingested videos in Discord threads with idempotent retries.
 3. Deliver **US3** to add grounded DM chat and public memory-page resolution on top of the already-proven evidence store.
 4. Finish with Phase 6 operational cleanup, deployment wiring, and documentation.

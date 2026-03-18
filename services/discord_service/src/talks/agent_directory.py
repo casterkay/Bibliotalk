@@ -12,14 +12,14 @@ logger = logging.getLogger("discord_service")
 
 
 @dataclass(frozen=True, slots=True)
-class FigureInfo:
-    figure_id: uuid.UUID
-    figure_slug: str
+class AgentInfo:
+    agent_id: uuid.UUID
+    agent_slug: str
     display_name: str
     persona_summary: str | None
 
 
-class FigureDirectory:
+class AgentDirectory:
     def __init__(
         self,
         *,
@@ -28,13 +28,13 @@ class FigureDirectory:
     ) -> None:
         self._session_factory = session_factory
         self._logger = logger_ or logger
-        self._by_id: dict[uuid.UUID, FigureInfo] = {}
-        self._by_slug_lower: dict[str, FigureInfo] = {}
-        self._by_display_lower: dict[str, list[FigureInfo]] = {}
+        self._by_id: dict[uuid.UUID, AgentInfo] = {}
+        self._by_slug_lower: dict[str, AgentInfo] = {}
+        self._by_display_lower: dict[str, list[AgentInfo]] = {}
 
     async def refresh(self) -> None:
         async with self._session_factory() as session:
-            figures = (
+            agents = (
                 (
                     await session.execute(
                         select(Agent)
@@ -46,32 +46,32 @@ class FigureDirectory:
                 .all()
             )
 
-        by_id: dict[uuid.UUID, FigureInfo] = {}
-        by_slug_lower: dict[str, FigureInfo] = {}
-        by_display_lower: dict[str, list[FigureInfo]] = {}
-        for figure in figures:
-            info = FigureInfo(
-                figure_id=figure.agent_id,
-                figure_slug=figure.slug,
-                display_name=figure.display_name,
-                persona_summary=figure.persona_summary,
+        by_id: dict[uuid.UUID, AgentInfo] = {}
+        by_slug_lower: dict[str, AgentInfo] = {}
+        by_display_lower: dict[str, list[AgentInfo]] = {}
+        for agent in agents:
+            info = AgentInfo(
+                agent_id=agent.agent_id,
+                agent_slug=agent.slug,
+                display_name=agent.display_name,
+                persona_summary=agent.persona_summary,
             )
-            by_id[info.figure_id] = info
-            by_slug_lower[info.figure_slug.lower()] = info
+            by_id[info.agent_id] = info
+            by_slug_lower[info.agent_slug.lower()] = info
             by_display_lower.setdefault(info.display_name.lower(), []).append(info)
 
         self._by_id = by_id
         self._by_slug_lower = by_slug_lower
         self._by_display_lower = by_display_lower
-        self._logger.info("figure directory refreshed count=%s", len(self._by_id))
+        self._logger.info("agent directory refreshed count=%s", len(self._by_id))
 
-    def list_figures(self) -> list[FigureInfo]:
+    def list_agents(self) -> list[AgentInfo]:
         return list(self._by_id.values())
 
-    def get_by_id(self, figure_id: uuid.UUID) -> FigureInfo | None:
-        return self._by_id.get(figure_id)
+    def get_by_id(self, agent_id: uuid.UUID) -> AgentInfo | None:
+        return self._by_id.get(agent_id)
 
-    def resolve_token(self, token: str) -> FigureInfo | None:
+    def resolve_token(self, token: str) -> AgentInfo | None:
         key = (token or "").strip()
         if not key:
             return None
@@ -87,7 +87,7 @@ class FigureDirectory:
         lowered = key.lower()
         for info in self._by_id.values():
             if (
-                lowered in info.figure_slug.lower()
+                lowered in info.agent_slug.lower()
                 or lowered in info.display_name.lower()
             ):
                 return info

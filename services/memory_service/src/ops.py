@@ -12,33 +12,32 @@ from sqlalchemy import select
 async def request_manual_ingest(
     *,
     db_path: str | None,
-    figure_slug: str,
-    video_id: str,
+    agent_slug: str,
+    external_id: str,
     title: str,
     source_url: str | None,
+    platform: str = "youtube",
 ) -> None:
     await init_database(db_path)
     session_factory = get_session_factory(db_path)
     now = datetime.now(tz=UTC)
 
     async with session_factory() as session:
-        figure = (
-            (await session.execute(select(Agent).where(Agent.slug == figure_slug)))
-            .scalars()
-            .first()
+        agent = (
+            (await session.execute(select(Agent).where(Agent.slug == agent_slug))).scalars().first()
         )
-        if figure is None:
+        if agent is None:
             raise LookupError(
-                f"Figure '{figure_slug}' not found. Seed it first with `bibliotalk figure seed ...`."
+                f"Agent '{agent_slug}' not found. Seed it first with `bibliotalk agent seed ...`."
             )
 
         source = (
             (
                 await session.execute(
                     select(Source).where(
-                        Source.agent_id == figure.agent_id,
-                        Source.content_platform == "youtube",
-                        Source.external_id == video_id,
+                        Source.agent_id == agent.agent_id,
+                        Source.content_platform == platform,
+                        Source.external_id == external_id,
                     )
                 )
             )
@@ -47,12 +46,14 @@ async def request_manual_ingest(
         )
 
         if source is None:
-            effective_source_url = source_url or f"https://www.youtube.com/watch?v={video_id}"
+            effective_source_url = source_url or (
+                f"https://www.youtube.com/watch?v={external_id}" if platform == "youtube" else ""
+            )
             source = Source(
-                agent_id=figure.agent_id,
-                content_platform="youtube",
-                external_id=video_id,
-                emos_group_id=f"{figure.slug}:youtube:{video_id}",
+                agent_id=agent.agent_id,
+                content_platform=platform,
+                external_id=external_id,
+                emos_group_id=f"{agent.slug}:{platform}:{external_id}",
                 title=title,
                 external_url=effective_source_url,
             )

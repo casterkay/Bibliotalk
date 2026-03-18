@@ -15,7 +15,7 @@ def test_evidence_construction_derives_memory_url_and_video_timestamp_link() -> 
     evidence = Evidence(
         segment_id=uuid4(),
         source_id=uuid4(),
-        figure_id=uuid4(),
+        agent_id=uuid4(),
         memory_user_id="alan-watts",
         memory_timestamp=datetime(2026, 3, 8, 12, 0, 0, tzinfo=UTC),
         source_title="Alan Watts Lecture",
@@ -26,11 +26,13 @@ def test_evidence_construction_derives_memory_url_and_video_timestamp_link() -> 
         published_at=datetime(2026, 3, 8, 11, 59, 0, tzinfo=UTC),
     )
 
-    assert evidence.memory_url == "https://www.bibliotalk.space/memory/alan-watts_20260308T120000Z"
+    assert (
+        evidence.memory_url == "https://www.bibliotalk.space/memories/alan-watts_20260308T120000Z"
+    )
     assert evidence.video_url_with_timestamp == "https://www.youtube.com/watch?v=abc123&t=60s"
     assert (
         build_inline_link(evidence)
-        == "[Learning without thought is labor lost.](https://www.bibliotalk.space/memory/alan-watts_20260308T120000Z)"
+        == "[Learning without thought is labor lost.](https://www.bibliotalk.space/memories/alan-watts_20260308T120000Z)"
     )
 
 
@@ -47,12 +49,12 @@ def test_validate_evidence_links_strips_cross_figure_and_bad_quotes() -> None:
     valid = validate_evidence_links(
         f"Answer [Learning without thought is labor lost.]({evidence.memory_url})",
         [evidence],
-        figure_emos_user_id="alan-watts",
+        agent_emos_user_id="alan-watts",
     )
     invalid = validate_evidence_links(
         f"Answer [Fabricated quote]({evidence.memory_url})",
         [evidence],
-        figure_emos_user_id="alan-watts",
+        agent_emos_user_id="alan-watts",
     )
 
     assert extract_memory_links(valid) == [

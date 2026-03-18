@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from uuid import uuid4
 
-from .directory import FigureInfo
+from .agent_directory import AgentInfo
 
 logger = logging.getLogger("discord_service")
 
@@ -32,7 +32,7 @@ class FacilitatorRouter:
         self,
         *,
         message: str,
-        participants: list[FigureInfo],
+        participants: list[AgentInfo],
         last_speaker_slug: str | None,
     ) -> RoutingDecision | None:
         if not participants:
@@ -54,7 +54,7 @@ class FacilitatorRouter:
             return None
 
         roster_lines = [
-            f"- {p.display_name} (slug: {p.figure_slug})" for p in participants
+            f"- {p.display_name} (slug: {p.agent_slug})" for p in participants
         ]
         roster = "\n".join(roster_lines)
         previous = last_speaker_slug or ""
@@ -112,7 +112,7 @@ class FacilitatorRouter:
             logger.warning("facilitator router returned non-json response")
             return None
 
-        allowed = {p.figure_slug for p in participants}
+        allowed = {p.agent_slug for p in participants}
         speakers = [
             str(item).strip()
             for item in list(payload.get("speakers") or [])

@@ -11,7 +11,7 @@ from discord import app_commands
 
 from discord_service.bot.concierge import DMConcierge
 from discord_service.config import DiscordRuntimeConfig
-from discord_service.talks.directory import FigureDirectory
+from discord_service.talks.agent_directory import AgentDirectory
 from discord_service.talks.service import TalkService
 from discord_service.talks.transport import EligibleGuild
 
@@ -83,7 +83,7 @@ class BibliotalkDiscordClient(discord.Client):
         *,
         config: DiscordRuntimeConfig,
         talk_service: TalkService,
-        figure_directory: FigureDirectory,
+        agent_directory: AgentDirectory,
         dm_concierge: DMConcierge | None = None,
         on_ready_callback: Any | None = None,
         logger: logging.Logger | None = None,
@@ -97,7 +97,7 @@ class BibliotalkDiscordClient(discord.Client):
         super().__init__(proxy=proxy, **kwargs)
         self.config = config
         self.talk_service = talk_service
-        self.figure_directory = figure_directory
+        self.agent_directory = agent_directory
         self.dm_concierge = dm_concierge
         self.on_ready_callback = on_ready_callback
         self.logger = logger or logging.getLogger("discord_service")

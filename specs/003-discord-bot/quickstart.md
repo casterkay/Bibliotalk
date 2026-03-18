@@ -68,13 +68,13 @@ BIBLIOTALK_ENABLE_AI_CONCIERGE=
 
 ---
 
-## 4. Seed a test figure
+## 4. Seed a test agent
 
 Use the helper script:
 
 ```bash
-uv run --package bt_cli bibliotalk figure seed \
-  --figure alan-watts \
+uv run --package bt_cli bibliotalk agent seed \
+  --agent alan-watts \
   --display-name "Alan Watts" \
   --persona-summary "Philosopher and interpreter of Eastern philosophy." \
   --subscription-url https://www.youtube.com/@AlanWattsOrg \
@@ -87,18 +87,18 @@ uv run --package bt_cli bibliotalk figure seed \
 ## 5. Run the bot
 
 ```bash
-uv run --package bt_cli bibliotalk collector run --figure alan-watts
+uv run --package bt_cli bibliotalk collector run --agent alan-watts
 uv run --package bt_cli bibliotalk discord run
-uv run --package bt_cli bibliotalk memory-pages run
+uv run --package bt_cli bibliotalk memories run
 ```
 
 Expected output:
 
 ```
-INFO  [memory_service] Starting collector for figure: alan-watts (Alan Watts)
+INFO  [memory_service] Starting collector for agent: alan-watts (Alan Watts)
 INFO  [discord_service] Starting discord runtime db_path=... command_guild_id=...
 INFO  [discord_service] Connected to Discord as AlanWattsBot#1234
-INFO  [discord_service] Feed publication complete figure_slug=alan-watts attempted=... published=... failed=...
+INFO  [discord_service] Feed publication complete agent_slug=alan-watts attempted=... published=... failed=...
 INFO  [memory_service] Collector polling loop started (interval: 60 min)
 ```
 
@@ -110,14 +110,14 @@ To test ingest without waiting for the polling interval, use the manual helper:
 
 ```bash
 uv run --package bt_cli bibliotalk ingest request \
-  --figure alan-watts \
+  --agent alan-watts \
   --video-id KNOWN_YOUTUBE_VIDEO_ID
 ```
 
 Then process the manual request immediately:
 
 ```bash
-uv run --package bt_cli bibliotalk collector run --figure alan-watts --once
+uv run --package bt_cli bibliotalk collector run --agent alan-watts --once
 ```
 
 ---
@@ -136,7 +136,7 @@ uv run --package bt_cli bibliotalk collector run --figure alan-watts --once
 1. In your test guild, create a Talk Hub channel named `#bibliotalk` and grant the bot permission to create private threads.
 2. DM the bot and run `/talk Alan Watts`.
 3. Open the created private thread and ask a question related to a successfully ingested video.
-4. Confirm the response contains an inline link in the form `[text](https://www.bibliotalk.space/memory/alan-watts_20260101T120000Z)`.
+4. Confirm the response contains an inline link in the form `[text](https://www.bibliotalk.space/memories/alan-watts_20260101T120000Z)`.
 5. Ask a question with no supporting evidence.
 6. Confirm the character responds: *"I couldn't find relevant supporting evidence for that question."*
 
@@ -160,7 +160,7 @@ uv --directory packages/bt_common run --package bt_common -m pytest
 
 ---
 
-## Docker Compose (local multi-figure)
+## Docker Compose (local multi-agent)
 
 ```bash
 cp deploy/local/.env.example deploy/local/.env

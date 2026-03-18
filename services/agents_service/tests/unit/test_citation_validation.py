@@ -25,7 +25,7 @@ def test_validate_evidence_links_keeps_valid_inline_markdown_links() -> None:
     )
     text = f"He said [Learning without thought is labor lost.]({evidence.memory_url})"
 
-    validated = validate_evidence_links(text, [evidence], figure_emos_user_id="alan-watts")
+    validated = validate_evidence_links(text, [evidence], agent_emos_user_id="alan-watts")
 
     assert extract_memory_links(validated) == [
         ("Learning without thought is labor lost.", evidence.memory_url)
@@ -48,7 +48,7 @@ def test_validate_evidence_links_allows_whitespace_normalized_visible_text() -> 
     validated = validate_evidence_links(
         f"He said {link}",
         [evidence],
-        figure_emos_user_id="alan-watts",
+        agent_emos_user_id="alan-watts",
     )
 
     assert extract_memory_links(validated) == [
@@ -76,7 +76,7 @@ def test_validate_evidence_links_strips_invalid_links_to_plain_text() -> None:
     )
     text = f"Answer [The superior man is modest in his speech.]({evidence.memory_url})"
 
-    validated = validate_evidence_links(text, [evidence], figure_emos_user_id="alan-watts")
+    validated = validate_evidence_links(text, [evidence], agent_emos_user_id="alan-watts")
 
     assert validated == "Answer The superior man is modest in his speech."
     assert NO_EVIDENCE_RESPONSE.endswith("question.")

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 class FeedParentMessage(BaseModel):
     """Exactly one parent feed message per source."""
 
-    figure_id: uuid.UUID
+    agent_id: uuid.UUID
     source_id: uuid.UUID
     channel_id: str = Field(min_length=1)
     text: str = Field(min_length=1, max_length=2000)
@@ -17,7 +17,7 @@ class FeedParentMessage(BaseModel):
 class FeedBatchMessage(BaseModel):
     """One transcript batch message posted into a per-video thread."""
 
-    figure_id: uuid.UUID
+    agent_id: uuid.UUID
     source_id: uuid.UUID
     batch_id: uuid.UUID
     thread_id: str = Field(min_length=1)

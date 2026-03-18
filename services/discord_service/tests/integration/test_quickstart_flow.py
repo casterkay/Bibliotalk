@@ -9,17 +9,17 @@ from bt_store.models_core import Agent
 from bt_store.models_ingestion import Subscription
 from bt_store.models_runtime import PlatformRoute
 from discord_service.config import load_runtime_config
-from discord_service.talks.directory import FigureDirectory
+from discord_service.talks.agent_directory import AgentDirectory
 from sqlalchemy import select
 
 ROOT = Path(__file__).resolve().parents[4]
-SEED_SCRIPT = ROOT / "services" / "discord_service" / "scripts" / "seed_figure.py"
+SEED_SCRIPT = ROOT / "services" / "discord_service" / "scripts" / "seed_agent.py"
 
 
 def _load_seed_module():
-    spec = importlib.util.spec_from_file_location("seed_figure_script", SEED_SCRIPT)
+    spec = importlib.util.spec_from_file_location("seed_agent_script", SEED_SCRIPT)
     if spec is None or spec.loader is None:
-        raise RuntimeError("Failed to load seed_figure.py")
+        raise RuntimeError("Failed to load seed_agent.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -31,22 +31,24 @@ async def test_quickstart_seed_script_creates_runtime_rows(tmp_path) -> None:
     await init_database(db)
     seed_module = _load_seed_module()
 
-    await seed_module.seed_figure(
+    await seed_module.seed_agent(
         db_path=str(db),
-        figure_slug="alan-watts",
+        agent_slug="alan-watts",
+        kind="figure",
         display_name="Alan Watts",
-        persona_summary="Figure bot used for quickstart validation.",
+        persona_summary="Agent bot used for quickstart validation.",
         subscription_url="https://www.youtube.com/@AlanWattsOrg",
         subscription_type="channel",
         guild_id="guild-1",
         channel_id="channel-1",
         poll_interval_minutes=30,
     )
-    await seed_module.seed_figure(
+    await seed_module.seed_agent(
         db_path=str(db),
-        figure_slug="alan-watts",
+        agent_slug="alan-watts",
+        kind="figure",
         display_name="Alan Watts",
-        persona_summary="Figure bot used for quickstart validation.",
+        persona_summary="Agent bot used for quickstart validation.",
         subscription_url="https://www.youtube.com/@AlanWattsOrg",
         subscription_type="channel",
         guild_id="guild-1",
@@ -56,7 +58,7 @@ async def test_quickstart_seed_script_creates_runtime_rows(tmp_path) -> None:
 
     session_factory = get_session_factory(db)
     async with session_factory() as session:
-        figures = (await session.execute(select(Agent))).scalars().all()
+        agents = (await session.execute(select(Agent))).scalars().all()
         subscriptions = (await session.execute(select(Subscription))).scalars().all()
         routes = (
             (
@@ -71,7 +73,7 @@ async def test_quickstart_seed_script_creates_runtime_rows(tmp_path) -> None:
             .all()
         )
 
-    assert len(figures) == 1
+    assert len(agents) == 1
     assert len(subscriptions) == 1
     assert len(routes) == 1
     assert subscriptions[0].poll_interval_minutes == 60
@@ -80,7 +82,7 @@ async def test_quickstart_seed_script_creates_runtime_rows(tmp_path) -> None:
     config = load_runtime_config(db_path=str(db))
     assert str(config.db_path) == str(db)
 
-    directory = FigureDirectory(session_factory=session_factory)
+    directory = AgentDirectory(session_factory=session_factory)
     await directory.refresh()
     resolved = directory.resolve_token("alan-watts")
     assert resolved is not None

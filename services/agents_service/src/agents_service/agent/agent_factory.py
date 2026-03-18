@@ -79,7 +79,7 @@ class LLMRegistry:
 @dataclass
 class SpiritAgent:
     id: str
-    figure_slug: str
+    agent_slug: str
     name: str
     instruction: str
     model: str
@@ -136,7 +136,7 @@ class SpiritAgent:
         response_text = validate_evidence_links(
             response_text,
             evidence,
-            figure_emos_user_id=self.figure_slug,
+            agent_emos_user_id=self.agent_slug,
         )
         if not extract_memory_links(response_text):
             response_text = NO_EVIDENCE_RESPONSE
@@ -216,7 +216,7 @@ async def create_spirit_agent(
 
     spirit = SpiritAgent(
         id=key,
-        figure_slug=agent_row.get("emos_user_id", key),
+        agent_slug=agent_row.get("emos_user_id", key),
         name=agent_row["display_name"],
         instruction=agent_row["persona_prompt"],
         model=model,

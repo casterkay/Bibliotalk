@@ -24,7 +24,7 @@ async def test_index_roundtrip(tmp_path) -> None:
                 agent_id=agent_id,
                 kind="figure",
                 slug="u1",
-                display_name="Test Figure",
+                display_name="Test Agent",
                 persona_summary=None,
                 is_active=True,
             )
@@ -77,7 +77,7 @@ async def test_existing_source_is_not_treated_as_meta_synced_until_marked(tmp_pa
                 agent_id=agent_id,
                 kind="figure",
                 slug="u1",
-                display_name="Test Figure",
+                display_name="Test Agent",
                 persona_summary=None,
                 is_active=True,
             )

@@ -9,11 +9,11 @@
 
 ### User Story 1 - Ingest A Single Source For A Spirit (Priority: P1)
 
-As a curator or operator, I can ingest a single content source (for example: a book, an essay, or a time-coded transcript) into EverMemOS for a specific person/figure, so that the Spirit can later answer questions grounded in that material with verifiable citations.
+As a curator or operator, I can ingest a single content source (for example: a book, an essay, or a time-coded transcript) into EverMemOS for a specific agent, so that the Spirit can later answer questions grounded in that material with verifiable citations.
 
 **Why this priority**: This is the smallest end-to-end unit of value: one real source becomes usable evidence for grounded conversation.
 
-**Independent Test**: Can be fully tested by ingesting one source and verifying (a) content is retrievable from EverMemOS for that person/figure and (b) each citation can be traced back to an exact verbatim segment with correct source attribution.
+**Independent Test**: Can be fully tested by ingesting one source and verifying (a) content is retrievable from EverMemOS for that agent and (b) each citation can be traced back to an exact verbatim segment with correct source attribution.
 
 **Acceptance Scenarios**:
 
@@ -41,7 +41,7 @@ As an operator, I can re-run ingestion for a previously ingested source to eithe
 
 ### User Story 3 - Batch Ingest From A Curated Roster (Priority: P3)
 
-As a curator, I can ingest a curated roster of sources for multiple people/figures (for example: a reading list plus public talks/transcripts) in a single batch run, and receive a clear per-source success/failure report.
+As a curator, I can ingest a curated roster of sources for multiple agents (for example: a reading list plus public talks/transcripts) in a single batch run, and receive a clear per-source success/failure report.
 
 **Why this priority**: The system’s value grows with breadth of high-quality sources. Batch ingestion reduces operational overhead and makes it feasible to ingest a roster like the one maintained for Bibliotalk figures.
 
@@ -56,7 +56,7 @@ As a curator, I can ingest a curated roster of sources for multiple people/figur
 ### Edge Cases
 
 - What happens when EverMemOS is temporarily unavailable during ingestion (network outage or service error)?
-- What happens when credentials are invalid, expired, or not authorized for the target person/figure?
+- What happens when credentials are invalid, expired, or not authorized for the target agent?
 - How does the system handle extremely large sources (very long books, multi-hour transcripts)?
 - How does the system handle content with mixed languages or unusual encodings?
 - What happens when a source URL exists but content retrieval requires interactive browsing, authentication, or dynamic page interaction?
@@ -68,7 +68,7 @@ As a curator, I can ingest a curated roster of sources for multiple people/figur
 
 - **FR-001**: System MUST support ingesting content provided directly by an operator (for example: pasted text, uploaded documents, or exported transcripts).
 - **FR-002**: System MUST support ingesting time-coded transcripts (when available) while preserving enough “location” context to produce precise citations (for example: timestamps or section markers).
-- **FR-003**: System MUST allow operators to associate each ingestion with (a) the person/figure whose memory is being populated and (b) the source identity (title and canonical link).
+- **FR-003**: System MUST allow operators to associate each ingestion with (a) the agent whose memory is being populated and (b) the source identity (title and canonical link).
 - **FR-004**: System MUST segment each source into ordered, citation-friendly chunks and store those chunks in EverMemOS under a single source grouping so retrieval can use cross-segment context.
 - **FR-005**: System MUST attach source-level metadata in EverMemOS sufficient to support later citation rendering (at minimum: source title and canonical link; optionally: author/publisher/date when provided).
 - **FR-006**: System MUST provide an ingestion report for each run that includes per-source status, counts of stored segments, and error details where relevant.
@@ -86,7 +86,7 @@ As a curator, I can ingest a curated roster of sources for multiple people/figur
 
 ### Key Entities *(include if feature involves data)*
 
-- **Person/Figure**: The identity whose EverMemOS memory is being populated; used to scope retrieval and grounding.
+- **Agent**: The identity whose EverMemOS memory is being populated; used to scope retrieval and grounding.
 - **Source**: A single upstream content item (for example: one book, one talk transcript, one podcast episode transcript) with canonical attribution metadata.
 - **Segment**: A verbatim chunk of a source with ordering and optional location markers (timestamps/section markers) used for citations.
 - **Ingestion Run**: One execution attempt that processes one or more sources and yields a consolidated report with per-source outcomes.
@@ -119,5 +119,5 @@ This feature covers ingesting curated, consented content into EverMemOS to suppo
 
 ## Dependencies
 
-- Availability and access to EverMemOS for the relevant person/figure (credentials and authorization).
+- Availability and access to EverMemOS for the relevant agent (credentials and authorization).
 - Access to canonical source metadata (at minimum: title and canonical link).

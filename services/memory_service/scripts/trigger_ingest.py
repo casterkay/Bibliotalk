@@ -10,7 +10,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Request a manual one-shot ingest for a YouTube video"
     )
-    parser.add_argument("--figure", dest="figure_slug", required=True)
+    parser.add_argument("--agent", dest="agent_slug", required=True)
     parser.add_argument("--video-id", dest="video_id", required=True)
     parser.add_argument("--title", dest="title", default="(manual ingest requested)")
     parser.add_argument("--source-url", dest="source_url")
@@ -21,15 +21,15 @@ def build_parser() -> argparse.ArgumentParser:
 async def trigger_manual_ingest(
     *,
     db_path: str | None,
-    figure_slug: str,
+    agent_slug: str,
     video_id: str,
     title: str,
     source_url: str | None,
 ) -> None:
     await request_manual_ingest(
         db_path=db_path,
-        figure_slug=figure_slug,
-        video_id=video_id,
+        agent_slug=agent_slug,
+        external_id=video_id,
         title=title,
         source_url=source_url,
     )
@@ -41,7 +41,7 @@ def main() -> int:
         asyncio.run(
             trigger_manual_ingest(
                 db_path=args.db_path,
-                figure_slug=args.figure_slug,
+                agent_slug=args.agent_slug,
                 video_id=args.video_id,
                 title=args.title,
                 source_url=args.source_url,
@@ -52,7 +52,7 @@ def main() -> int:
         return 1
 
     print(
-        f"Manual ingest requested for '{args.figure_slug}' video '{args.video_id}'. Run memory_service with --once to process it."
+        f"Manual ingest requested for '{args.agent_slug}' video '{args.video_id}'. Run memory_service with --once to process it."
     )
     return 0
 

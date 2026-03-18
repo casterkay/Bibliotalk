@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 def test_feed_parent_message_matches_contract_shape() -> None:
     message = FeedParentMessage(
-        figure_id=uuid.uuid4(),
+        agent_id=uuid.uuid4(),
         source_id=uuid.uuid4(),
         channel_id="1234567890",
         text="Alan Watts Lecture\nhttps://www.youtube.com/watch?v=abc123",
@@ -24,7 +24,7 @@ def test_feed_parent_message_matches_contract_shape() -> None:
 
 def test_feed_batch_message_renders_seq_label_and_text() -> None:
     batch = FeedBatchMessage(
-        figure_id=uuid.uuid4(),
+        agent_id=uuid.uuid4(),
         source_id=uuid.uuid4(),
         batch_id=uuid.uuid4(),
         thread_id="thread-1",
@@ -38,7 +38,7 @@ def test_feed_batch_message_renders_seq_label_and_text() -> None:
 def test_feed_batch_message_rejects_rendered_content_above_discord_limit() -> None:
     with pytest.raises(ValidationError):
         FeedBatchMessage(
-            figure_id=uuid.uuid4(),
+            agent_id=uuid.uuid4(),
             source_id=uuid.uuid4(),
             batch_id=uuid.uuid4(),
             thread_id="thread-1",
@@ -49,13 +49,13 @@ def test_feed_batch_message_rejects_rendered_content_above_discord_limit() -> No
 
 def test_feed_message_models_are_stable_contracts() -> None:
     parent = FeedParentMessage(
-        figure_id=uuid.uuid4(),
+        agent_id=uuid.uuid4(),
         source_id=uuid.uuid4(),
         channel_id="1234567890",
         text="Alan Watts Lecture\nhttps://www.youtube.com/watch?v=abc123",
     )
     batch = FeedBatchMessage(
-        figure_id=uuid.uuid4(),
+        agent_id=uuid.uuid4(),
         source_id=uuid.uuid4(),
         batch_id=uuid.uuid4(),
         thread_id="thread-1",

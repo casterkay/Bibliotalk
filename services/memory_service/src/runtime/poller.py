@@ -57,7 +57,7 @@ class SubscriptionConcurrencyGate:
 @dataclass(slots=True)
 class PollerSnapshot:
     active_subscriptions: int
-    figure_slug: str | None
+    agent_slug: str | None
     discovered_videos: int = 0
     ingested_videos: int = 0
     failed_subscriptions: int = 0
@@ -111,20 +111,20 @@ class CollectorPoller:
                 .join(Agent, Agent.agent_id == Subscription.agent_id)
                 .where(Subscription.is_active.is_(True))
             )
-            if self.config.figure_slug:
-                stmt = stmt.where(Agent.slug == self.config.figure_slug)
+            if self.config.agent_slug:
+                stmt = stmt.where(Agent.slug == self.config.agent_slug)
             subscription_rows = (await session.execute(stmt)).all()
 
         results = await asyncio.gather(
             *[
                 self._subscription_gate.run(
                     subscription.subscription_id,
-                    lambda subscription=subscription, figure=figure: self._process_subscription(
+                    lambda subscription=subscription, agent=agent: self._process_subscription(
                         subscription=subscription,
-                        agent=figure,
+                        agent=agent,
                     ),
                 )
-                for subscription, figure in subscription_rows
+                for subscription, agent in subscription_rows
             ],
             return_exceptions=True,
         )
@@ -143,8 +143,8 @@ class CollectorPoller:
             failed_subscriptions += result[2]
 
         self.logger.info(
-            "collector poll tick figure_slug=%s subscriptions=%s discovered=%s ingested=%s failed=%s",
-            self.config.figure_slug or "*",
+            "collector poll tick agent_slug=%s subscriptions=%s discovered=%s ingested=%s failed=%s",
+            self.config.agent_slug or "*",
             len(subscription_rows),
             discovered_videos,
             ingested_videos,
@@ -152,7 +152,7 @@ class CollectorPoller:
         )
         return PollerSnapshot(
             active_subscriptions=len(subscription_rows),
-            figure_slug=self.config.figure_slug,
+            agent_slug=self.config.agent_slug,
             discovered_videos=discovered_videos,
             ingested_videos=ingested_videos,
             failed_subscriptions=failed_subscriptions,
@@ -203,7 +203,7 @@ class CollectorPoller:
                 )
             except Exception:
                 self.logger.exception(
-                    "manual reingest crashed figure=%s video_id=%s",
+                    "manual reingest crashed agent=%s video_id=%s",
                     agent.slug,
                     source_row.external_id,
                 )
@@ -211,7 +211,7 @@ class CollectorPoller:
 
             if result.status != "done":
                 self.logger.error(
-                    "manual reingest failed figure=%s video_id=%s code=%s message=%s",
+                    "manual reingest failed agent=%s video_id=%s code=%s message=%s",
                     agent.slug,
                     source_row.external_id,
                     (result.error.code if result.error else None),
@@ -282,7 +282,7 @@ class CollectorPoller:
             await self._upsert_discovered_source(
                 index=index,
                 subscription_id=subscription.subscription_id,
-                figure_slug=agent.slug,
+                agent_slug=agent.slug,
                 item=item,
             )
 
@@ -310,7 +310,7 @@ class CollectorPoller:
             outcome = await self._attempt_source(
                 index=index,
                 subscription_id=subscription.subscription_id,
-                figure_slug=agent.slug,
+                agent_slug=agent.slug,
                 source_row=stored,
             )
             if outcome == "ingested":
@@ -331,7 +331,7 @@ class CollectorPoller:
         *,
         index: IngestionIndex,
         subscription_id: UUID,
-        figure_slug: str,
+        agent_slug: str,
         item: DiscoveredVideo,
     ) -> None:
         raw_meta: dict[str, Any] | None = item.raw_meta or None
@@ -345,10 +345,10 @@ class CollectorPoller:
             platform = "youtube"
 
             def __init__(self) -> None:
-                self.user_id = figure_slug
+                self.user_id = agent_slug
                 self.external_id = item.video_id
                 self.group_id = build_group_id(
-                    user_id=figure_slug, platform="youtube", external_id=item.video_id
+                    user_id=agent_slug, platform="youtube", external_id=item.video_id
                 )
                 self.title = item.title or item.video_id
                 self.source_url = (
@@ -359,7 +359,7 @@ class CollectorPoller:
                 self.raw_meta = safe_raw_meta
                 self.subscription_id = subscription_id
 
-        # `upsert_source_record` handles unknown figures and cursor-safe updates.
+        # `upsert_source_record` handles unknown agents and cursor-safe updates.
         stored = await upsert_source_record(index=index, source=_SourceInput())
 
         # Ensure raw meta from discovery is persisted even when transcript fetch is delayed.
@@ -474,7 +474,7 @@ class CollectorPoller:
         *,
         index: IngestionIndex,
         subscription_id: UUID,
-        figure_slug: str,
+        agent_slug: str,
         source_row: Source,
     ) -> str:
         del subscription_id
@@ -500,7 +500,7 @@ class CollectorPoller:
         try:
             await self._sleep_youtube_request_gap()
             source_content = await self.transcript_loader(
-                user_id=figure_slug,
+                user_id=agent_slug,
                 external_id=source_row.external_id,
                 title=source_row.title,
                 video_id=source_row.external_id,
@@ -512,8 +512,8 @@ class CollectorPoller:
                 source_id=source_row.source_id, now=now, reason="members_only"
             )
             self.logger.info(
-                "collector skipped members-only video figure=%s video_id=%s",
-                figure_slug,
+                "collector skipped members-only video agent=%s video_id=%s",
+                agent_slug,
                 source_row.external_id,
             )
             return "skipped"

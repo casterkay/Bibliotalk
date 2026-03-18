@@ -173,7 +173,7 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
         await init_database(target_db_path)
         session_factory = get_session_factory(target_db_path)
 
-        figures_by_id: dict[uuid.UUID, dict[str, Any]] = {}
+        agents_by_id: dict[uuid.UUID, dict[str, Any]] = {}
         discord_channel_by_agent_id: dict[uuid.UUID, str] = {}
         batches_by_id: dict[uuid.UUID, dict[str, Any]] = {}
         sources_by_id: dict[uuid.UUID, dict[str, Any]] = {}
@@ -195,7 +195,7 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
 
         async with session_factory() as session:
             for row in legacy.iter_rows("figures"):
-                figure_id = _parse_uuid(row["figure_id"])
+                agent_id = _parse_uuid(row["figure_id"])
                 slug = str(row["emos_user_id"] or "").strip()
                 if not slug:
                     continue
@@ -204,14 +204,14 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
                 status = str(row["status"] or "active").strip().lower()
                 is_active = status in {"active", "enabled", "open", "ok", "1", "true"}
 
-                figures_by_id[figure_id] = {"slug": slug, "display_name": display_name}
+                agents_by_id[agent_id] = {"slug": slug, "display_name": display_name}
 
-                existing = await session.get(Agent, figure_id)
+                existing = await session.get(Agent, agent_id)
                 if existing is not None:
                     continue
                 session.add(
                     Agent(
-                        agent_id=figure_id,
+                        agent_id=agent_id,
                         kind="figure",
                         slug=slug,
                         display_name=display_name,
@@ -227,7 +227,7 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
 
             for row in legacy.iter_rows("subscriptions"):
                 subscription_id = _parse_uuid(row["subscription_id"])
-                figure_id = _parse_uuid(row["figure_id"])
+                agent_id = _parse_uuid(row["figure_id"])
                 platform = str(row["platform"] or "youtube").strip()
                 raw_type = str(row["subscription_type"] or "").strip()
                 subscription_type = (
@@ -240,7 +240,7 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
                 session.add(
                     Subscription(
                         subscription_id=subscription_id,
-                        agent_id=figure_id,
+                        agent_id=agent_id,
                         content_platform=platform,
                         subscription_type=subscription_type,
                         subscription_url=str(row["subscription_url"] or ""),
@@ -277,17 +277,17 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
 
             for row in legacy.iter_rows("sources"):
                 source_id = _parse_uuid(row["source_id"])
-                figure_id = _parse_uuid(row["figure_id"])
+                agent_id = _parse_uuid(row["figure_id"])
                 platform = str(row["platform"] or "youtube").strip()
                 external_id = str(row["external_id"] or "").strip()
                 group_id = (
                     str(row["group_id"] or "").strip()
-                    or f"{figures_by_id.get(figure_id, {}).get('slug', 'unknown')}:{platform}:{external_id}"
+                    or f"{agents_by_id.get(agent_id, {}).get('slug', 'unknown')}:{platform}:{external_id}"
                 )
 
                 sources_by_id[source_id] = {
                     "group_id": group_id,
-                    "figure_id": figure_id,
+                    "agent_id": agent_id,
                 }
 
                 existing = await session.get(Source, source_id)
@@ -295,7 +295,7 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
                     session.add(
                         Source(
                             source_id=source_id,
-                            agent_id=figure_id,
+                            agent_id=agent_id,
                             subscription_id=_parse_uuid(row["subscription_id"])
                             if row["subscription_id"]
                             else None,
@@ -350,8 +350,8 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
                 source_info = sources_by_id.get(source_id) or {}
                 group_id = str(source_info.get("group_id") or "")
                 agent_id = (
-                    _parse_uuid(source_info["figure_id"])
-                    if source_info.get("figure_id")
+                    _parse_uuid(source_info["agent_id"])
+                    if source_info.get("agent_id")
                     else uuid.UUID(int=0)
                 )
 
@@ -419,17 +419,17 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
             await session.commit()
 
             for row in legacy.iter_rows("discord_map"):
-                figure_id = _parse_uuid(row["figure_id"])
+                agent_id = _parse_uuid(row["figure_id"])
                 channel_id = str(row["channel_id"] or "").strip()
                 if channel_id:
-                    discord_channel_by_agent_id[figure_id] = channel_id
+                    discord_channel_by_agent_id[agent_id] = channel_id
 
                 existing_route = (
                     await session.execute(
                         select(PlatformRoute.route_id).where(
                             PlatformRoute.platform == "discord",
                             PlatformRoute.purpose == "feed",
-                            PlatformRoute.agent_id == figure_id,
+                            PlatformRoute.agent_id == agent_id,
                         )
                     )
                 ).first()
@@ -441,7 +441,7 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
                         route_id=uuid.uuid4(),
                         platform="discord",
                         purpose="feed",
-                        agent_id=figure_id,
+                        agent_id=agent_id,
                         container_id=channel_id,
                         config_json={
                             "guild_id": str(row["guild_id"] or "").strip(),
@@ -598,18 +598,18 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
             participants_by_talk: dict[uuid.UUID, list[tuple[uuid.UUID, int]]] = {}
             for row in legacy.iter_rows("talk_participants"):
                 talk_id = _parse_uuid(row["talk_id"])
-                figure_id = _parse_uuid(row["figure_id"])
+                agent_id = _parse_uuid(row["figure_id"])
                 display_order = int(row["display_order"] or 0)
                 participants_by_talk.setdefault(talk_id, []).append(
-                    (figure_id, display_order)
+                    (agent_id, display_order)
                 )
 
             for talk_id, members in participants_by_talk.items():
-                for figure_id, display_order in sorted(members, key=lambda it: it[1]):
-                    figure = figures_by_id.get(figure_id)
-                    if figure is None:
+                for agent_id, display_order in sorted(members, key=lambda it: it[1]):
+                    agent = agents_by_id.get(agent_id)
+                    if agent is None:
                         continue
-                    platform_user_id = f"agent:{figure['slug']}"
+                    platform_user_id = f"agent:{agent['slug']}"
                     existing_member = (
                         await session.execute(
                             select(RoomMember.member_id).where(
@@ -626,7 +626,7 @@ async def _migrate(*, legacy_path: Path, target_db_path: Path) -> dict[str, int]
                             room_pk=talk_id,
                             platform="discord",
                             platform_user_id=platform_user_id,
-                            agent_id=figure_id,
+                            agent_id=agent_id,
                             member_kind="agent",
                             role="participant",
                             display_order=display_order,

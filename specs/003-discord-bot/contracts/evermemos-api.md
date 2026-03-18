@@ -1,10 +1,10 @@
-# Contract: EverMemOS API Usage (Figure Bots)
+# Contract: EverMemOS API Usage (Agent Bots)
 
 **Feature**: `/Users/tcai/Projects/Bibliotalk/specs/003-discord-bot/spec.md`
 **Created**: 2026-03-07
 **Scope**: Memorize, conversation metadata, retrieval/search, and delete-by-group for manual re-ingest
 
-This contract defines how the successor figure-bot system interacts with EverMemOS.
+This contract defines how the successor agent-bot system interacts with EverMemOS.
 
 ## Base URL and Auth
 
@@ -25,7 +25,7 @@ All endpoints are under `/api/v1/memories`.
 
 **Required fields**:
 - `message_id` (string): stable per segment
-- `sender` (string): `emos_user_id`
+- `sender` (string): agent slug (EverMemOS `user_id`)
 - `content` (string): verbatim segment text
 - `create_time` (string/date-time): `video_published_at + chunk_start_offset`
 
@@ -58,7 +58,7 @@ All endpoints are under `/api/v1/memories`.
 - Method: SDK wrapper or `POST` to the instance search endpoint exposed by the deployed EverMemOS version
 - Inputs MUST include:
   - `query`
-  - `user_id` = `emos_user_id`
+  - `user_id` = agent slug (EverMemOS `user_id`)
   - `retrieve_method` = `rrf` or `agentic`
   - `top_k`
 
@@ -68,14 +68,14 @@ All endpoints are under `/api/v1/memories`.
 - `timestamp`
 - `summary`
 
-The caller MUST treat `(user_id, timestamp)` as the source of truth for constructing `memory_url`.
+The caller MUST treat `(user_id, timestamp)` as the source of truth for constructing the public `memory_id` (`{user_id}_{timestamp_compact}`) and `memory_url` (`{BIBLIOTALK_WEB_URL}/memories/{memory_id}`).
 
 ### 4) Delete by Group
 
 **Purpose**: Support manual single-video re-ingest.
 
 - Method: SDK wrapper or instance-specific delete operation
-- Input: `group_id = {emos_user_id}:youtube:{video_id}`
+- Input: `group_id = {user_id}:youtube:{video_id}`
 
 **Client expectations**:
 - Deletes all memories belonging to that video before re-ingest.
@@ -83,9 +83,9 @@ The caller MUST treat `(user_id, timestamp)` as the source of truth for construc
 
 ## Stable ID Rules
 
-- `sender` = `{emos_user_id}`
-- `group_id` = `{emos_user_id}:youtube:{video_id}`
-- `message_id` = `{emos_user_id}:youtube:{video_id}:seg:{seq}`
+- `sender` = `{user_id}`
+- `group_id` = `{user_id}:youtube:{video_id}`
+- `message_id` = `{user_id}:youtube:{video_id}:seg:{seq}`
 
 ## Error Handling
 

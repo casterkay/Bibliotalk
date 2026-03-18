@@ -148,7 +148,7 @@ async def upsert_source_record(*, index: IngestionIndex, source: Any) -> StoredS
             await session.execute(select(Agent).where(Agent.slug == source.user_id))
         ).scalar_one_or_none()
         if agent is None:
-            raise IngestError(f"Unknown agent slug: {source.user_id}", code="FIGURE_NOT_FOUND")
+            raise IngestError(f"Unknown agent slug: {source.user_id}", code="AGENT_NOT_FOUND")
 
         stored = (
             await session.execute(

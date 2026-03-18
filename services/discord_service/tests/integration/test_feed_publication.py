@@ -123,7 +123,7 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
         session_factory=session_factory,
     )
 
-    assert first.attempted_figures == 1
+    assert first.attempted_agents == 1
     assert first.attempted_sources == 1
     assert first.published_sources == 0
     assert first.failed_sources == 1
@@ -167,7 +167,7 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
         session_factory=session_factory,
     )
 
-    assert second.attempted_figures == 1
+    assert second.attempted_agents == 1
     assert second.attempted_sources == 1
     assert second.published_sources == 1
     assert second.failed_sources == 0
@@ -182,7 +182,7 @@ async def test_feed_publication_retries_and_resumes_without_duplicates(
         session_factory=session_factory,
     )
 
-    assert third.attempted_figures == 1
+    assert third.attempted_agents == 1
     assert third.attempted_sources == 0
     assert third.published_sources == 0
     assert third.failed_sources == 0

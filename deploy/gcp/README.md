@@ -1,10 +1,10 @@
 # GCP Deployment (GitHub Actions → Cloud Run)
 
-This repo ships with GitHub Actions workflows to deploy the **Memory Pages** service to **Cloud Run** using **Workload Identity Federation** (OIDC) from GitHub (no long-lived JSON keys).
+This repo ships with GitHub Actions workflows to deploy the **Memories API** service to **Cloud Run** using **Workload Identity Federation** (OIDC) from GitHub (no long-lived JSON keys).
 
 ## What gets deployed
 
-- Cloud Run service: `memory_page_service` (FastAPI), using `uvicorn` with `memory_page_service.asgi:app`.
+- Cloud Run service: `memory_service` (FastAPI), using `uvicorn` with `memory_service.asgi:app`.
 
 If you want to deploy other services (Discord bot, ingestion poller, Matrix adapter), you should deploy them as Cloud Run **Jobs** or on GKE/VMs; they are not wired up by default.
 
@@ -112,7 +112,7 @@ Set these GitHub **Repository Variables** (Settings → Secrets and variables �
 - `GCP_PROJECT_ID` (e.g. `my-project`)
 - `GCP_REGION` (e.g. `us-central1`)
 - `GCP_ARTIFACT_REPO` (e.g. `bibliotalk`)
-- `CLOUD_RUN_SERVICE` (e.g. `bibliotalk-memory-pages`)
+- `CLOUD_RUN_SERVICE` (e.g. `bibliotalk-memories`)
 - `GCP_WORKLOAD_IDENTITY_PROVIDER` (the full provider name from step 2)
 - `GCP_SERVICE_ACCOUNT` (e.g. `github-deployer@my-project.iam.gserviceaccount.com`)
 
@@ -124,7 +124,7 @@ Optional variables:
 ## 4) Deploy
 
 - Push to `main` to deploy automatically, or run the workflow manually:
-  - GitHub Actions → `Deploy (Cloud Run) - Memory Pages` → Run workflow
+  - GitHub Actions → run the Cloud Run deploy workflow → Run workflow
 
 ## Notes / gotchas
 

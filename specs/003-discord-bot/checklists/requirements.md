@@ -1,4 +1,4 @@
-# Specification Quality Checklist: YouTube → EverMemOS → Discord Figure Bots
+# Specification Quality Checklist: YouTube → EverMemOS → Discord Agent Bots
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-03-07
@@ -32,5 +32,5 @@
 ## Notes
 
 - Specification is derived directly from DESIGN.md and covers all three runtime packages: ingestion, agent runtime, and Discord runtime.
-- The memory page serverless worker (`bibliotalk.space/memory/`) is explicitly noted as out-of-scope for this feature branch.
+- Public memory pages are served by the unified Memories API (`bibliotalk.space/memories/`).
 - Technology references (`yt-dlp`, `discord.py`, Gemini/ADK, EverMemOS, SQLite) appear only in the Assumptions section where necessary to bound scope — they do not appear in functional requirements or success criteria.

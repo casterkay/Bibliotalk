@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import discord
 
-from discord_service.talks.directory import FigureDirectory
+from discord_service.talks.agent_directory import AgentDirectory
 
 logger = logging.getLogger("discord_service")
 
@@ -15,11 +15,11 @@ class DMConcierge:
     def __init__(
         self,
         *,
-        figure_directory: FigureDirectory,
+        agent_directory: AgentDirectory,
         logger_: logging.Logger | None = None,
         model: str = "gemini-2.5-flash",
     ) -> None:
-        self._directory = figure_directory
+        self._directory = agent_directory
         self._logger = logger_ or logger
         self._model = model
 
@@ -40,8 +40,8 @@ class DMConcierge:
         )
 
     async def _generate_reply(self, message: str) -> str:
-        figures = self._directory.list_figures()
-        roster = ", ".join(sorted({f.display_name for f in figures})) or "(none seeded)"
+        agents = self._directory.list_agents()
+        roster = ", ".join(sorted({a.display_name for a in agents})) or "(none seeded)"
 
         if os.getenv("BIBLIOTALK_ENABLE_AI_CONCIERGE", "").strip().lower() not in {
             "1",

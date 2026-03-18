@@ -73,7 +73,9 @@ class FakeTransport:
 async def test_talk_message_sends_grounded_character_reply(tmp_path) -> None:
     Evidence = import_module("agents_service.models.citation").Evidence
     DMOrchestrator = import_module("agents_service.agent.orchestrator").DMOrchestrator
-    FigureDirectory = import_module("discord_service.talks.directory").FigureDirectory
+    AgentDirectory = import_module(
+        "discord_service.talks.agent_directory"
+    ).AgentDirectory
     FacilitatorRouter = import_module("discord_service.talks.router").FacilitatorRouter
     TalkService = import_module("discord_service.talks.service").TalkService
 
@@ -81,10 +83,10 @@ async def test_talk_message_sends_grounded_character_reply(tmp_path) -> None:
     await init_database(db)
     session_factory = get_session_factory(db)
 
-    figure_id = uuid.uuid4()
+    agent_id = uuid.uuid4()
     evidence = Evidence(
         segment_id=uuid.uuid4(),
-        figure_id=figure_id,
+        agent_id=agent_id,
         memory_user_id="alan-watts",
         memory_timestamp=datetime(2026, 3, 8, 12, 0, 0, tzinfo=UTC),
         source_title="Alan Watts Lecture",
@@ -102,7 +104,7 @@ async def test_talk_message_sends_grounded_character_reply(tmp_path) -> None:
     async with session_factory() as session:
         session.add(
             Agent(
-                agent_id=figure_id,
+                agent_id=agent_id,
                 kind="figure",
                 slug="alan-watts",
                 display_name="Alan Watts",
@@ -140,7 +142,7 @@ async def test_talk_message_sends_grounded_character_reply(tmp_path) -> None:
                 room_pk=talk_id,
                 platform="discord",
                 platform_user_id="agent:alan-watts",
-                agent_id=figure_id,
+                agent_id=agent_id,
                 member_kind="agent",
                 role="participant",
                 display_order=0,
@@ -149,7 +151,7 @@ async def test_talk_message_sends_grounded_character_reply(tmp_path) -> None:
         )
         await session.commit()
 
-    directory = FigureDirectory(session_factory=session_factory)
+    directory = AgentDirectory(session_factory=session_factory)
     await directory.refresh()
 
     orchestrator = DMOrchestrator(agent_factory=create_agent)
@@ -157,7 +159,7 @@ async def test_talk_message_sends_grounded_character_reply(tmp_path) -> None:
     transport = FakeTransport()
     service = TalkService(
         session_factory=session_factory,
-        figure_directory=directory,
+        agent_directory=directory,
         router=router,
         orchestrator=orchestrator,
         transport=transport,
@@ -184,7 +186,9 @@ async def test_talk_message_falls_back_to_no_evidence_when_link_invalid(
     Evidence = citation_module.Evidence
     NO_EVIDENCE_RESPONSE = citation_module.NO_EVIDENCE_RESPONSE
     DMOrchestrator = import_module("agents_service.agent.orchestrator").DMOrchestrator
-    FigureDirectory = import_module("discord_service.talks.directory").FigureDirectory
+    AgentDirectory = import_module(
+        "discord_service.talks.agent_directory"
+    ).AgentDirectory
     FacilitatorRouter = import_module("discord_service.talks.router").FacilitatorRouter
     TalkService = import_module("discord_service.talks.service").TalkService
 
@@ -192,10 +196,10 @@ async def test_talk_message_falls_back_to_no_evidence_when_link_invalid(
     await init_database(db)
     session_factory = get_session_factory(db)
 
-    figure_id = uuid.uuid4()
+    agent_id = uuid.uuid4()
     evidence = Evidence(
         segment_id=uuid.uuid4(),
-        figure_id=figure_id,
+        agent_id=agent_id,
         memory_user_id="alan-watts",
         memory_timestamp=datetime(2026, 3, 8, 12, 0, 0, tzinfo=UTC),
         source_title="Alan Watts Lecture",
@@ -213,7 +217,7 @@ async def test_talk_message_falls_back_to_no_evidence_when_link_invalid(
     async with session_factory() as session:
         session.add(
             Agent(
-                agent_id=figure_id,
+                agent_id=agent_id,
                 kind="figure",
                 slug="alan-watts",
                 display_name="Alan Watts",
@@ -251,7 +255,7 @@ async def test_talk_message_falls_back_to_no_evidence_when_link_invalid(
                 room_pk=talk_id,
                 platform="discord",
                 platform_user_id="agent:alan-watts",
-                agent_id=figure_id,
+                agent_id=agent_id,
                 member_kind="agent",
                 role="participant",
                 display_order=0,
@@ -260,7 +264,7 @@ async def test_talk_message_falls_back_to_no_evidence_when_link_invalid(
         )
         await session.commit()
 
-    directory = FigureDirectory(session_factory=session_factory)
+    directory = AgentDirectory(session_factory=session_factory)
     await directory.refresh()
 
     orchestrator = DMOrchestrator(agent_factory=create_agent)
@@ -268,7 +272,7 @@ async def test_talk_message_falls_back_to_no_evidence_when_link_invalid(
     transport = FakeTransport()
     service = TalkService(
         session_factory=session_factory,
-        figure_directory=directory,
+        agent_directory=directory,
         router=router,
         orchestrator=orchestrator,
         transport=transport,

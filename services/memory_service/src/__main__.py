@@ -13,7 +13,7 @@ from .runtime.reporting import configure_logging
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Bibliotalk collector runtime")
-    parser.add_argument("--figure", dest="figure_slug")
+    parser.add_argument("--agent", dest="agent_slug")
     parser.add_argument("--db", dest="db_path")
     parser.add_argument("--log-level", dest="log_level")
     parser.add_argument("--once", action="store_true")
@@ -23,7 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
 async def _main_async() -> int:
     args = build_parser().parse_args()
     config = load_runtime_config(
-        db_path=args.db_path, figure_slug=args.figure_slug, log_level=args.log_level
+        db_path=args.db_path, agent_slug=args.agent_slug, log_level=args.log_level
     )
     logger = configure_logging(level=config.log_level)
     await init_database(config.db_path)

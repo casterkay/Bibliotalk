@@ -44,10 +44,9 @@ packages/
 
 services/
   agents_service/       # Python: platform-agnostic agent core + Live Sessions
-  memory_service/    # Python: ingestion pipeline; writes sources/segments + publish intents
+  memory_service/       # Python: ingestion pipeline + public Memories API (HTML + /v1/*)
   matrix_service/       # Node/TS: Matrix AppService adapter + publisher loop (matrix-js-sdk)
   voice_call_service/   # Node: MatrixRTC/WebRTC sidecar; audio bridge to agents_service
-  memory_page_service/  # optional: public pages for evidence inspection (future UX)
 ```
 
 ### Why `matrix_service` is Node/TS

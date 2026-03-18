@@ -1,4 +1,4 @@
-"""Store protocol for figure-agent retrieval dependencies."""
+"""Store protocol for agent retrieval dependencies."""
 
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ class Store(Protocol):
     async def get_segments_for_agent(self, agent_id: UUID) -> list[SegmentRow]: ...
 
 
-class SQLiteFigureStore:
+class SQLiteAgentStore:
     def __init__(self, session_factory: async_sessionmaker):
         self._session_factory = session_factory
 
@@ -89,7 +89,7 @@ class SQLiteFigureStore:
             persona_prompt = f"{persona_prompt} {persona_summary}"
         return {
             "id": str(agent.agent_id),
-            "kind": "figure",
+            "kind": str(agent.kind or "figure"),
             "display_name": agent.display_name,
             "persona_prompt": persona_prompt,
             "emos_user_id": agent.slug,
@@ -181,7 +181,6 @@ class SQLiteFigureStore:
         return {
             "id": str(segment.segment_id),
             "agent_id": str(source.agent_id),
-            "figure_id": str(source.agent_id),
             "source_id": str(segment.source_id),
             "platform": source.content_platform,
             "seq": segment.seq,

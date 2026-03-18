@@ -33,7 +33,7 @@ packages = [
 ]
 
 [tool.setuptools.package-dir]
-"agents_service" = "src"
+"agents_service" = "src/agents_service"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from ..agent.agent_factory import create_spirit_agent
 from ..audit.chat_history import ChatEvent, persist_chat_event
 from ..models.citation import build_verifiable_quote
-from ..store import SQLiteFigureStore
+from ..store import SQLiteAgentStore
 from .errors import APIError, ErrorCode
 
 router = APIRouter()
@@ -53,7 +53,7 @@ def _now_utc() -> datetime:
 @router.post("/agents/{agent_id}/turn", response_model=TurnResponse)
 async def create_turn(agent_id: UUID, request: TurnRequest) -> TurnResponse:
     session_factory = get_session_factory()
-    store = SQLiteFigureStore(session_factory)
+    store = SQLiteAgentStore(session_factory)
 
     try:
         agent = await create_spirit_agent(agent_id, store=store)

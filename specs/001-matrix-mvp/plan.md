@@ -62,11 +62,10 @@ packages/
 └── bt_store/                       # shared relational schema + migrations (service-agnostic)
 
 services/
-├── memory_service/              # writes sources/segments; triggers Archive publication intents
+├── memory_service/              # writes sources/segments; triggers Archive publication intents; serves Memories API (HTML + /v1/*)
 ├── agents_service/                 # platform-agnostic Spirit core (turn handling, grounding, citations, voice orchestration)
 ├── matrix_service/                 # Node/TS Matrix appservice adapter (Archive/Dialogue semantics, event routing, posting)
-├── voip_service/             # Node MatrixRTC/WebRTC sidecar; audio bridge to agents_service
-└── memory_page_service/            # public memory pages (optional but strongly recommended)
+└── voip_service/                   # Node MatrixRTC/WebRTC sidecar; audio bridge to agents_service
 
 packages/bt_cli/                    # operator CLI entrypoints to run services and bootstrap env
 ```

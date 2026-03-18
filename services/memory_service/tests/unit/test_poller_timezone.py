@@ -55,7 +55,7 @@ async def test_poller_handles_naive_retry_timestamps_without_crashing(tmp_path) 
 
     config = load_runtime_config(
         db_path=str(db),
-        figure_slug="alan-watts",
+        agent_slug="alan-watts",
         emos_base_url="https://emos.local",
     )
 
