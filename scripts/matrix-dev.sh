@@ -50,6 +50,30 @@ ensure_env_file() {
   mkdir -p "${MATRIX_DIR}"
 
   if [[ -f "${ENV_FILE}" ]]; then
+    # Backfill new vars for existing dev env files (idempotent).
+    if ! grep -q '^ELEMENT_CALL_PORT=' "${ENV_FILE}"; then
+      cat >>"${ENV_FILE}" <<'EOF'
+
+# MatrixRTC (Element Call + LiveKit) local dev
+ELEMENT_CALL_PORT=9011
+WELL_KNOWN_PORT=80
+
+# LiveKit SFU ports (host-exposed for browser clients)
+LIVEKIT_PORT=7880
+LIVEKIT_UDP_PORT=7881
+
+# LiveKit auth (dev-only defaults; safe to change locally)
+LIVEKIT_URL=http://livekit.localhost:7880
+LIVEKIT_KEY=devkey
+LIVEKIT_SECRET=devsecret
+LIVEKIT_KEYS=devkey:devsecret
+LIVEKIT_FULL_ACCESS_HOMESERVERS=localhost
+
+# Fallback MatrixRTC focus URL (used by matrix_service when call events omit foci)
+VOIP_LIVEKIT_SERVICE_URL=http://localhost/livekit/jwt
+EOF
+      log "updated ${ENV_FILE} with MatrixRTC defaults"
+    fi
     return 0
   fi
 
@@ -68,6 +92,20 @@ ensure_env_file() {
 MATRIX_SERVER_NAME=localhost
 SYNAPSE_PORT=8008
 ELEMENT_PORT=8081
+ELEMENT_CALL_PORT=9011
+WELL_KNOWN_PORT=80
+
+# LiveKit SFU (MatrixRTC)
+LIVEKIT_PORT=7880
+LIVEKIT_UDP_PORT=7881
+LIVEKIT_URL=http://livekit.localhost:7880
+LIVEKIT_KEY=devkey
+LIVEKIT_SECRET=devsecret
+LIVEKIT_KEYS=devkey:devsecret
+LIVEKIT_FULL_ACCESS_HOMESERVERS=localhost
+
+# Fallback MatrixRTC focus URL (used by matrix_service when call events omit foci)
+VOIP_LIVEKIT_SERVICE_URL=http://localhost/livekit/jwt
 
 # Optional: proxy overrides for Synapse containers.
 # Some Docker installations inject global proxy env vars into every container;
@@ -188,6 +226,32 @@ ensure_element_config() {
   "disable_custom_urls": true,
   "disable_guests": true,
   "brand": "Bibliotalk (Local)",
+  "default_theme": "dark"
+}
+EOF
+
+  log "wrote ${out}"
+}
+
+ensure_element_call_config() {
+  mkdir -p "${MATRIX_DIR}/element_call"
+
+  local out="${MATRIX_DIR}/element_call/config.json"
+  if [[ -f "${out}" ]]; then
+    return 0
+  fi
+
+  cat >"${out}" <<EOF
+{
+  "default_server_config": {
+    "m.homeserver": {
+      "base_url": "http://localhost:${SYNAPSE_PORT}",
+      "server_name": "${MATRIX_SERVER_NAME}"
+    }
+  },
+  "disable_custom_urls": true,
+  "disable_guests": true,
+  "brand": "Bibliotalk Call (Local)",
   "default_theme": "dark"
 }
 EOF
@@ -381,6 +445,7 @@ cmd_init() {
   load_env
   ensure_appservice_yaml
   ensure_element_config
+  ensure_element_call_config
 
   log "init complete"
 }
@@ -398,10 +463,12 @@ cmd_up() {
 
   wait_for_synapse
 
-  compose up -d element >/dev/null
+  compose up -d element element-call livekit lk-jwt-service well-known >/dev/null
 
   log "synapse: http://localhost:${SYNAPSE_PORT}"
   log "element : http://localhost:${ELEMENT_PORT}"
+  log "call   : http://localhost:${ELEMENT_CALL_PORT}"
+  log "well-known: http://localhost:${WELL_KNOWN_PORT}/.well-known/matrix/client"
 }
 
 cmd_provision() {

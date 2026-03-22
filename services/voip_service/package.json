@@ -10,7 +10,8 @@
     "format": "prettier -w ."
   },
   "dependencies": {
-    "matrix-js-sdk": "^33.1.0",
+    "@livekit/rtc-node": "^0.13.5",
+    "fastify": "^4.28.1",
     "ws": "^8.18.0"
   },
   "devDependencies": {

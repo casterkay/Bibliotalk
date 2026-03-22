@@ -7,9 +7,13 @@ import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote as _urlquote
+from urllib.request import Request as _UrlRequest
+from urllib.request import urlopen as _urlopen
 
 import typer
-from bt_store.engine import init_database, resolve_database_path
+from bt_store.engine import init_database, resolve_database_path, session_scope
+from bt_store.models import Agent
 from discord_service.config import load_runtime_config as load_discord_config
 from discord_service.ops import seed_agent
 from discord_service.ops.feed import (
@@ -24,6 +28,7 @@ from memory_service.entrypoint import run_collector
 from memory_service.ops import request_manual_ingest
 from rich.console import Console
 from rich.table import Table
+from sqlalchemy import select
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -48,6 +53,124 @@ def _run(coro) -> Any:
     return asyncio.run(coro)
 
 
+def _parse_dotenv(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    out: dict[str, str] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        out[k.strip()] = v.strip()
+    return out
+
+
+def _http_json(
+    method: str, url: str, *, body: dict[str, Any] | None, headers: dict[str, str]
+) -> Any:
+    data = None if body is None else json.dumps(body).encode("utf-8")
+    req = _UrlRequest(url, method=method, data=data, headers=headers)
+    try:
+        with _urlopen(req, timeout=20) as resp:
+            payload = resp.read().decode("utf-8")
+    except Exception as exc:  # pragma: no cover - operator-friendly errors
+        raise RuntimeError(f"HTTP {method} {url} failed: {exc}") from exc
+    try:
+        return json.loads(payload)
+    except Exception as exc:  # pragma: no cover - operator-friendly errors
+        raise RuntimeError(f"Invalid JSON from {method} {url}: {payload[:2000]}") from exc
+
+
+class _MatrixAdminClient:
+    def __init__(
+        self, *, homeserver_url: str, server_name: str, admin_user: str, admin_password: str
+    ):
+        self._homeserver_url = homeserver_url.rstrip("/")
+        self._server_name = server_name
+        self._admin_user = admin_user
+        self._admin_password = admin_password
+        self._access_token: str | None = None
+
+    def _auth_headers(self) -> dict[str, str]:
+        if not self._access_token:
+            raise RuntimeError("Not logged in")
+        return {"content-type": "application/json", "authorization": f"Bearer {self._access_token}"}
+
+    def login(self) -> None:
+        url = f"{self._homeserver_url}/_matrix/client/v3/login"
+        res = _http_json(
+            "POST",
+            url,
+            body={
+                "type": "m.login.password",
+                "identifier": {"type": "m.id.user", "user": self._admin_user},
+                "password": self._admin_password,
+            },
+            headers={"content-type": "application/json"},
+        )
+        token = str(res.get("access_token") or "")
+        if not token:
+            raise RuntimeError(f"Login failed; response missing access_token: {res}")
+        self._access_token = token
+
+    def _ensure_logged_in(self) -> None:
+        if self._access_token is None:
+            self.login()
+
+    def ensure_room_by_alias(self, *, alias_localpart: str, name: str, is_space: bool) -> str:
+        self._ensure_logged_in()
+        alias = f"#{alias_localpart}:{self._server_name}"
+
+        create_url = f"{self._homeserver_url}/_matrix/client/v3/createRoom"
+        payload: dict[str, Any] = {
+            "name": name,
+            "preset": "public_chat",
+            "visibility": "public",
+            "room_alias_name": alias_localpart,
+        }
+        if is_space:
+            payload["topic"] = "Bibliotalk dev space"
+            payload["creation_content"] = {"type": "m.space"}
+
+        try:
+            res = _http_json("POST", create_url, body=payload, headers=self._auth_headers())
+            room_id = str(res.get("room_id") or "")
+            if room_id:
+                return room_id
+        except Exception:
+            # Alias likely already exists; resolve it below.
+            pass
+
+        alias_enc = _urlquote(alias, safe="")
+        dir_url = f"{self._homeserver_url}/_matrix/client/v3/directory/room/{alias_enc}"
+        res = _http_json("GET", dir_url, body=None, headers=self._auth_headers())
+        room_id = str(res.get("room_id") or "")
+        if not room_id:
+            raise RuntimeError(f"Failed to resolve alias {alias}: {res}")
+        return room_id
+
+    def link_child(self, *, space_room_id: str, child_room_id: str) -> None:
+        self._ensure_logged_in()
+        url = (
+            f"{self._homeserver_url}/_matrix/client/v3/rooms/{_urlquote(space_room_id, safe='')}"
+            f"/state/m.space.child/{_urlquote(child_room_id, safe='')}"
+        )
+        _http_json(
+            "PUT",
+            url,
+            body={"via": [self._server_name], "suggested": True},
+            headers=self._auth_headers(),
+        )
+
+    def invite(self, *, room_id: str, user_id: str) -> None:
+        self._ensure_logged_in()
+        url = f"{self._homeserver_url}/_matrix/client/v3/rooms/{_urlquote(room_id, safe='')}/invite"
+        _http_json("POST", url, body={"user_id": user_id}, headers=self._auth_headers())
+
+
 @app.command()
 def db_init(
     db: str | None = typer.Option(None, "--db", help="SQLite path (overrides BIBLIOTALK_DB_PATH)."),
@@ -64,6 +187,134 @@ def db_init(
         _print_json(_JsonResult(ok=True, data={"db_path": str(resolve_database_path(db))}))
     else:
         console.print(f"Initialized DB at `{resolve_database_path(db)}`")
+
+
+matrix_app = typer.Typer(no_args_is_help=True, help="Matrix operations.")
+app.add_typer(matrix_app, name="matrix")
+
+matrix_demo_app = typer.Typer(no_args_is_help=True, help="Matrix demo helpers.")
+matrix_app.add_typer(matrix_demo_app, name="demo")
+
+
+@matrix_demo_app.command("provision")
+def matrix_demo_provision(
+    figures: str = typer.Option(
+        "alan-watts,steve-jobs", "--figures", help="Comma-separated figure slugs."
+    ),
+    db: str | None = typer.Option(None, "--db", help="SQLite path (overrides BIBLIOTALK_DB_PATH)."),
+    matrix_env: str = typer.Option(
+        "deploy/local/matrix/.env",
+        "--matrix-env",
+        help="Path to local Matrix stack .env (from ./scripts/matrix-dev.sh init).",
+    ),
+    out: str = typer.Option(
+        ".bibliotalk/matrix_demo_mapping.json",
+        "--out",
+        help="Write a gitignored mapping file for ops convenience.",
+    ),
+    json_: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+) -> None:
+    """Provision local Matrix demo Figure Rooms under the Bibliotalk Space."""
+    figure_slugs = [s.strip() for s in figures.split(",") if s.strip()]
+    if not figure_slugs:
+        raise typer.BadParameter("--figures must not be empty")
+
+    matrix_env_path = Path(matrix_env)
+    env_map = _parse_dotenv(matrix_env_path)
+
+    server_name = (env_map.get("MATRIX_SERVER_NAME") or "localhost").strip() or "localhost"
+    homeserver_url = (env_map.get("MATRIX_HOMESERVER_URL") or "http://localhost:8008").strip()
+    admin_user = (env_map.get("MATRIX_ADMIN_USER") or "admin").strip()
+    admin_password = (env_map.get("MATRIX_ADMIN_PASSWORD") or "").strip()
+    spirit_user_prefix = (env_map.get("MATRIX_SPIRIT_USER_PREFIX") or "bt_").strip() or "bt_"
+
+    if not admin_password:
+        raise typer.BadParameter(
+            f"Missing MATRIX_ADMIN_PASSWORD in {matrix_env_path} (run: ./scripts/matrix-dev.sh init)"
+        )
+
+    default_display_names: dict[str, str] = {
+        "alan-watts": "Alan Watts",
+        "steve-jobs": "Steve Jobs",
+    }
+
+    async def _ensure_agents() -> dict[str, str]:
+        await init_database(db)
+        ids: dict[str, str] = {}
+        async with session_scope(db) as session:
+            for slug in figure_slugs:
+                display_name = default_display_names.get(slug) or slug.replace("-", " ").title()
+                row = (
+                    await session.execute(select(Agent).where(Agent.slug == slug))
+                ).scalar_one_or_none()
+                if row is None:
+                    row = Agent(slug=slug, display_name=display_name, kind="figure")
+                    session.add(row)
+                    await session.flush()
+                ids[slug] = str(row.agent_id)
+            await session.commit()
+        return ids
+
+    try:
+        agent_ids = _run(_ensure_agents())
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+
+    mx = _MatrixAdminClient(
+        homeserver_url=homeserver_url,
+        server_name=server_name,
+        admin_user=admin_user,
+        admin_password=admin_password,
+    )
+
+    try:
+        space_room_id = mx.ensure_room_by_alias(
+            alias_localpart="bibliotalk-space", name="Bibliotalk", is_space=True
+        )
+
+        rooms: list[dict[str, str]] = []
+        for slug in figure_slugs:
+            agent_id = agent_ids[slug]
+            room_alias_localpart = f"{spirit_user_prefix}{slug}"
+            room_name = default_display_names.get(slug) or slug.replace("-", " ").title()
+            room_id = mx.ensure_room_by_alias(
+                alias_localpart=room_alias_localpart, name=room_name, is_space=False
+            )
+            mx.link_child(space_room_id=space_room_id, child_room_id=room_id)
+
+            spirit_user_id = f"@{spirit_user_prefix}{agent_id}:{server_name}"
+            mx.invite(room_id=room_id, user_id=spirit_user_id)
+
+            rooms.append(
+                {
+                    "slug": slug,
+                    "agent_id": agent_id,
+                    "spirit_user_id": spirit_user_id,
+                    "room_id": room_id,
+                    "canonical_alias": f"#{room_alias_localpart}:{server_name}",
+                }
+            )
+
+        out_path = Path(out).expanduser()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(
+            json.dumps({"space_room_id": space_room_id, "rooms": rooms}, indent=2, sort_keys=True)
+            + "\n",
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        if json_:
+            _print_json(_JsonResult(ok=False, error=str(exc)))
+        raise typer.Exit(code=1) from exc
+
+    data = {"space_room_id": space_room_id, "rooms": rooms, "out": str(out_path)}
+    if json_:
+        _print_json(_JsonResult(ok=True, data=data))
+    else:
+        console.print(f"Provisioned Space `{space_room_id}` and {len(rooms)} Figure Rooms.")
+        console.print(f"Wrote mapping `{out_path}`")
 
 
 agent_app = typer.Typer(no_args_is_help=True, help="Agent operations.")

@@ -79,7 +79,7 @@ Matrix-first MVP is under active development; authoritative specs live in `specs
 
 ## Developer Appendix
 
-### Start a local Element + Synapse stack
+### Start a local Matrix stack (Synapse + Element + MatrixRTC)
 
 ```bash
 ./scripts/matrix-dev.sh provision
@@ -88,8 +88,20 @@ Matrix-first MVP is under active development; authoritative specs live in `specs
 This brings up:
 - Synapse (`http://localhost:8008`)
 - Element Web (`http://localhost:8081`)
+- Element Call (`http://localhost:9011`)
+- LiveKit SFU (host ports `7880/tcp`, `7881/udp`, `50100-50200/udp`)
+- `/.well-known/matrix/client` for MatrixRTC focus discovery (`http://localhost/.well-known/matrix/client`)
 
 More details: `deploy/local/matrix/README.md`.
+
+### Provision the demo Figure Rooms (Alan Watts + Steve Jobs)
+
+```bash
+uv run --package bt_cli bibliotalk matrix demo provision --figures alan-watts,steve-jobs
+```
+
+This creates/ensures the Bibliotalk Space + the two Figure Rooms and invites the Spirit virtual users
+(`@bt_<agent_uuid>:localhost`) into their rooms.
 
 ### Local dev loop (Matrix MVP)
 

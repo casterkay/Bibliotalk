@@ -7,10 +7,12 @@ import { renderCitedMessage, type CitationV1 } from "../render/matrix_message.js
 import { startStreamingMessage } from "../render/streaming_edits.js";
 import { AppserviceAuthError, requireHsToken } from "./auth.js";
 import { MatrixClient } from "./client.js";
-import { parseTransaction, type MatrixRoomMessageEvent } from "./events.js";
+import { parseTransaction, type MatrixCallMemberEvent, type MatrixRoomMessageEvent } from "./events.js";
 import { shouldIgnoreMessage } from "./guards.js";
 import { handleMembershipEvent, MembershipIndex } from "./membership.js";
 import { routeMessageToSpirits } from "./routing.js";
+import { extractLivekitServiceUrl } from "../voip/call_member.js";
+import { ensureVoipBridge } from "../voip/voip_service_client.js";
 
 type AgentTurnResult = {
   text: string;
@@ -166,6 +168,8 @@ export const createAppserviceRouter = (): FastifyPluginAsync => {
     const homeserverUrl = env("MATRIX_HOMESERVER_URL", "http://localhost:8008");
     const asToken = env("MATRIX_AS_TOKEN");
     const agentsBaseUrl = env("AGENTS_SERVICE_URL", "http://localhost:8009");
+    const voipServiceUrl = env("VOIP_SERVICE_URL", "http://localhost:9012");
+    const fallbackLivekitServiceUrl = env("VOIP_LIVEKIT_SERVICE_URL", "");
 
     if (!asToken) {
       app.log.warn("MATRIX_AS_TOKEN is not configured; matrix_service cannot send messages");
@@ -199,6 +203,16 @@ export const createAppserviceRouter = (): FastifyPluginAsync => {
           continue;
         }
 
+        if (event.type === "org.matrix.msc3401.call.member") {
+          await handleCallMemberEvent(event, {
+            spiritUserPrefix,
+            membershipIndex,
+            voipServiceUrl,
+            fallbackLivekitServiceUrl,
+          });
+          continue;
+        }
+
         if (event.type !== "m.room.message") continue;
         if (shouldIgnoreMessage(event, { spiritUserPrefix })) continue;
 
@@ -218,6 +232,44 @@ export const createAppserviceRouter = (): FastifyPluginAsync => {
         );
       }
     };
+
+    async function handleCallMemberEvent(
+      event: MatrixCallMemberEvent,
+      deps: {
+        spiritUserPrefix: string;
+        membershipIndex: MembershipIndex;
+        voipServiceUrl: string;
+        fallbackLivekitServiceUrl: string;
+      },
+    ): Promise<void> {
+      const spirits = deps.membershipIndex.getRoomSpirits(event.room_id);
+      if (spirits.length !== 1) return;
+
+      const spiritUserId = spirits[0];
+      const agentId = parseAgentIdFromSpiritUserId(spiritUserId, deps.spiritUserPrefix);
+      if (!agentId) return;
+
+      const livekitServiceUrl = extractLivekitServiceUrl(event) ?? deps.fallbackLivekitServiceUrl;
+      if (!livekitServiceUrl) {
+        app.log.warn({ roomId: event.room_id }, "call.member event missing livekit_service_url and no fallback");
+        return;
+      }
+
+      try {
+        await ensureVoipBridge({
+          voipServiceUrl: deps.voipServiceUrl,
+          roomId: event.room_id,
+          spiritUserId,
+          agentId,
+          livekitServiceUrl,
+        });
+      } catch (err) {
+        app.log.warn(
+          { roomId: event.room_id, err: String((err as Error)?.message ?? err) },
+          "voip_service ensure failed",
+        );
+      }
+    }
 
     async function handleSpiritMessage(params: {
       event: MatrixRoomMessageEvent;

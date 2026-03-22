@@ -1,4 +1,4 @@
-export type MatrixEventType = "m.room.message" | "m.room.member";
+export type MatrixEventType = "m.room.message" | "m.room.member" | "org.matrix.msc3401.call.member";
 
 export type MatrixTransaction = {
   events: MatrixEvent[];
@@ -32,7 +32,13 @@ export type MatrixRoomMemberEvent = MatrixEventBase & {
   content: { membership: "invite" | "join" | "leave" | "ban" | string };
 };
 
-export type MatrixEvent = MatrixRoomMessageEvent | MatrixRoomMemberEvent;
+export type MatrixCallMemberEvent = MatrixEventBase & {
+  type: "org.matrix.msc3401.call.member";
+  state_key: string;
+  content: Record<string, unknown>;
+};
+
+export type MatrixEvent = MatrixRoomMessageEvent | MatrixRoomMemberEvent | MatrixCallMemberEvent;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -73,6 +79,13 @@ export function parseEvent(raw: unknown): MatrixEvent | null {
     const membership = content.membership;
     if (typeof membership !== "string") return null;
     return { type, room_id, sender, state_key, content: { membership } };
+  }
+
+  if (type === "org.matrix.msc3401.call.member") {
+    const state_key = raw.state_key;
+    const content = raw.content;
+    if (typeof state_key !== "string" || !isRecord(content)) return null;
+    return { type, room_id, sender, state_key, content };
   }
 
   return null;

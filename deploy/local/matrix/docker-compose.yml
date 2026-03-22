@@ -44,3 +44,63 @@ services:
       - ./element/config.json:/app/config.json:ro
     ports:
       - "${ELEMENT_PORT:-8081}:80"
+
+  # Element Call (MatrixRTC UI). Element Web uses `Developer.elementCallUrl` to open this.
+  element-call:
+    image: ghcr.io/element-hq/element-call:latest
+    container_name: bibliotalk-element-call
+    restart: unless-stopped
+    depends_on:
+      synapse:
+        condition: service_healthy
+    volumes:
+      # Image entrypoints vary; mount config to both common locations.
+      - ./element_call/config.json:/app/config.json:ro
+      - ./element_call/config.json:/usr/share/nginx/html/config.json:ro
+    ports:
+      - "${ELEMENT_CALL_PORT:-9011}:80"
+
+  # LiveKit SFU for MatrixRTC.
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: bibliotalk-livekit
+    restart: unless-stopped
+    command: ["--config", "/etc/livekit.yaml"]
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_KEYS:-devkey:devsecret}
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "${LIVEKIT_PORT:-7880}:7880"
+      - "${LIVEKIT_UDP_PORT:-7881}:7881/udp"
+      - "50100-50200:50100-50200/udp"
+
+  # MatrixRTC Authorization Service (issues LiveKit JWTs after validating Synapse OpenID tokens).
+  lk-jwt-service:
+    image: ghcr.io/element-hq/lk-jwt-service:0.4.1
+    container_name: bibliotalk-lk-jwt-service
+    restart: unless-stopped
+    depends_on:
+      - livekit
+    environment:
+      # Must be reachable by both Docker containers and host/browser. We use `*.localhost`
+      # plus `extra_hosts` to map it to the host gateway inside containers.
+      - LIVEKIT_URL=${LIVEKIT_URL:-http://livekit.localhost:${LIVEKIT_PORT:-7880}}
+      - LIVEKIT_KEY=${LIVEKIT_KEY:-devkey}
+      - LIVEKIT_SECRET=${LIVEKIT_SECRET:-devsecret}
+      - LIVEKIT_FULL_ACCESS_HOMESERVERS=${LIVEKIT_FULL_ACCESS_HOMESERVERS:-localhost}
+    extra_hosts:
+      - "livekit.localhost:host-gateway"
+
+  # Serves `/.well-known/matrix/client` and reverse-proxies `/livekit/jwt/* -> lk-jwt-service`.
+  well-known:
+    image: caddy:2
+    container_name: bibliotalk-well-known
+    restart: unless-stopped
+    depends_on:
+      - lk-jwt-service
+    volumes:
+      - ./well-known/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./well-known/site:/srv:ro
+    ports:
+      - "${WELL_KNOWN_PORT:-80}:80"

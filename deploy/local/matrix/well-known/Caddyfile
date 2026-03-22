@@ -1,0 +1,15 @@
+:80 {
+  encode gzip
+
+  # MatrixRTC focus discovery uses the server_name domain's /.well-known endpoint.
+  # For local dev, our server_name is `localhost`, so we bind this container to host port 80.
+  root * /srv
+
+  # Expose lk-jwt-service behind a reverse-proxy prefix, stripping it so clients can call:
+  #   {livekit_service_url}/get_token  ->  /get_token upstream
+  handle_path /livekit/jwt* {
+    reverse_proxy lk-jwt-service:8080
+  }
+
+  file_server
+}
