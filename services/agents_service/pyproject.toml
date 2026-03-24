@@ -10,6 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
   "bt_common>=0.1.0",
   "bt_store>=0.1.0",
+  "fastapi>=0.115.0",
   "google-adk>=1.25.0",
   "google-genai>=1.0.0",
   "httpx[socks]>=0.27.0",
@@ -29,11 +30,14 @@ packages = [
   "agents_service.agent",
   "agents_service.agent.providers",
   "agents_service.agent.tools",
+  "agents_service.api",
+  "agents_service.audit",
+  "agents_service.live",
   "agents_service.models",
 ]
 
 [tool.setuptools.package-dir]
-"agents_service" = "src/agents_service"
+"agents_service" = "src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

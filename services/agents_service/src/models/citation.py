@@ -7,6 +7,7 @@ from collections.abc import Iterable, Sequence
 from datetime import datetime
 from uuid import UUID
 
+from bt_common.config import get_settings
 from pydantic import BaseModel, Field
 
 NO_EVIDENCE_RESPONSE = "I couldn't find relevant supporting evidence for that question."
@@ -14,6 +15,10 @@ NO_EVIDENCE_RESPONSE = "I couldn't find relevant supporting evidence for that qu
 
 def _normalize_whitespace(text: str) -> str:
     return " ".join(text.split())
+
+
+def _public_memories_base_url() -> str:
+    return get_settings().BIBLIOTALK_WEB_URL.rstrip("/")
 
 
 def build_verifiable_quote(text: str | None, *, max_chars: int = 200) -> str:
@@ -57,7 +62,7 @@ class Evidence(BaseModel):
                 f"{self.memory_user_id}_{self.memory_timestamp.strftime('%Y%m%dT%H%M%SZ')}"
             )
         if self.memory_url is None and self.memory_id:
-            self.memory_url = f"https://www.bibliotalk.space/memories/{self.memory_id}"
+            self.memory_url = f"{_public_memories_base_url()}/memories/{self.memory_id}"
         if (
             self.video_url_with_timestamp is None
             and self.published_at is not None
@@ -131,7 +136,7 @@ def validate_citations(
     return valid
 
 
-_INLINE_LINK_RE = re.compile(r"\[([^\]]+)\]\((https://www\.bibliotalk\.space/memories/[^)]+)\)")
+_INLINE_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+/memories/[^)\s]+)\)")
 _QUOTED_TEXT_RE = re.compile(r'"([^"]+)"')
 
 

@@ -12,7 +12,7 @@ from ...models.citation import Evidence, build_inline_link
 SegmentsByIdsProvider = Callable[[list[UUID]], Awaitable[list[dict[str, Any]]]]
 
 _last_citations: contextvars.ContextVar[list[str]] = contextvars.ContextVar(
-    "last_citations", default=None
+    "last_citations", default=[]
 )
 
 
@@ -33,4 +33,4 @@ class EmitCitationsTool:
 
 
 def get_last_citations() -> list[str]:
-    return _last_citations.get()
+    return list(_last_citations.get() or [])
