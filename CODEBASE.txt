@@ -10,6 +10,8 @@
 │   │   └── README.md
 │   └── local
 │       ├── docker-compose.yml
+│       ├── element
+│       │   └── config.json
 │       ├── matrix
 │       │   ├── appservice
 │       │   │   ├── bibliotalk.local.yaml
@@ -28,7 +30,8 @@
 │       │   └── well-known
 │       │       ├── Caddyfile
 │       │       └── site
-│       └── spirits.yaml
+│       ├── spirits.yaml
+│       └── synapse
 ├── DESIGN.md
 ├── OPERATIONS.md
 ├── packages
@@ -178,6 +181,7 @@
 │   │           └── reporting.py
 │   └── voip_service
 │       ├── eslint.config.js
+│       ├── node_modules
 │       ├── package.json
 │       ├── public
 │       ├── pyproject.toml
@@ -240,5 +244,5 @@
 │       └── tasks.md
 └── uv.lock
 
-70 directories, 171 files
+74 directories, 171 files
 

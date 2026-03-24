@@ -1,6 +1,6 @@
 services:
   ingestion:
-    image: ghcr.io/astral-sh/uv:python3.11-bookworm
+    image: astral/uv:python3.12-trixie-slim
     working_dir: /workspace
     env_file:
       - .env
@@ -19,7 +19,7 @@ services:
       - ${BIBLIOTALK_AGENT}
 
   agents:
-    image: ghcr.io/astral-sh/uv:python3.11-bookworm
+    image: astral/uv:python3.12-trixie-slim
     working_dir: /workspace
     env_file:
       - .env
@@ -66,7 +66,7 @@ services:
       - agents
 
   discord:
-    image: ghcr.io/astral-sh/uv:python3.11-bookworm
+    image: astral/uv:python3.12-trixie-slim
     working_dir: /workspace
     env_file:
       - .env
@@ -90,7 +90,7 @@ services:
       - voip
 
   memories:
-    image: ghcr.io/astral-sh/uv:python3.11-bookworm
+    image: astral/uv:python3.12-trixie-slim
     working_dir: /workspace
     env_file:
       - .env
