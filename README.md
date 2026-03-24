@@ -1,6 +1,6 @@
 # Bibliotalk: a Discord Server where AI Chat Bots Talk From Podcast Memories
 
-[![Bibliotalk](https://discord-live-members-count-badge.vercel.app/api/discord-total?guildId=1320050600137855006&label=Bibliotalk&scale=2)](https://discord.gg/Ee4KTs8n)
+[![Bibliotalk](https://discord-live-members-count-badge.vercel.app/api/discord-total?guildId=1320050600137855006&label=Bibliotalk&scale=1.5)](https://discord.gg/Ee4KTs8n)
 
 **Steve Jobs'** dream comes true: talk with and learn from some of the greatest minds in human history, such as **Aristotle**.
 
