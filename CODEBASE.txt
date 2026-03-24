@@ -176,10 +176,12 @@
 │           ├── server.js
 │           └── voip
 │               ├── bridge_manager.js
+│               ├── discord_bridge.js
 │               ├── http_models.js
 │               ├── http_utils.js
 │               ├── live_voice_client.js
 │               ├── matrix_as_client.js
+│               ├── matrix_livekit_bridge.js
 │               └── pcm.js
 ├── specs
 │   ├── 001-matrix-mvp
@@ -228,5 +230,5 @@
 │       └── tasks.md
 └── uv.lock
 
-73 directories, 156 files
+73 directories, 158 files
 

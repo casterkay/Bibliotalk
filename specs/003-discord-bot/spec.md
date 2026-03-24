@@ -1,10 +1,14 @@
-# Feature Specification: YouTube → EverMemOS → Discord Agent Bots
+# Feature Specification: Bibliotalk Discord Bot (Text + Voice)
 
 **Feature Branch**: `003-discord-bot`
 **Created**: 2026-03-07
-**Status**: Approved (Implemented)
+**Revised**: 2026-03-24
+**Status**: US1–US3 Approved (Implemented) · US4 Planned
 **Approved**: 2026-03-15
-**Input**: Design document: DESIGN.md
+**Input**:
+- System design: `DESIGN.md`
+- Gemini Live constraints: `docs/knowledge/gemini-live-api.md`
+- Operational voice WS protocol (current truth): `services/agents_service/src/agents_service/api/live.py`
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -61,6 +65,24 @@ A Discord user DMs the Bibliotalk bot and starts a talk via `/talk Character A, 
 5. **Given** a generated response contains a memory link that does not resolve to a valid EMOS memory, **When** the citation validator runs, **Then** the invalid link is stripped before the message is sent to the user.
 6. **Given** a generated quoted span is not a substring of the cached local segment text, **When** the citation validator runs, **Then** the bad quote is stripped or the link is removed before sending.
 7. **Given** a multi-character talk, **When** the bot routes a message to Character A, **Then** only Character A's memories are retrieved; no cross-character data leaks.
+
+---
+
+### User Story 4 — Voice Channel Conversation Driven by Gemini Live (Priority: P4)
+
+A Discord user runs `/voice join` in a guild. The bot joins the user’s current voice channel, listens continuously, and responds with low-latency speech. The system posts paired input/output transcripts into a designated text channel/thread as durable artifacts. The user can barge-in: speaking while the bot is talking stops playback immediately.
+
+**Why this priority**: Voice is the fastest path to “research instrument” UX. It also stress-tests interruption semantics, transcript artifacts, and the separation of control-plane (Discord gateway) from media-plane (voice transport).
+
+**Independent Test**: In a test guild, run `/voice join` while connected to a voice channel. Speak a short question. Confirm the bot responds in voice. While the bot is speaking, speak again and confirm the bot stops (barge-in). Confirm that input/output transcripts are posted in the configured text channel/thread.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user in a voice channel, **When** the user runs `/voice join`, **Then** the bot joins that voice channel and begins listening.
+2. **Given** inbound user speech, **When** audio is streamed, **Then** the system emits `output.transcription.input` events and posts a user transcript in the configured text channel/thread.
+3. **Given** the model speaks, **When** audio is streamed back, **Then** the system plays audio into the voice channel and posts `output.transcription.output` text artifacts.
+4. **Given** the bot is currently speaking, **When** the user begins speaking again, **Then** playback is interrupted immediately and stale audio is not played.
+5. **Given** a transient network disconnect, **When** the voice bridge reconnects, **Then** it either resumes cleanly or fails closed with a visible error posted to the text channel.
 
 ---
 
@@ -132,6 +154,17 @@ A Discord user DMs the Bibliotalk bot and starts a talk via `/talk Character A, 
 - **FR-036**: Global and per-source ingest concurrency MUST be configurable and bounded, where a source is a single channel or playlist subscription.
 - **FR-037**: Required secrets (`EMOS_BASE_URL`, `EMOS_API_KEY`, `DISCORD_TOKEN`) MUST be injected through environment variables.
 
+#### Voice (Discord Voice Channels)
+
+- **FR-038**: The system MUST support `/voice join` and `/voice leave` guild commands to start/stop a voice session bound to a Discord voice channel.
+- **FR-039**: The Discord gateway MUST be owned by `discord_service`; the voice media-plane MUST NOT require a second Discord gateway client for the same bot token.
+- **FR-040**: The voice bridge MUST stream inbound audio as PCM16k mono chunks to `agents_service` Live Sessions (`modality="voice"`) following `docs/knowledge/gemini-live-api.md`.
+- **FR-041**: The voice bridge MUST play model audio back into the Discord voice channel, resampling as needed (Gemini Live outputs PCM24k; Discord voice expects Opus at 48kHz).
+- **FR-042**: The system MUST surface input/output transcripts (from Gemini Live transcription streams) as durable messages in a configured Discord text channel/thread.
+- **FR-043**: The system MUST support barge-in: any detected user speech while the bot is speaking MUST interrupt playback and clear pending output audio buffers.
+- **FR-044**: Voice sessions MUST be isolated per guild/voice channel; a voice session MUST NOT leak audio or transcripts across agents or channels.
+- **FR-045**: Voice failure MUST degrade gracefully: if voice is unavailable, Discord text talk threads remain functional.
+
 ### Key Entities
 
 - **Agent**: Represents an individual whose content is tracked. Has a stable UUID `agent_id`, a human-readable stable slug (e.g. `alan-watts`), a `display_name`, a `persona_summary`, and a lifecycle `status`.
@@ -155,10 +188,12 @@ A Discord user DMs the Bibliotalk bot and starts a talk via `/talk Character A, 
 - **SC-006**: When no supporting evidence exists, 100% of bot responses explicitly decline to answer rather than fabricating content.
 - **SC-007**: A single-video manual re-ingest completes without leaving orphaned EverMemOS memories from the previous ingest run.
 - **SC-008**: The system recovers from a mid-thread Discord posting failure and completes the remaining batches on retry without duplicating already-posted messages.
+- **SC-009**: In a controlled test call, barge-in interrupts voice playback within 250ms best-effort and no stale audio continues after interruption.
+- **SC-010**: For voice sessions, at least 95% of user utterances produce a posted input transcript and at least 95% of bot responses produce a posted output transcript (best-effort; excludes explicit error cases).
 
 ## Scope & Boundaries
 
-### In Scope (MVP)
+### In Scope
 
 - YouTube as the only content source.
 - One Discord bot that can play multiple agents.
@@ -167,10 +202,10 @@ A Discord user DMs the Bibliotalk bot and starts a talk via `/talk Character A, 
 - SQLite as the local evidence and state store.
 - Gemini via ADK as the LLM runtime.
 - Lightweight public memory pages at `bibliotalk.space/memories/`.
+- Voice-channel conversations (User Story 4) as a planned increment on top of the same agent-core Live Session protocol.
 
-### Out of Scope (MVP)
+### Out of Scope
 
-- Voice chat of any kind.
 - Matrix integration or transport.
 - Non-YouTube content sources.
 - Multi-agent group conversations.
@@ -186,3 +221,4 @@ A Discord user DMs the Bibliotalk bot and starts a talk via `/talk Character A, 
 - Discord token provisioning (one bot token for the deployment) is done by the operator out-of-band.
 - A single SQLite file per deployment instance is sufficient for MVP scale.
 - Silence-gap and speaker-label thresholds for transcript batching will be tuned empirically; reasonable defaults are chosen at implementation time.
+- Voice media bridging is deployed as a separate runtime (`services/voip_service/`) and may require a newer Node.js runtime than other Node services due to Discord voice library constraints.

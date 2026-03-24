@@ -2,18 +2,18 @@
 
 Bibliotalk’s goal is to make real-time voice AI feel like a **research instrument**: fast, interruptible, and *auditable*.
 
-This document defines the target system design for Bibliotalk’s **Matrix-first MVP** (Element UI), aligned with:
-- `specs/001-matrix-mvp/spec.md`
-- `specs/001-matrix-mvp/plan.md`
-- `specs/001-matrix-mvp/contracts/`
-
-Discord support is a **future adapter** and MAY temporarily break during the Matrix MVP refactor.
+This document defines the target system design for Bibliotalk’s **multi-platform** system (Matrix + Discord), aligned with:
+- Matrix MVP contracts (still normative for streaming + citations): `specs/001-matrix-mvp/contracts/`
+- Discord bot feature spec (text + voice): `specs/003-discord-bot/spec.md`
+- Gemini Live audio constraints and best practices: `docs/knowledge/gemini-live-api.md`
 
 ## Glossary
 
 - **Agent / Spirit**: A persona that responds only using its own ingested evidence.
 - **Archive Room**: Public, read-only, non-interactive. Per source: thread root = deterministic source summary from ingestion / EverMemOS metadata; replies = ordered verbatim transcript excerpts.
-- **Dialogue Room**: Private, interactive room for grounded text chat and (MVP) 1:1 voice calls.
+- **Dialogue Room**: Private, interactive room for grounded text chat and voice.
+- **Platform adapter**: A connector that translates platform-native events (Matrix events, Discord messages/interactions) into agent-core Live Session inputs, and renders agent-core outputs back to the platform.
+- **Voice bridge / sidecar**: A media-plane runtime that handles real-time audio I/O (Opus/WebRTC/etc) and bridges it to the agent core’s Live Session WS protocol.
 
 ## Non-Negotiables
 
@@ -25,15 +25,16 @@ Discord support is a **future adapter** and MAY temporarily break during the Mat
 6. **Idempotent publication**: Archive publishing is retry-safe (no duplicate thread roots/replies).
 7. **Streaming-first UX**: Users can send messages while a Spirit is streaming output (cancel/supersede semantics).
 8. **Voice transcripts come from Gemini Live**: Use Live API input/output transcription streams; do not reinvent ASR.
+9. **One gateway client per bot identity**: Never run two competing Discord gateway sessions for the same bot token; voice media must not require a second gateway.
 
-## MVP user experience (what “done” feels like)
+## Product experience (what “done” feels like)
 
 - In a **Dialogue Room**, a user messages `@bt_socrates:server` and sees a Spirit response stream in-place (edits), with citations.
 - The user interrupts mid-stream with a follow-up; the Spirit cancels and pivots.
 - In an **Archive Room**, a new ingested source appears as a thread:
   - root = deterministic summary artifact (from ingestion/EverMemOS episodic memory)
   - replies = verbatim excerpt posts (segments)
-- In an Element Call, the Spirit joins as a MatrixRTC participant and speaks; the room receives a paired transcript + citations.
+- In a voice call (MatrixRTC) or a Discord voice channel, the Spirit joins, speaks, and the room/channel receives a paired transcript (+ citations when grounded).
 
 ## Service Topology (target)
 
@@ -45,8 +46,9 @@ packages/
 services/
   agents_service/       # Python: platform-agnostic agent core + Live Sessions
   memory_service/       # Python: ingestion pipeline + public Memories API (HTML + /v1/*)
+  discord_service/      # Python: Discord gateway + text UX + voice control-plane (join/leave, transcripts)
   matrix_service/       # Node/TS: Matrix AppService adapter + publisher loop (matrix-js-sdk)
-  voice_call_service/   # Node: MatrixRTC/WebRTC sidecar; audio bridge to agents_service
+  voip_service/         # Node: multi-platform voice bridge (MatrixRTC/LiveKit + Discord voice) → agents_service
 ```
 
 ### Why `matrix_service` is Node/TS
@@ -55,21 +57,23 @@ services/
 
 ### Why voice remains a separate sidecar
 
-`voice_call_service` stays separate from `matrix_service` to reduce blast radius: real-time media + native deps must not take down text chat (see “voice failures must leave text chat functional” in MVP requirements).
+`voip_service` stays separate from platform adapters to reduce blast radius: real-time media + native deps must not take down text chat. Text chat is always the fallback UX.
 
 ### Implementation note (current repo state)
 
-The voice sidecar currently lives at `services/voip_service/` in this repository. The design target name is `voice_call_service` to reflect its role more clearly; renaming is planned.
+The voice sidecar currently lives at `services/voip_service/` and is the canonical home for all voice-media bridging. It already bridges MatrixRTC/LiveKit ↔ `agents_service` Live Sessions; it is planned to also bridge Discord voice channels ↔ `agents_service` using the same Live Session protocol.
 
 ## Contracts (source of truth)
 
-The Matrix MVP is contract-driven; treat these as normative:
+The system is contract-driven; treat these as normative:
 
 - Agent interaction (streaming-first Live Sessions + fallback): `specs/001-matrix-mvp/contracts/agent-turn-api.md`
 - Matrix inbound/outbound events + AppService auth (`hs_token`): `specs/001-matrix-mvp/contracts/matrix-events.md`
 - Citation payload + validation: `specs/001-matrix-mvp/contracts/citation-schema.md`
 - Archive publication intents + idempotency keys: `specs/001-matrix-mvp/contracts/archive-publication.md`
-- Voice sidecar ↔ agent core protocol (audio + transcription + interruption): `specs/001-matrix-mvp/contracts/voice-bridge.md`
+- Voice bridge protocol (audio + transcription + interruption): `specs/001-matrix-mvp/contracts/voice-bridge.md`
+
+Implementation note: the currently shipped wire messages for voice Live Sessions are defined by `services/agents_service/src/agents_service/api/live.py` and consumed by `services/voip_service/src/voip/bridge_manager.js`. Where these disagree with `voice-bridge.md`, the code is the operational truth and the contract must be reconciled.
 
 ### Interaction model (streaming is the product)
 
@@ -106,7 +110,7 @@ Idempotency:
 
 ## Core Flows
 
-### 1) Dialogue Room text chat (streaming-first)
+### 1) Dialogue text chat (streaming-first; Matrix + Discord)
 
 ```text
 Synapse AppService txn
@@ -121,6 +125,8 @@ Key invariants:
 - ignore bot loops (Spirit-originated messages never trigger new turns)
 - ignore edits for routing, but outbound edits are used to stream Spirit output
 - users may send a new message during streaming; system cancels/supersedes the prior output
+
+Discord has an analogous flow (DM + thread messages). The adapter differs (Discord message edits/splitting rules), but the agent-core Live Session behavior and citation validation are shared.
 
 Design advice (to win on stage):
 - Prefer **one** continuously edited Spirit message per turn (stream deltas), and then append a compact “Sources” footer at the end.
@@ -146,21 +152,30 @@ Archive Room semantics:
 - root is a deterministic “source summary” artifact (not newly generated at publish time)
 - replies are verbatim transcript excerpts, ordered by `Segment.seq`
 
-### 3) Dialogue Room voice calls (1:1 MVP)
+### 3) Voice conversations (Matrix calls + Discord voice channels)
 
 ```text
-Element Call (MatrixRTC)
-  -> voice_call_service joins call as Spirit and receives Opus audio
-  -> decode to PCM16k and stream to agents_service (WS bridge)
-  -> agents_service uses Gemini Live for audio I/O + transcription streams
-  -> grounded text reasoning remains authority for content + citations
-  -> voice_call_service publishes Spirit audio back to call (Opus)
-  -> matrix_service posts paired text transcript + citations to the Dialogue Room
+Platform voice session (MatrixRTC or Discord)
+  -> voip_service joins media session as Spirit (platform-specific)
+  -> decode Opus/WebRTC → PCM16k mono and stream to agents_service (Live Session WS)
+  -> agents_service uses Gemini Live for audio I/O + input/output transcription
+  -> (target) grounded reasoning remains authority for content + citations
+  -> voip_service publishes Spirit audio back to platform
+  -> platform adapter posts paired transcript (+ citations) as durable artifact
 ```
 
 Notes:
 - transcripts are forwarded from Gemini Live’s transcription streams
 - interruption/barge-in is first-class; ongoing output must stop immediately
+
+#### Discord voice architecture (gateway-proxy pattern)
+
+To honor “one gateway client per bot identity”, `discord_service` remains the only Discord gateway client. `voip_service` must not log in to Discord with the bot token.
+
+Instead:
+- `discord_service` provides the **control plane**: slash commands, authorization, and join/leave by calling Discord’s official gateway voice-state update APIs.
+- `voip_service` provides the **media plane**: UDP voice transport, Opus encode/decode, PCM resampling, and bridging to `agents_service`.
+- `discord_service` forwards the minimal gateway events needed for voice transport (`VOICE_SERVER_UPDATE`, `VOICE_STATE_UPDATE`) to `voip_service` over a local/internal channel, and executes join/leave requests from `voip_service` (voice-state updates).
 
 Design advice (to win on stage):
 - Treat voice as a **state machine**: `idle → listening → thinking → speaking → idle`, and surface state transitions in logs.
@@ -212,20 +227,21 @@ Target state:
 - Provide a one-shot backfill script to map:
   - `figures` → `agents` (preserve UUIDs)
   - existing `sources/segments` → new evidence tables (agent_id = figure_id)
-- Allow Discord to temporarily break during this migration; reintroduce as an adapter later.
+- Preserve adapter correctness during migrations: Discord + Matrix runtimes must continue to function, or migrations must ship with an explicit compatibility window and rollback path.
 
 ## Local Development
 
-Use the Matrix MVP quickstart as the canonical dev loop:
+Use these quickstarts depending on the feature you are iterating on:
 
-- `specs/001-matrix-mvp/quickstart.md`
+- Matrix stack + Matrix adapter: `specs/001-matrix-mvp/quickstart.md`
+- YouTube → EverMemOS → Discord text bot: `specs/003-discord-bot/quickstart.md`
 
 ## Demo plan (3 minutes)
 
 1. **Archive**: open a Spirit’s Archive Room and show a thread: summary root + excerpt replies.
 2. **Chat**: ask a question, show live streaming, then interrupt with a sharper follow-up.
 3. **Proof**: click a citation and show the excerpt contains the quoted substring.
-4. **Voice**: start an Element Call; Spirit speaks; point to posted transcript + citations.
+4. **Voice**: start an Element Call or a Discord voice session; Spirit speaks; point to posted transcript (+ citations).
 
 This sequence tells a tight story: “voice is fun, but citations make it trustworthy.”
 
@@ -233,4 +249,4 @@ This sequence tells a tight story: “voice is fun, but citations make it trustw
 
 - Group voice calls + floor control (see `_ref/matrix-feature/contracts/discussion-floor-control.md` for ideas)
 - Voice E2EE (deferred)
-- Discord adapter parity on top of the same `agents_service` + `bt_store` contracts
+- Discord voice-channel parity on top of the same `agents_service` Live Session + `bt_store` contracts

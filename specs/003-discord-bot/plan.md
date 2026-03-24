@@ -1,208 +1,140 @@
-# Implementation Plan: YouTube → EverMemOS → Discord Agent Bots
+# Implementation Plan: Bibliotalk Discord Bot (Text + Voice)
 
-**Branch**: `003-discord-bot` | **Date**: 2026-03-07 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification at `specs/003-discord-bot/spec.md`
+**Branch**: `003-discord-bot`
+**Created**: 2026-03-07
+**Last updated**: 2026-03-24
+**Spec**: [spec.md](spec.md)
 
-## Summary
+This plan reflects the current repository reality: Discord text is implemented in `services/discord_service/`, and voice is bridged through `services/voip_service/` to `services/agents_service/` Live Sessions backed by Gemini Live.
 
-Build the complete YouTube → EverMemOS → Discord agent-bot pipeline from the skeleton left after ruthlessly deleting all out-of-scope code (Matrix, voice, non-YouTube adapters, AWS Nova provider, SQLAdmin). The successor system has three runtime packages sharing one SQLite database through a shared infra layer in `bt_common`:
+## Current State (as of 2026-03-24)
 
-1. **Collector** (`memory_service`, trimmed but standalone): asyncio polling loop per subscription source, yt-dlp discovery, transcript fetch, chunking, SQLAlchemy-persisted evidence, and EverMemOS memorization.
-2. **Agent runtime** (`agents_service`, trimmed): Gemini/ADK `LlmAgent` per agent, EverMemOS search, BM25 rerank, inline `memory_url` citation, and grounding validation.
-3. **Discord runtime** (`discord_service`, new): one `discord.py` `Client` per deployment, feed channel + thread posting, DM slash commands (`/talk`, `/talks`), private talk-thread creation under `#bibliotalk`, and thread-message routing to character agents.
-4. **Memories API** (`memory_service`, FastAPI): serves public memory pages (`/memories/{id}`) and the JSON API (`/v1/*`) for retrieval, search, and manual ingest triggers.
+Shipped (US1–US3):
+- YouTube ingestion → SQLite evidence cache + EverMemOS memorization (`services/memory_service/`)
+- Grounded agent responses with inline memory links + validation (`services/agents_service/`)
+- Discord feed publishing + DM `/talk` + private thread routing (`services/discord_service/`)
+- Public memory pages served by `memory_service` (`/memories/{id}`)
 
-Code deletion is a hard prerequisite before any new code is written.
+Already present (voice building blocks):
+- Agent-core Live Sessions (text + voice): `services/agents_service/src/agents_service/api/live.py`
+- Gemini Live bidi audio + transcription backend: `services/agents_service/src/agents_service/live/gemini_live_backend.py`
+- A working voice bridge for Matrix calls (LiveKit/MatrixRTC): `services/voip_service/src/voip/bridge_manager.js`
 
-## Technical Context
+## Goal (US4)
 
-**Language/Version**: Python 3.11+
-**Primary Dependencies**: `discord.py>=2.4`, `google-adk>=1.25`, `google-genai>=1.0`, `youtube-transcript-api>=0.6`, `yt-dlp`, `SQLAlchemy>=2.0`, `aiosqlite>=0.20`, `alembic`, `bt_common` (EverMemOS client + shared evidence-store infra), `pydantic>=2.8`, `tenacity`
-**Storage**: SQLite via SQLAlchemy 2.x async ORM (`aiosqlite` driver) + Alembic migrations; single database shared across all runtime packages through `bt_common` infra modules
-**Testing**: `pytest`, `pytest-asyncio`; unit tests for chunking/ID stability/dedup/citation validation; contract tests for EverMemOS calls and page resolution; integration tests for ingest + feed publish + talk-thread response journeys
-**Target Platform**: macOS/Linux single host (Docker Compose or systemd), with memory pages deployable as a separate worker/runtime
-**Project Type**: Four Python service packages + one shared library (`bt_common`)
-**Performance Goals**: Poll cycle completes within the configured interval (15–60 min); per-video ingest < 30 s for a typical transcript; Discord feed posting is sequential and rate-limit-safe
-**Constraints**: Single-bot runtime; no Matrix; no voice; no non-YouTube sources; secrets in env only; dedup by `video_id`; idempotent feed posting; bounded per-source ingest concurrency
-**Scale/Scope**: 2–10 figures, each with 1–5 subscription sources; single-host MVP
+Add Discord voice-channel conversations driven by Gemini Live:
+- `/voice join` → bot joins a Discord voice channel and speaks back
+- Paired transcripts posted into a configured text channel/thread
+- Barge-in interrupts playback immediately
 
-## Constitution Check
+## Architecture Decisions (non-negotiable for Discord voice)
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+### 1) Discord gateway stays in `discord_service`
 
-| Principle                        | Gate                                                                                                                                                                                                                  | Status |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| I. Design-First Architecture     | Spec + plan exist before coding; data models and contracts defined as Phase 1 artifacts                                                                                                                               | PASS   |
-| II. Test-Driven Quality          | Unit tests for chunking, ID stability, dedup, BM25, citation validation, per-source concurrency; contract tests for EverMemOS, Discord message shapes, and memory pages; integration tests for all three user stories | PASS   |
-| III. Contract-Driven Integration | Evidence/citation contract, Discord message shapes, EverMemOS API usage, and memory-page request/response shapes explicitly defined in `contracts/` before integration work begins                                    | PASS   |
-| IV. Incremental Delivery         | Phase A (deletion) → Phase B (P1 ingest) → Phase C (P2 feed) → Phase D (P3 talk threads + pages); each phase independently deployable and testable                                                                   | PASS   |
-| V. Observable Systems            | Structured logs with correlation IDs at all entry points (poll loop, ingest run, Discord handler, page handler); EMOS + yt-dlp call latency logged; citation validation decisions logged                              | PASS   |
-| VI. Principled Simplicity        | SQLAlchemy justified by operator directive + migration tooling requirement; four packages justified by distinct runtimes and deployment boundaries; shared DB infra isolated in `bt_common`                           | PASS   |
+`services/discord_service/` is the only process that logs in with `DISCORD_TOKEN`.
 
-**Post-Phase 1 Re-check**: PASS — data model and contracts introduce no new complexity violations.
+Rationale:
+- Discord treats concurrent gateway sessions for the same token as hostile/buggy.
+- Text + voice UX (commands, authorization, transcript posting) belongs with the gateway.
 
-## Code Deletion Plan *(prerequisite — complete before writing any new code)*
+### 2) Media-plane stays in `voip_service`
 
-### `services/agents_service/` — delete
+`services/voip_service/` owns:
+- Opus encode/decode, PCM resampling
+- Real-time send/receive loops
+- Bridging to `agents_service` Live Session WS protocol (same as Matrix voice)
 
-| Path                              | Reason                                                                                           |
-| --------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `src/matrix/`                     | Matrix transport — out of scope                                                                  |
-| `src/voice/`                      | Voice pipeline — out of scope                                                                    |
-| `src/admin/`                      | SQLAdmin UI — out of scope                                                                       |
-| `src/agent/providers/aws_nova.py` | AWS Nova Sonic — Gemini only for MVP                                                             |
-| `src/database/`                   | Old SQLAlchemy schema tied to Matrix era; replaced by shared evidence-store infra in `bt_common` |
-| `src/server.py`                   | Litestar HTTP server — not needed for the agent library                                          |
+### 3) Gateway-proxy bridge (`discord_service` ⇄ `voip_service`)
 
-### `services/agents_service/` — keep and adapt
+To enable voice transport without a second gateway client:
+- `discord_service` forwards gateway dispatch payloads needed for voice transport:
+  - `VOICE_STATE_UPDATE`
+  - `VOICE_SERVER_UPDATE`
+- `voip_service` asks `discord_service` to perform voice-state updates (join/leave) on its behalf.
 
-| Path                                | Action                                                                                                          |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `src/agent/providers/gemini.py`     | Keep — Gemini provider                                                                                          |
-| `src/agent/agent_factory.py`        | Adapt — update system prompt; wire new `Evidence` model                                                         |
-| `src/agent/orchestrator.py`         | Adapt — replace Matrix DM context with Discord DM context                                                       |
-| `src/agent/tools/memory_search.py`  | Adapt — agent-scoped `user_id`; import updated `Evidence`                                                       |
-| `src/agent/tools/emit_citations.py` | Adapt — drop citation indices; emit inline `[text](memory_url)` links                                           |
-| `src/models/citation.py`            | Rebuild — new `Evidence` shape with `memory_url`, `memory_user_id`, `memory_timestamp`; remove `Citation.index` |
-| `src/models/segment.py`             | Keep unchanged — `Segment` + `bm25_rerank` reused directly                                                      |
+This makes `voip_service` a platform-agnostic voice bridge rather than a second Discord bot.
 
-### `services/memory_service/` — delete
+## Interfaces (operational truth)
 
-| Path                         | Reason                                                                            |
-| ---------------------------- | --------------------------------------------------------------------------------- |
-| `src/adapters/blog_crawl.py` | Non-YouTube source                                                                |
-| `src/adapters/document.py`   | Non-YouTube source                                                                |
-| `src/adapters/gutenberg.py`  | Non-YouTube source                                                                |
-| `src/adapters/http_fetch.py` | Non-YouTube source                                                                |
-| `src/adapters/local_text.py` | Non-YouTube source                                                                |
-| `src/adapters/url_tools.py`  | URL utilities for deleted adapters                                                |
-| `src/adapters/web_page.py`   | Non-YouTube source                                                                |
-| `src/server.py`              | FastAPI HTTP server — collector runs as a standalone process, not an HTTP service |
-| `src/pipeline/manifest.py`   | Manifest-driven batch ingest — not MVP                                            |
+### A) `agents_service` Live Sessions (voice)
 
-### `services/memory_service/` — keep and adapt
+`voip_service` creates a Live Session with:
+- `modality="voice"`
+- `platform="discord"`
+- `room_id="{guild_id}:{voice_channel_id}"`
 
-| Path                                 | Action                                                                                 |
-| ------------------------------------ | -------------------------------------------------------------------------------------- |
-| `src/adapters/base.py`               | Keep — adapter interface                                                               |
-| `src/adapters/youtube_transcript.py` | Adapt — trim non-YouTube metadata fields; keep transcript fetch + yt-dlp metadata      |
-| `src/adapters/rss_feed.py`           | Keep — optional RSS fallback discovery (FR-015)                                        |
-| `src/domain/`                        | Adapt — trim `models.py` to YouTube-relevant fields only                               |
-| `src/pipeline/chunking.py`           | Keep unchanged — sentence-aware 1,200-char chunking                                    |
-| `src/pipeline/discovery.py`          | Add — standalone subscription discovery with yt-dlp flat extraction and RSS fallback   |
-| `src/pipeline/ingest.py`             | Adapt — replace raw SQLite access with shared SQLAlchemy session calls via `bt_common` |
-| `src/pipeline/index.py`              | Adapt — replace raw `sqlite3` with SQLAlchemy ORM                                      |
-| `src/runtime/config.py`              | Adapt — standalone collector config including per-source concurrency controls          |
-| `src/runtime/poller.py`              | Add — standalone polling loop and retry/backoff handling                               |
-| `src/__main__.py`                    | Adapt — run the collector as an independent process, separate from `discord_service`   |
+Then streams:
+- `input.audio.chunk` with `pcm16k_b64`
+- receives `output.audio.chunk` with `pcm24k_b64`
+- receives `output.transcription.input` / `output.transcription.output`
 
-## Project Structure
+Reference: `services/agents_service/src/agents_service/api/live.py`
 
-### Documentation (this feature)
+### B) `voip_service` control endpoints
 
-```text
-specs/003-discord-bot/
-├── spec.md
-├── plan.md              ← this file
-├── research.md          ← Phase 0
-├── data-model.md        ← Phase 1
-├── quickstart.md        ← Phase 1
-├── contracts/
-│   ├── evidence.md            ← shared Evidence/Citation Pydantic contract
-│   ├── discord-messages.md    ← Discord inbound/outbound message shapes
-│   ├── collector-cli.md       ← collector entry point contract
-│   ├── evermemos-api.md       ← EverMemOS memorize/search/delete contract
-│   └── memories.md            ← public memory page request/response contract
-└── tasks.md             ← Phase 2 (speckit.tasks — not created here)
-```
+Extend existing `voip_service` API to support a Discord ensure request:
+- `POST /v1/voip/ensure` with `platform="discord"` + `{guild_id, voice_channel_id, agent_id, initiator_discord_user_id, text_channel_id}`
+- `POST /v1/voip/stop` unchanged
 
-### Source Code (repository root)
+Backwards compatibility: existing Matrix payloads continue working.
 
-```text
-packages/bt_common/src/
-├── config.py
-├── evidence_store/
-│   ├── engine.py              # shared async engine + session factory
-│   └── models.py              # shared ORM schema for evidence cache and post state
-├── evermemos_client.py        # search, memorize, delete_by_group_id
-├── exceptions.py
-└── logging.py
+## Work Breakdown (phases)
 
-services/memory_service/src/   # standalone collector / ingestion runtime
-├── adapters/
-│   ├── base.py
-│   ├── youtube_transcript.py      # transcript fetch + yt-dlp metadata
-│   └── rss_feed.py                # optional RSS fallback
-├── domain/
-│   ├── errors.py
-│   ├── ids.py                     # stable group_id / message_id builders
-│   └── models.py                  # trimmed to YouTube fields
-├── runtime/
-│   ├── config.py                  # poll interval + per-source concurrency controls
-│   └── poller.py                  # standalone poll loop
-└── pipeline/
-    ├── chunking.py                # unchanged — 1,200-char sentence-aware chunks
-    ├── discovery.py               # yt-dlp flat extraction + RSS fallback
-    ├── ingest.py                  # adapted — SQLAlchemy persistence
-    └── index.py                   # adapted — SQLAlchemy ORM
+### Phase V0 — Docs + Contracts (fast, unblock)
 
-services/agents_service/src/      # trimmed: Gemini/ADK agent library
-├── agent/
-│   ├── agent_factory.py
-│   ├── orchestrator.py
-│   ├── providers/
-│   │   └── gemini.py
-│   └── tools/
-│       ├── memory_search.py
-│       └── emit_citations.py
-└── models/
-    ├── citation.py                # rebuilt — new Evidence shape, inline memory_url
-    └── segment.py                 # unchanged — Segment + bm25_rerank
+- Update `DESIGN.md` to treat Discord as first-class and describe the gateway-proxy pattern.
+- Update `specs/003-discord-bot/spec.md` to include US4 + FRs + success criteria.
+- Update `specs/003-discord-bot/tasks.md` with Phase 7 / US4 tasks.
+- Reconcile the drift between `specs/001-matrix-mvp/contracts/voice-bridge.md` and the actual message types used by `agents_service`/`voip_service` (document the source of truth and plan the fix).
 
-services/discord_service/
-├── pyproject.toml
-├── src/
-│   ├── __init__.py
-│   ├── __main__.py               # entry: python -m discord_service
-│   ├── config.py                 # Discord runtime config (db path, token, command guild)
-│   ├── runtime.py                # startup: load directory → start bot → publish feeds
-│   ├── feed/
-│   │   ├── batcher.py            # transcript_batch grouping rules
-│   │   └── publisher.py          # Discord feed channel + thread posting
-│   └── bot/
-│       ├── client.py             # discord.Client subclass
-│       └── concierge.py          # DM concierge for non-command messages
-└── tests/
-    ├── unit/
-    └── integration/
+### Phase V1 — Discord UX + Routing (Python)
 
-services/memory_service/src/api/
-├── pyproject.toml
-├── src/
-│   ├── __init__.py
-│   ├── __main__.py               # local dev entrypoint
-│   ├── app.py                    # HTTP/serverless handler
-│   └── resolver.py               # resolve one memory page + timestamped video URL
-└── tests/
-    ├── contract/
-    └── integration/
-```
+In `services/discord_service/`:
+- Add slash commands `/voice join`, `/voice leave`, `/voice status`
+- Persist voice binding via `PlatformRoute` (`platform="discord"`, `purpose="voice"`, `container_id=voice_channel_id`, `config_json={text_channel_id,...}`)
+- Call `voip_service` to ensure/stop the voice bridge
+- Post transcripts (input/output) into the configured text channel/thread with rate-limit-safe edits/coalescing
 
-**Structure Decision**: `memory_service` owns the standalone collector runtime and write-path into the shared evidence store, plus the unified Memories API for public memory pages. `discord_service` owns only the Discord bot runtime, feed publication, DM slash commands (`/talk`, `/talks`), and private talk-thread routing. Shared SQLAlchemy engine/models live in `bt_store` so no service imports another service's runtime internals.
+### Phase V2 — `voip_service` Discord bridge skeleton (Node)
 
-## Phased Delivery
+In `services/voip_service/`:
+- Add a `DiscordBridge` alongside the existing Matrix/LiveKit bridge
+- Add an internal websocket for the gateway-proxy channel:
+  - inbound: `VOICE_STATE_UPDATE` / `VOICE_SERVER_UPDATE`
+  - outbound: `request.change_voice_state` (join/leave)
+- Keep the audio bridge identical to Matrix voice:
+  - inbound audio → resample to PCM16k → `input.audio.chunk`
+  - outbound `output.audio.chunk` → resample to 48k → Opus playback
 
-| Phase          | Deliverable                                                                                                                                                                            | User Story   |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| A — Deletion   | Remove all out-of-scope code; existing tests still pass on retained modules                                                                                                            | Prerequisite |
-| B — P1 Ingest  | standalone `memory_service`; shared ORM schema + Alembic in `bt_common`; yt-dlp discovery; transcript ingest pipeline; EverMemOS memorization; dedup; per-source concurrency limits | US-1         |
-| C — P2 Feed    | Transcript batch grouping; Discord feed publisher; idempotent thread posting; `discord_posts` tracking                                                                                 | US-2         |
-| D — P3 Talks   | Gemini/ADK agent; EverMemOS search; BM25 rerank; inline `memory_url` citations; citation validation; DM `/talk` + private threads; public memory pages via `memory_service`       | US-3         |
-| E — Operations | Env-based config; structured logging; retry/backoff; Docker Compose deployment                                                                                                         | All          |
+### Phase V3 — Voice quality + barge-in
 
-## Complexity Tracking
+- Implement a robust barge-in strategy:
+  - stop audio player immediately
+  - clear ring buffer
+  - optionally send `input.audio.stream_end` on turn boundaries
+- Add jitter buffering on playback (small ring buffer) and chunking control
 
-| Deviation                                                                               | Why Needed                                                                                                                                  | Simpler Alternative Rejected Because                                                                                              |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| SQLAlchemy ORM over raw `aiosqlite`                                                     | Operator directive; typed models, Alembic migration tooling, async session management, shared DB access across runtimes                     | Raw SQL would lose type safety and require manual schema management across packages reading the same DB                           |
-| Three packages (memory_service, agents_service, discord_service) | Each has a distinct runtime and failure domain; the public memory page handler is served by `memory_service` | Merging Discord + ingestion is still avoided; the Memories API remains small and deterministic |
+### Phase V4 — Grounding integration (recommended, but separable for first demo)
+
+Target design: Gemini Live supplies transcription + audio I/O, while the Spirit’s *content* is governed by the grounded agent core.
+
+Implementation choices (pick one and document):
+1. **Two-track** (preferred): use input transcripts to drive the grounded text agent, then send the resulting response text to Gemini Live for TTS audio output.
+2. **Single-track** (demo-only): let Gemini Live generate content directly, but this violates grounding-first and should not be shipped as “truth layer”.
+
+### Phase V5 — Ops + Testing + Deployment
+
+- Add local runtime wiring for `voip_service` (docker-compose or a dev script)
+- Add structured logs with correlation ids:
+  - `voice_session_id`, `turn_id`, `guild_id`, `voice_channel_id`, `agent_id`
+- Add unit tests for:
+  - voice route config parsing
+  - envelope encoding/decoding
+  - barge-in buffer clearing behavior
+- Provide a manual test checklist for Discord voice (join, talk, barge-in, leave, reconnect)
+
+## Key Risks / Decisions
+
+- Node runtime: Discord voice libraries may require a newer Node version than other Node services. Prefer upgrading `voip_service` independently rather than uplifting the entire repo’s Node baseline.
+- Discord voice receive: validate that the chosen voice stack reliably supports inbound audio receive on the target deployment platform (macOS/Linux).
+- Audio resampling: naive 2× upsampling is acceptable for deterministic demo-grade output but should be replaced for production fidelity.

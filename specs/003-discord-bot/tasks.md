@@ -145,6 +145,43 @@
 
 ---
 
+## Phase 7: User Story 4 - Discord Voice Channels (Gemini Live) 🎙️
+
+**Purpose**: Add Discord voice-channel conversations driven by Gemini Live, while keeping `discord_service` as the only Discord gateway client and using `voip_service` as the media-plane bridge.
+
+**Independent Test**: In a test guild, run `/voice join` from a user connected to a voice channel, speak a short question, confirm the bot responds in audio, confirm barge-in interrupts playback, and confirm transcripts are posted to the configured text channel/thread.
+
+### Docs + Contracts
+
+- [X] T066 [P] [US4] Update system and Discord bot docs to treat Discord voice as first-class in `DESIGN.md`, `specs/003-discord-bot/spec.md`, `specs/003-discord-bot/plan.md`, and `specs/003-discord-bot/tasks.md`
+- [ ] T067 [P] [US4] Reconcile voice-bridge contract drift (document the operational truth and plan the fix) in `specs/001-matrix-mvp/contracts/voice-bridge.md` and `services/agents_service/src/agents_service/api/live.py`
+
+### Discord UX + Control Plane (`discord_service`, Python)
+
+- [ ] T068 [P] [US4] Add Discord voice runtime config (voip_service URL, transcript channel defaults) in `services/discord_service/src/config.py`
+- [ ] T069 [US4] Add `/voice join|leave|status` commands and authorization checks in `services/discord_service/src/bot/client.py`
+- [ ] T070 [US4] Persist Discord voice bindings via `PlatformRoute` (`purpose="voice"`) in `services/discord_service/src/talks/service.py` and `packages/bt_store/src/models_runtime.py`
+- [ ] T071 [US4] Implement the gateway-proxy client (forward `VOICE_*` dispatches; execute join/leave requests) in `services/discord_service/src/bot/voice_gateway_proxy.py`
+- [ ] T072 [P] [US4] Add unit tests for voice route parsing and command gating in `services/discord_service/tests/unit/test_voice_routes.py`
+
+### Media Plane (`voip_service`, Node)
+
+- [ ] T073 [P] [US4] Extend `POST /v1/voip/ensure` request model to support `platform="discord"` in `services/voip_service/src/voip/http_models.js` and `services/voip_service/src/server.js`
+- [ ] T074 [US4] Add internal WS endpoint for gateway-proxy events (VOICE_SERVER/STATE updates; request voice-state changes) in `services/voip_service/src/server.js` and `services/voip_service/src/voip/discord_gateway_proxy.js`
+- [ ] T075 [US4] Implement Discord voice bridge (Opus in/out, resampling, Live Session WS) in `services/voip_service/src/voip/discord_bridge.js` and `services/voip_service/src/voip/bridge_manager.js`
+- [ ] T076 [US4] Implement barge-in behavior (stop playback + clear ring buffer) in `services/voip_service/src/voip/discord_bridge.js` and `services/voip_service/src/voip/pcm.js`
+
+### Transcript Artifacts
+
+- [ ] T077 [US4] Post coalesced input/output transcripts into the configured Discord text channel/thread in `services/discord_service/src/bot/voice_transcripts.py`
+- [ ] T078 [P] [US4] Add integration-ish tests for transcript coalescing and rate-limit-safe posting in `services/discord_service/tests/integration/test_voice_transcripts.py`
+
+### Deployment
+
+- [ ] T079 [P] [US4] Add local dev wiring for `voip_service` alongside Discord in `deploy/local/docker-compose.yml` and document required env vars in `README.md`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -155,12 +192,14 @@
 - **Phase 4: User Story 2**: Depends on Phase 2 and reuses ingested `transcript_batches`; should be built after US1 for a working feed path.
 - **Phase 5: User Story 3**: Depends on Phase 2, on US1 producing ingested evidence, and on the memory-page service resolving `memory_url` pages.
 - **Phase 6: Polish**: Depends on the user stories selected for delivery.
+- **Phase 7: User Story 4**: Depends on Phase 2 and the existing Live Session voice plumbing; must not break Discord text UX.
 
 ### User Story Dependencies
 
 - **User Story 1 (P1)**: No dependency on other user stories.
 - **User Story 2 (P2)**: Depends on User Story 1 producing ingested `Source`, `Segment`, and `TranscriptBatch` data in the shared evidence store.
 - **User Story 3 (P3)**: Depends on User Story 1 producing ingested evidence; does not depend on User Story 2.
+- **User Story 4 (P4)**: Depends on `agents_service` Live Sessions (`modality="voice"`) + `voip_service` media-plane bridge; does not require feed publishing.
 
 ### Within Each User Story
 
