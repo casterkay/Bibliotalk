@@ -8,6 +8,10 @@ Powered by **Gemini Live** and **EverMemOS**, Bibliotalk is a **multi-platform**
 
 Let's create your **world-class AI mentor group** in **Bibliotalk** now!
 
+<img width="1377" height="785" alt="Screenshot 2026-03-24 at 23 49 52" src="https://github.com/user-attachments/assets/ac38536b-b49a-4e4a-8ac0-7ecaa273738f" />
+
+[Video Coming Soon!]
+
 ## The “wow” in one minute
 
 - **Live voice chat** (Gemini Live streaming ASR/TTS + transcripts).
