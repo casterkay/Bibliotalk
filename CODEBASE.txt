@@ -47,7 +47,8 @@
 │       ├── alembic
 │       │   ├── env.py
 │       │   └── versions
-│       │       └── 0001_initial_schema.py
+│       │       ├── 0001_initial_schema.py
+│       │       └── 0002_platform_routes_voice_scope.py
 │       ├── alembic.ini
 │       ├── pyproject.toml
 │       └── src
@@ -239,5 +240,5 @@
 │       └── tasks.md
 └── uv.lock
 
-70 directories, 170 files
+70 directories, 171 files
 

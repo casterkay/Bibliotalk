@@ -160,7 +160,7 @@
 
 - [X] T068 [P] [US4] Add Discord voice runtime config (voip_service URL, transcript channel defaults) in `services/discord_service/src/config.py`
 - [X] T069 [US4] Add `/voice join|leave|status` commands and authorization checks in `services/discord_service/src/bot/client.py`
-- [ ] T070 [US4] Persist Discord voice bindings via `PlatformRoute` (`purpose="voice"`) in `services/discord_service/src/talks/service.py` and `packages/bt_store/src/models_runtime.py`
+- [X] T070 [US4] Persist Discord voice bindings via `PlatformRoute` (`purpose="voice"`) in `services/discord_service/src/talks/service.py` and `packages/bt_store/src/models_runtime.py`
 - [X] T071 [US4] Implement the gateway-proxy client (forward `VOICE_*` dispatches; execute join/leave requests) in `services/discord_service/src/bot/voice_gateway_proxy.py`
 - [X] T072 [P] [US4] Add unit tests for voice route parsing and command gating in `services/discord_service/tests/unit/test_voice_routes.py`
 
@@ -174,11 +174,11 @@
 ### Transcript Artifacts
 
 - [X] T077 [US4] Post coalesced input/output transcripts into the configured Discord text channel/thread in `services/discord_service/src/bot/voice_transcripts.py`
-- [ ] T078 [P] [US4] Add integration-ish tests for transcript coalescing and rate-limit-safe posting in `services/discord_service/tests/integration/test_voice_transcripts.py`
+- [X] T078 [P] [US4] Add integration-ish tests for transcript coalescing and rate-limit-safe posting in `services/discord_service/tests/integration/test_voice_transcripts.py`
 
 ### Deployment
 
-- [ ] T079 [P] [US4] Add local dev wiring for `voip_service` alongside Discord in `deploy/local/docker-compose.yml` and document required env vars in `README.md`
+- [X] T079 [P] [US4] Add local dev wiring for `voip_service` alongside Discord in `deploy/local/docker-compose.yml` and document required env vars in `README.md`
 
 ---
 

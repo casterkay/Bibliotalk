@@ -202,6 +202,11 @@ class DiscordVoiceGatewayProxy:
         for bridge in bridges:
             await self._stop_bridge(bridge, reason=reason)
 
+        try:
+            await self._transcripts.close()
+        except Exception:
+            self._logger.info("voice transcript publisher close failed")
+
         async with self._lock:
             session = self._session
             self._session = None

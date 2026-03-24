@@ -55,7 +55,15 @@ class PlatformPost(Base):
 
 class PlatformRoute(Base):
     __tablename__ = "platform_routes"
-    __table_args__ = (UniqueConstraint("platform", "purpose", "agent_id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "platform",
+            "purpose",
+            "agent_id",
+            "container_id",
+            name="uq_platform_routes_platform_purpose_agent_container",
+        ),
+    )
 
     route_id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     platform: Mapped[str] = mapped_column(String(32), index=True)

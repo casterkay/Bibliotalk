@@ -14,7 +14,7 @@ from agents_service.models.citation import (
     validate_evidence_links,
 )
 from bt_store.models_core import Agent, Room, RoomMember
-from bt_store.models_runtime import PlatformUserSettings
+from bt_store.models_runtime import PlatformRoute, PlatformUserSettings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -59,6 +59,19 @@ class TalkListEntry:
 
     def thread_url(self) -> str:
         return f"https://discord.com/channels/{self.guild_id}/{self.thread_id}"
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceRouteBinding:
+    route_id: uuid.UUID
+    guild_id: str
+    agent_id: uuid.UUID | None
+    voice_channel_id: str | None
+    text_channel_id: str | None
+    text_thread_id: str | None
+    updated_by_user_id: str | None
+    updated_at: str | None
+    created_at: datetime
 
 
 class TalkService:
@@ -332,6 +345,104 @@ class TalkService:
                 )
 
         return entries
+
+    async def upsert_voice_route(
+        self,
+        *,
+        guild_id: str,
+        agent_id: uuid.UUID,
+        voice_channel_id: str,
+        text_channel_id: str | None,
+        text_thread_id: str | None,
+        updated_by_user_id: str,
+    ) -> VoiceRouteBinding:
+        clean_guild_id = guild_id.strip()
+        clean_voice_channel_id = voice_channel_id.strip()
+        clean_text_channel_id = (text_channel_id or "").strip() or None
+        clean_text_thread_id = (text_thread_id or "").strip() or None
+        clean_updated_by = updated_by_user_id.strip()
+
+        now = _utc_now()
+        config_payload = {
+            "voice_channel_id": clean_voice_channel_id,
+            "text_channel_id": clean_text_channel_id,
+            "text_thread_id": clean_text_thread_id,
+            "updated_by_user_id": clean_updated_by,
+            "updated_at": now.isoformat(),
+        }
+
+        async with self._session_factory() as session:
+            route = (
+                (
+                    await session.execute(
+                        select(PlatformRoute).where(
+                            PlatformRoute.platform == "discord",
+                            PlatformRoute.purpose == "voice",
+                            PlatformRoute.agent_id == agent_id,
+                            PlatformRoute.container_id == clean_guild_id,
+                        )
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if route is None:
+                route = PlatformRoute(
+                    platform="discord",
+                    purpose="voice",
+                    agent_id=agent_id,
+                    container_id=clean_guild_id,
+                    config_json=config_payload,
+                    created_at=now,
+                )
+                session.add(route)
+            else:
+                route.config_json = config_payload
+
+            await session.commit()
+            await session.refresh(route)
+            return self._to_voice_route_binding(route)
+
+    async def get_voice_route(
+        self, *, guild_id: str, agent_id: uuid.UUID
+    ) -> VoiceRouteBinding | None:
+        async with self._session_factory() as session:
+            route = (
+                (
+                    await session.execute(
+                        select(PlatformRoute).where(
+                            PlatformRoute.platform == "discord",
+                            PlatformRoute.purpose == "voice",
+                            PlatformRoute.agent_id == agent_id,
+                            PlatformRoute.container_id == guild_id,
+                        )
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if route is None:
+                return None
+            return self._to_voice_route_binding(route)
+
+    async def list_voice_routes(self, *, guild_id: str) -> list[VoiceRouteBinding]:
+        async with self._session_factory() as session:
+            routes = (
+                (
+                    await session.execute(
+                        select(PlatformRoute)
+                        .where(
+                            PlatformRoute.platform == "discord",
+                            PlatformRoute.purpose == "voice",
+                            PlatformRoute.container_id == guild_id,
+                        )
+                        .order_by(PlatformRoute.created_at.desc())
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        return [self._to_voice_route_binding(route) for route in routes]
 
     async def handle_thread_message(
         self,
@@ -630,6 +741,21 @@ class TalkService:
             "- I route each message to the most relevant character(s).\n"
             "- Override routing by starting a message with `@slug` (e.g. `@alan-watts ...`).\n"
         ).strip()[:2000]
+
+    @staticmethod
+    def _to_voice_route_binding(route: PlatformRoute) -> VoiceRouteBinding:
+        config = dict(route.config_json or {})
+        return VoiceRouteBinding(
+            route_id=route.route_id,
+            guild_id=route.container_id,
+            agent_id=route.agent_id,
+            voice_channel_id=(config.get("voice_channel_id") or None),
+            text_channel_id=(config.get("text_channel_id") or None),
+            text_thread_id=(config.get("text_thread_id") or None),
+            updated_by_user_id=(config.get("updated_by_user_id") or None),
+            updated_at=(config.get("updated_at") or None),
+            created_at=route.created_at,
+        )
 
 
 def _split_response_text(text: str, *, limit: int = 2000) -> list[str]:

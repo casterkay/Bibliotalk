@@ -79,6 +79,50 @@ Matrix-first MVP is under active development; authoritative specs live in `specs
 
 ## Developer Appendix
 
+### Local Discord Voice Stack (Docker Compose)
+
+Use this when developing `/voice join|status|leave` and Discord transcript posting locally.
+
+1. Prepare env:
+```bash
+cp deploy/local/.env.example deploy/local/.env
+```
+Required values in `deploy/local/.env`:
+- `DISCORD_TOKEN`
+- `GOOGLE_API_KEY`
+- `EMOS_BASE_URL`
+- `EMOS_API_KEY`
+- `BIBLIOTALK_AGENT`
+- `DISCORD_COMMAND_GUILD_ID` (recommended for fast slash-command sync)
+- `DISCORD_VOICE_DEFAULT_TEXT_CHANNEL_ID` (fallback transcript destination)
+
+Compose defaults for in-container service routing:
+- `VOIP_SERVICE_URL=http://voip:9012`
+- `AGENTS_SERVICE_URL=http://agents:8009`
+
+2. Start the stack:
+```bash
+docker compose -f deploy/local/docker-compose.yml up
+```
+
+This stack runs:
+- `ingestion` (memory collector)
+- `discord` (single Discord gateway client)
+- `agents` (FastAPI `/v1/agents/*` + live WS)
+- `voip` (Node 22 Gemini Live media bridge)
+- `memories` (public memory pages/API)
+
+3. Verify voice flow:
+```bash
+uv run --package bt_cli bibliotalk agent seed --help
+```
+Then in Discord:
+- Run `/voice join` in your guild while connected to a voice channel.
+- Speak and confirm audio round-trip.
+- Confirm coalesced transcript updates in the configured text channel/thread.
+- Run `/voice status` and verify saved guild-scoped binding is shown.
+- Run `/voice leave`.
+
 ### Start a local Matrix stack (Synapse + Element + MatrixRTC)
 
 ```bash
@@ -116,7 +160,7 @@ The end-to-end MVP loop (ingest → archive publish → dialogue chat → voice)
 ### Tech stack (current direction)
 
 - Python 3.11+ services: ingestion + agent core (`fastapi`, `uvicorn`, `httpx`, `pydantic>=2`, `SQLAlchemy>=2`)
-- Node.js 20+ services: Matrix adapter (`matrix-js-sdk`) + MatrixRTC voice sidecar (currently in `services/voip_service/`, planned rename to `voice_call_service`)
+- Node.js services: Matrix adapter (`matrix-js-sdk`, Node 20+) + Discord `voip_service` media bridge (Node 22)
 - EverMemOS for memory storage/retrieval; Gemini (ADK + Gemini Live) for reasoning + voice I/O
 
 ### Workspace commands

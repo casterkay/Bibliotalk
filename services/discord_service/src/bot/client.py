@@ -366,6 +366,18 @@ class BibliotalkDiscordClient(discord.Client):
                 else None
             ),
         )
+        await self.talk_service.upsert_voice_route(
+            guild_id=str(interaction.guild.id),
+            agent_id=chosen_agent.agent_id,
+            voice_channel_id=str(voice_state.channel.id),
+            text_channel_id=destination_channel_id or None,
+            text_thread_id=(
+                str(interaction.channel.id)
+                if isinstance(interaction.channel, discord.Thread)
+                else None
+            ),
+            updated_by_user_id=str(interaction.user.id),
+        )
         await interaction.followup.send(
             (
                 f"Voice session started.\n"
@@ -389,16 +401,26 @@ class BibliotalkDiscordClient(discord.Client):
                 ephemeral=True,
             )
             return
+        guild_id = str(interaction.guild.id)
+        saved_routes = await self.talk_service.list_voice_routes(guild_id=guild_id)
 
         stopped = await self.voice_gateway_proxy.stop_guild(
-            guild_id=str(interaction.guild.id), reason="user_requested_leave"
+            guild_id=guild_id, reason="user_requested_leave"
         )
         if stopped:
-            await interaction.response.send_message("Voice session stopped.")
+            if saved_routes:
+                await interaction.response.send_message(
+                    "Voice session stopped. Saved voice preference was kept for this server."
+                )
+            else:
+                await interaction.response.send_message("Voice session stopped.")
             return
-        await interaction.response.send_message(
-            "No active voice session for this server."
-        )
+        if saved_routes:
+            await interaction.response.send_message(
+                "No active voice session for this server. Saved voice preference is still available."
+            )
+            return
+        await interaction.response.send_message("No active voice session for this server.")
 
     async def _cmd_voice_status(self, interaction: discord.Interaction) -> None:
         if self.voice_gateway_proxy is None:
@@ -413,21 +435,53 @@ class BibliotalkDiscordClient(discord.Client):
                 ephemeral=True,
             )
             return
-        rows = await self.voice_gateway_proxy.status(guild_id=str(interaction.guild.id))
-        if not rows:
+        guild_id = str(interaction.guild.id)
+        active_rows = await self.voice_gateway_proxy.status(guild_id=guild_id)
+        saved_routes = await self.talk_service.list_voice_routes(guild_id=guild_id)
+        if not active_rows and not saved_routes:
             await interaction.response.send_message(
-                "No active voice session in this server."
+                "No active or saved voice session in this server."
             )
             return
-        row = rows[0]
+        lines: list[str] = []
+        if active_rows:
+            row = active_rows[0]
+            lines.append("Active voice session:")
+            lines.append(f"- Bridge: `{row['bridge_id']}`")
+            lines.append(f"- Agent: `{row['agent_id']}`")
+            lines.append(f"- Voice channel: <#{row['voice_channel_id']}>")
+            if row.get("text_thread_id"):
+                lines.append(f"- Transcript thread: <#{row['text_thread_id']}>")
+            elif row.get("text_channel_id"):
+                lines.append(f"- Transcript channel: <#{row['text_channel_id']}>")
+        if saved_routes:
+            lines.append("Saved voice bindings:")
+            for route in saved_routes[:8]:
+                agent_name = str(route.agent_id)
+                if route.agent_id is not None:
+                    info = self.agent_directory.get_by_id(route.agent_id)
+                    if info is not None:
+                        agent_name = info.agent_slug
+                voice_display = (
+                    f"<#{route.voice_channel_id}>"
+                    if route.voice_channel_id
+                    else "(unset)"
+                )
+                text_display = (
+                    f"<#{route.text_thread_id}>"
+                    if route.text_thread_id
+                    else (
+                        f"<#{route.text_channel_id}>"
+                        if route.text_channel_id
+                        else "(unset)"
+                    )
+                )
+                lines.append(
+                    f"- `{agent_name}` voice={voice_display} transcripts={text_display}"
+                )
+
         await interaction.response.send_message(
-            (
-                f"Active voice session:\n"
-                f"- Bridge: `{row['bridge_id']}`\n"
-                f"- Agent: `{row['agent_id']}`\n"
-                f"- Voice channel: <#{row['voice_channel_id']}>"
-            ),
-            allowed_mentions=discord.AllowedMentions.none(),
+            "\n".join(lines)[:2000], allowed_mentions=discord.AllowedMentions.none()
         )
 
     def _resolve_voice_agent(self, token: str | None):

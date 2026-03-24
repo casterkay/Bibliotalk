@@ -18,11 +18,61 @@ services:
       - --agent
       - ${BIBLIOTALK_AGENT}
 
+  agents:
+    image: ghcr.io/astral-sh/uv:python3.11-bookworm
+    working_dir: /workspace
+    env_file:
+      - .env
+    environment:
+      AGENTS_SERVICE_URL: http://agents:8009
+    volumes:
+      - ../..:/workspace
+      - bibliotalk_data:/data
+    ports:
+      - "${AGENTS_PORT:-8009}:8009"
+    command:
+      - uv
+      - run
+      - --with
+      - uvicorn
+      - --package
+      - agents_service
+      - uvicorn
+      - agents_service.server:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8009"
+
+  voip:
+    image: node:22-bookworm
+    working_dir: /workspace/services/voip_service
+    env_file:
+      - .env
+    environment:
+      AGENTS_SERVICE_URL: http://agents:8009
+      VOIP_SERVICE_HOST: 0.0.0.0
+      VOIP_SERVICE_PORT: 9012
+    volumes:
+      - ../..:/workspace
+      - voip_node_modules:/workspace/services/voip_service/node_modules
+    ports:
+      - "${VOIP_PORT:-9012}:9012"
+    command:
+      - sh
+      - -lc
+      - npm install && npm start
+    depends_on:
+      - agents
+
   discord:
     image: ghcr.io/astral-sh/uv:python3.11-bookworm
     working_dir: /workspace
     env_file:
       - .env
+    environment:
+      VOIP_SERVICE_URL: http://voip:9012
+      AGENTS_SERVICE_URL: http://agents:8009
     volumes:
       - ../..:/workspace
       - bibliotalk_data:/data
@@ -36,6 +86,8 @@ services:
       - run
     depends_on:
       - ingestion
+      - agents
+      - voip
 
   memories:
     image: ghcr.io/astral-sh/uv:python3.11-bookworm
@@ -62,3 +114,4 @@ services:
 
 volumes:
   bibliotalk_data:
+  voip_node_modules:
