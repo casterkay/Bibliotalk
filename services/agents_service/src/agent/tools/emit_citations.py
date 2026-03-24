@@ -11,8 +11,8 @@ from ...models.citation import Evidence, build_inline_link
 
 SegmentsByIdsProvider = Callable[[list[UUID]], Awaitable[list[dict[str, Any]]]]
 
-_last_citations: contextvars.ContextVar[list[str]] = contextvars.ContextVar(
-    "last_citations", default=[]
+_last_citations: contextvars.ContextVar[tuple[str, ...]] = contextvars.ContextVar(
+    "last_citations", default=()
 )
 
 
@@ -24,13 +24,13 @@ class EmitCitationsTool:
         _ = self.segments_by_ids_provider
         _ = agent_id
         if not evidence_items:
-            _last_citations.set([])
+            _last_citations.set(())
             return []
 
         valid = [link for evidence in evidence_items if (link := build_inline_link(evidence))]
-        _last_citations.set(valid)
+        _last_citations.set(tuple(valid))
         return valid
 
 
 def get_last_citations() -> list[str]:
-    return list(_last_citations.get() or [])
+    return list(_last_citations.get())

@@ -127,7 +127,12 @@ class VoiceTranscriptPublisher:
     async def _resolve_channel(
         self, *, channel_id: str, bridge_id: str, kind: str
     ) -> Any | None:
-        channel: discord.abc.GuildChannel | discord.abc.PrivateChannel | discord.Thread | None
+        channel: (
+            discord.abc.GuildChannel
+            | discord.abc.PrivateChannel
+            | discord.Thread
+            | None
+        )
         try:
             channel = self._client.get_channel(int(channel_id))
         except Exception:
@@ -144,9 +149,9 @@ class VoiceTranscriptPublisher:
                 )
                 return None
 
-        if not isinstance(channel, (discord.TextChannel, discord.Thread)) and not hasattr(
-            channel, "send"
-        ):
+        if not isinstance(
+            channel, (discord.TextChannel, discord.Thread)
+        ) and not hasattr(channel, "send"):
             self._logger.info(
                 "voice transcript channel unsupported channel_id=%s type=%s",
                 channel_id,

@@ -7,7 +7,7 @@
 **Transport**: bidirectional WebSocket (`agents_service` Live Session WS)
 
 This contract is platform-agnostic and matches the operational message names implemented today in:
-- `services/agents_service/src/agents_service/api/live.py`
+- `services/agents_service/src/api/live.py`
 - `services/voip_service/src/voip/matrix_livekit_bridge.js`
 - `services/voip_service/src/voip/discord_bridge.js`
 

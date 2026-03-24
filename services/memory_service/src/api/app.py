@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from bt_common.config import get_settings
 from bt_common.evermemos_client import EverMemOSClient
 from bt_store.engine import get_session_factory, init_database
@@ -36,7 +38,6 @@ def create_app(
     *,
     evermemos_client: EverMemOSClient | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="Bibliotalk Memories API")
     logger = configure_logging(level=config.log_level)
 
     session_factory = get_session_factory(config.db_path)
@@ -52,13 +53,15 @@ def create_app(
         store=store, evermemos_client=client, public_base_url=settings.BIBLIOTALK_WEB_URL
     )
 
-    @app.on_event("startup")
-    async def _startup() -> None:
+    @asynccontextmanager
+    async def _lifespan(_: FastAPI):
         await init_database(config.db_path)
+        try:
+            yield
+        finally:
+            await client.aclose()
 
-    @app.on_event("shutdown")
-    async def _shutdown() -> None:
-        await client.aclose()
+    app = FastAPI(title="Bibliotalk Memories API", lifespan=_lifespan)
 
     @app.get("/health")
     async def health() -> dict:

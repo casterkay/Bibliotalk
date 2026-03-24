@@ -2,7 +2,7 @@
 
 **Steve Jobs'** dream comes true: talk with and learn from some of the greatest minds in human history, such as **Aristotle**.
 
-Powered by **Gemini Live** and **EverMemOS**, Bibliotalk is a **Matrix** space where you can have real-time conversations with **AI Spirits** of famous human beings revived from their digital archives of *thoughts*, *talks*, *podcasts*, and so on. Every non-trivial claim they make is **evidence-based** with citations to original sources, to eliminate the notorious *"LLM hallucination"* issues.
+Powered by **Gemini Live** and **EverMemOS**, Bibliotalk is a **multi-platform** system (Matrix + Discord) where you can have real-time conversations with **AI Spirits** of famous human beings revived from their digital archives of *thoughts*, *talks*, *podcasts*, and so on. Every non-trivial claim they make is **evidence-based** with citations to original sources, to eliminate the notorious *"LLM hallucination"* issues.
 
 Let's create your **world-class AI mentor group** in **Bibliotalk** now!
 
@@ -32,7 +32,7 @@ Planned Spirits and primary sources: `ROSTER.md`.
 - **Citations are not decoration**: they’re validated against stored excerpts (quote-substring checks) and cannot cross Spirit boundaries.
 - **Streaming-first UX**: text and voice are treated as live sessions, not “send message → wait → get blob”.
 - **Archive and Dialogue are separate modes**: Archive Rooms never respond and never drift; Dialogue Rooms are interactive and can be interrupted.
-- **Platform-agnostic core**: Matrix is the MVP UI; Discord is planned as a future adapter on the same contracts.
+- **Platform-agnostic core**: shared agent + store contracts power both Matrix and Discord; Discord is implemented today and Matrix remains under active development.
 
 ## What it looks like (illustrative)
 
@@ -67,12 +67,12 @@ Bibliotalk treats Gemini Live as a **real-time audio interface** (ASR/TTS + live
 
 ## Status
 
-Matrix-first MVP is under active development; authoritative specs live in `specs/001-matrix-mvp/` and the system blueprint is `DESIGN.md`. Discord support may temporarily break during refactors, but remains a target platform.
+Discord (YouTube → EverMemOS → Discord, including `/talk` and `/voice`) is implemented and covered by tests in `services/discord_service/`. Matrix specs and the adapter implementation live in `specs/001-matrix-mvp/` and `services/matrix_service/` and remain under active development.
 
 ## Roadmap (post-MVP)
 
 - **Group calls + floor control** (who speaks when, active speaker policy).
-- **Discord adapter parity** on the same core contracts.
+- **Matrix adapter parity** on the same core contracts.
 - **Voice E2EE** (deferred for MVP).
 
 ---
@@ -166,9 +166,11 @@ The end-to-end MVP loop (ingest → archive publish → dialogue chat → voice)
 ### Workspace commands
 
 - Install deps: `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+- Note: if you hit uv cache permission errors, prefix uv commands with `UV_CACHE_DIR=/tmp/uv-cache`.
 - Run tests (per package to avoid pytest root collisions):
   - `uv --directory services/agents_service run --package agents_service -m pytest`
   - `uv --directory services/memory_service run --package memory_service -m pytest`
+  - `uv --directory services/discord_service run --package discord_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - CLI help: `uv run --package bt_cli bibliotalk --help`
 

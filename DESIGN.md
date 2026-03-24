@@ -76,7 +76,7 @@ The system is contract-driven; treat these as normative:
 - Voice bridge protocol (audio + transcription + interruption): `specs/001-matrix-mvp/contracts/voice-bridge.md`
 
 Operational truth for voice wire messages is implemented in:
-- `services/agents_service/src/agents_service/api/live.py`
+- `services/agents_service/src/api/live.py`
 - `services/voip_service/src/voip/matrix_livekit_bridge.js`
 - `services/voip_service/src/voip/discord_bridge.js`
 

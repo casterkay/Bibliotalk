@@ -1,7 +1,7 @@
 # Contract: Evidence and Citation
 
 **Used by:** `agents_service` (production) · `discord_service` (validation + sending) · tests
-**Source:** `services/agents_service/src/agents_service/models/citation.py`
+**Source:** `services/agents_service/src/models/citation.py`
 **Date:** 2026-03-07
 
 ---

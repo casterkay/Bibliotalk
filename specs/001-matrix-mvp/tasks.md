@@ -52,13 +52,13 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 - [X] T016 Create initial schema migration per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/data-model.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/alembic/versions/0001_initial_schema.py`
 - [X] T017 Add citation validation utility (quote substring + agent isolation) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/citations.py`
 - [X] T018 Add settings for Matrix appservice + Spirit namespace in `/Users/tcai/Projects/Bibliotalk/packages/bt_common/src/config.py`
-- [X] T019 Create `agents_service` HTTP app skeleton (FastAPI) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/server.py`
-- [X] T020 Implement non-streaming fallback `POST /v1/agents/{agent_id}/turn` per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/turns.py`
-- [X] T021 Implement Live Sessions create+WS endpoints per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/live.py`
-- [X] T022 Implement Live-session cancellation/supersede semantics (turn-level cancel; last-turn-wins) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/session_manager.py`
-- [X] T023 Implement voice Live integration with Gemini Live (audio in/out + transcription forwarding) grounded on `/Users/tcai/Projects/Bibliotalk/docs/knowledge/gemini-live-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/live/gemini_live_backend.py`
-- [X] T024 Persist `TalkThread` for both user inputs and Spirit outputs in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/audit/chat_history.py`
-- [X] T025 Add stable error codes + error shape mapping in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/agents_service/api/errors.py`
+- [X] T019 Create `agents_service` HTTP app skeleton (FastAPI) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/server.py`
+- [X] T020 Implement non-streaming fallback `POST /v1/agents/{agent_id}/turn` per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/api/turns.py`
+- [X] T021 Implement Live Sessions create+WS endpoints per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/agent-turn-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/api/live.py`
+- [X] T022 Implement Live-session cancellation/supersede semantics (turn-level cancel; last-turn-wins) in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/live/session_manager.py`
+- [X] T023 Implement voice Live integration with Gemini Live (audio in/out + transcription forwarding) grounded on `/Users/tcai/Projects/Bibliotalk/docs/knowledge/gemini-live-api.md` in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/live/gemini_live_backend.py`
+- [X] T024 Persist `TalkThread` for both user inputs and Spirit outputs in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/audit/chat_history.py`
+- [X] T025 Add stable error codes + error shape mapping in `/Users/tcai/Projects/Bibliotalk/services/agents_service/src/api/errors.py`
 
 **Checkpoint**: DB schema migrates cleanly; `agents_service` exposes both fallback turn API and Live Sessions API; citation validation is enforced.
 
@@ -94,8 +94,8 @@ TASK_LINE: - [ ] T### [P?] [US?] Description with absolute file path
 
 - [ ] T039 [P] [US2] Add `Room.kind` enforcement helpers (archive vs dialogue) in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/rooms.py`
 - [ ] T040 [US2] Add `PlatformPost` idempotency key helpers per `/Users/tcai/Projects/Bibliotalk/specs/001-matrix-mvp/contracts/archive-publication.md` in `/Users/tcai/Projects/Bibliotalk/packages/bt_store/src/platform_posts.py`
-- [ ] T041 [US2] Update ingestion pipeline to write `Source` + `Segment` into `bt_store` and store deterministic root summary (from ingestion/EverMemOS metadata) in `/Users/tcai/Projects/Bibliotalk/services/memory_service/src/memory_service/pipeline/ingest.py`
-- [ ] T042 [US2] Emit Archive publication intents (`PlatformPost`: `archive.thread_root` + `archive.thread_reply`) during/after ingest in `/Users/tcai/Projects/Bibliotalk/services/memory_service/src/memory_service/pipeline/ingest.py`
+- [ ] T041 [US2] Update ingestion pipeline to write `Source` + `Segment` into `bt_store` and store deterministic root summary (from ingestion/EverMemOS metadata) in `/Users/tcai/Projects/Bibliotalk/services/memory_service/src/pipeline/ingest.py`
+- [ ] T042 [US2] Emit Archive publication intents (`PlatformPost`: `archive.thread_root` + `archive.thread_reply`) during/after ingest in `/Users/tcai/Projects/Bibliotalk/services/memory_service/src/pipeline/ingest.py`
 - [ ] T043 [US2] Implement Matrix provisioning (Space + per-agent Archive Room + power levels for read-only) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/provisioning/archive_rooms.ts`
 - [ ] T044 [US2] Implement Archive publisher loop (fetch pending posts → send root/reply thread messages → mark posted) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/publish/archive_publisher.ts`
 - [ ] T045 [US2] Ensure Archive publication is retry-safe (no duplicate root/replies; resume partial) in `/Users/tcai/Projects/Bibliotalk/services/matrix_service/src/publish/archive_publisher.ts`

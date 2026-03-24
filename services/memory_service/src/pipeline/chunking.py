@@ -34,7 +34,7 @@ class _TranscriptMessage:
 
 
 _PARA_SPLIT_RE = re.compile(r"\n\s*\n+")
-_SENTENCE_END_RE = re.compile(r'[.!?。！？]["\')\]’”）】]*$')
+_SENTENCE_END_RE = re.compile(r'[.!?\u3002\uFF01\uFF1F]["\')\]\u2019\u201D\uFF09\u3011]*$')
 
 
 def _split_long(text: str, max_chars: int) -> list[str]:

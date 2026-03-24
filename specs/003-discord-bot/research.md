@@ -104,8 +104,8 @@ The existing `Citation.index: int` field and citation-index-based validation are
 | `memory_service/pipeline/index.py`              | Adapt          | Replace raw `sqlite3` with SQLAlchemy ORM reads/writes                        |
 | `agents_service/agent/tools/memory_search.py`      | Adapt          | Agent-scoped `user_id`; import updated `Evidence`                             |
 | `agents_service/agent/tools/emit_citations.py`     | Adapt          | Drop index field; emit inline `[text](memory_url)` Markdown                   |
-| `services/agents_service/src/agents_service/models/citation.py` | Rebuild        | New `Evidence` shape; remove `Citation.index`; add `memory_url` fields        |
-| `services/agents_service/src/agents_service/models/segment.py`  | Keep unchanged | `Segment` + `bm25_rerank` reused directly                                     |
+| `services/agents_service/src/models/citation.py` | Rebuild        | New `Evidence` shape; remove `Citation.index`; add `memory_url` fields        |
+| `services/agents_service/src/models/segment.py`  | Keep unchanged | `Segment` + `bm25_rerank` reused directly                                     |
 | `agents_service/agent/providers/gemini.py`         | Keep           | Gemini LLM provider                                                           |
 | `agents_service/agent/agent_factory.py`            | Adapt          | Updated system prompt; new `Evidence` model wired                             |
 | `agents_service/agent/orchestrator.py`             | Adapt          | Discord DM context replaces Matrix room context                               |

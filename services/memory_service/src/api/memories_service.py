@@ -220,12 +220,10 @@ class MemoriesService:
         ):
             offset_s = max(
                 0,
-                int(
-                    math.floor(
-                        (
-                            _ensure_utc(view.timestamp) - _ensure_utc(view.source.published_at)
-                        ).total_seconds()
-                    )
+                math.floor(
+                    (
+                        _ensure_utc(view.timestamp) - _ensure_utc(view.source.published_at)
+                    ).total_seconds()
                 ),
             )
             separator = "&" if "?" in view.source.url else "?"

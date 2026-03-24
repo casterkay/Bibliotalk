@@ -22,14 +22,16 @@
 - Python 3.11+
 - EverMemOS: `evermemos` SDK + `httpx` + `tenacity`
 - Ingestion: `youtube-transcript-api`, `yt-dlp`, `typer`, `rich`, SQLite
-- Discord: `discord.py` (text-only bot + thread posting)
+- Discord: `discord.py` (feed publishing + DM `/talk` threads + guild `/voice join|leave|status` control-plane)
 - Data/modeling: `pydantic`
 
 ## Commands
 
 - Sync deps (workspace):
   - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
+- Note: if you hit uv cache permission errors (e.g. sandboxed environments), prefix uv commands with `UV_CACHE_DIR=/tmp/uv-cache`.
 - Run tests (run from each package directory to avoid pytest root collisions):
+  - `uv --directory services/agents_service run --package agents_service -m pytest`
   - `uv --directory services/discord_service run --package discord_service -m pytest`
   - `uv --directory services/memory_service run --package memory_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
@@ -74,6 +76,8 @@ Python 3.11+: Follow standard conventions
 - Sync deps (workspace; installs all Python members):
   - `UV_CACHE_DIR=/tmp/uv-cache uv sync --all-packages --all-extras`
 - Run tests:
+  - `uv --directory services/agents_service run --package agents_service -m pytest`
+  - `uv --directory services/discord_service run --package discord_service -m pytest`
   - `uv --directory services/memory_service run --package memory_service -m pytest`
   - `uv --directory packages/bt_common run --package bt_common -m pytest`
 - Ingestion CLI help:

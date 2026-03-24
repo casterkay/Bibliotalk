@@ -420,7 +420,9 @@ class BibliotalkDiscordClient(discord.Client):
                 "No active voice session for this server. Saved voice preference is still available."
             )
             return
-        await interaction.response.send_message("No active voice session for this server.")
+        await interaction.response.send_message(
+            "No active voice session for this server."
+        )
 
     async def _cmd_voice_status(self, interaction: discord.Interaction) -> None:
         if self.voice_gateway_proxy is None:

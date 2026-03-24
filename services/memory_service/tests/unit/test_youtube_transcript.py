@@ -18,10 +18,10 @@ Hello <b>world</b>!
 
 00:01.500 --> 00:02.000
 Line 1
-Line 2
+    Line 2
 """
     lines = parse_webvtt(vtt)
-    assert [(l.text, l.start_ms, l.end_ms) for l in lines] == [
+    assert [(line.text, line.start_ms, line.end_ms) for line in lines] == [
         ("Hello world!", 0, 1500),
         ("Line 1 Line 2", 1500, 2000),
     ]
@@ -39,7 +39,7 @@ def test_parse_ttml_extracts_text_and_times() -> None:
 </tt>
 """
     lines = parse_ttml(ttml)
-    assert [(l.text, l.start_ms, l.end_ms) for l in lines] == [
+    assert [(line.text, line.start_ms, line.end_ms) for line in lines] == [
         ("Hello & bye", 1000, 2500),
         ("Later", 2500, 3000),
     ]
@@ -57,7 +57,7 @@ def test_parse_json3_builds_lines_from_events() -> None:
         ]
     }
     lines = parse_json3(json.dumps(payload))
-    assert [(l.text, l.start_ms, l.end_ms) for l in lines] == [("Hello world", 0, 1200)]
+    assert [(line.text, line.start_ms, line.end_ms) for line in lines] == [("Hello world", 0, 1200)]
 
 
 def test_select_caption_prefers_manual_subtitles_then_auto() -> None:

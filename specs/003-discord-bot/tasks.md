@@ -15,7 +15,7 @@
 - [X] T002 Delete voice runtime code in `services/agents_service/src/voice/`
 - [X] T003 Delete SQLAdmin UI code in `services/agents_service/src/admin/`
 - [X] T004 Delete legacy database layer in `services/agents_service/src/database/`
-- [X] T005 Delete unused Gemini alternatives and legacy server entrypoint code in `services/agents_service/src/agents_service/server.py`
+- [X] T005 Delete unused Gemini alternatives and legacy server entrypoint code in `services/agents_service/src/server.py`
 - [X] T006 Delete non-YouTube adapters in `services/memory_service/src/adapters/blog_crawl.py`, `services/memory_service/src/adapters/document.py`, `services/memory_service/src/adapters/gutenberg.py`, `services/memory_service/src/adapters/http_fetch.py`, `services/memory_service/src/adapters/local_text.py`, `services/memory_service/src/adapters/url_tools.py`, and `services/memory_service/src/adapters/web_page.py`
 - [X] T007 Delete non-MVP ingestion entrypoints in `services/memory_service/src/server.py` and `services/memory_service/src/pipeline/manifest.py`
 - [X] T008 Update retained package dependencies in `services/memory_service/pyproject.toml` and `services/agents_service/pyproject.toml` to match the trimmed MVP scope
@@ -39,7 +39,7 @@
 - [X] T017 [P] Add structured logging bootstrap for the collector and Discord runtimes in `services/memory_service/src/runtime/reporting.py` and `services/discord_service/src/runtime.py`
 - [X] T018 Refactor `services/memory_service/src/pipeline/index.py` to use `AsyncSession` via `packages/bt_store/src/engine.py`
 - [X] T019 Refactor `services/memory_service/src/domain/models.py` to keep only YouTube and evidence-cache fields needed by the MVP in `services/memory_service/src/domain/models.py`
-- [X] T020 Refactor `services/agents_service/src/agents_service/models/citation.py` to the new `Evidence` and link-validation contract from `specs/003-discord-bot/contracts/evidence.md`
+- [X] T020 Refactor `services/agents_service/src/models/citation.py` to the new `Evidence` and link-validation contract from `specs/003-discord-bot/contracts/evidence.md`
 - [X] T021 Create the standalone collector process bootstrap in `services/memory_service/src/__main__.py` and `services/memory_service/src/runtime/poller.py`
 - [X] T022 Create the Discord bot process bootstrap in `services/discord_service/src/runtime.py` and `services/discord_service/src/__main__.py`
 - [X] T023 [P] Add foundational database and startup tests in `services/memory_service/tests/integration/test_runtime_startup.py` and `services/discord_service/tests/integration/test_runtime_startup.py`
@@ -120,14 +120,14 @@
 
 ### Implementation for User Story 3
 
-- [X] T053 [P] [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in `services/agents_service/src/agents_service/agent/tools/memory_search.py`
-- [X] T054 [P] [US3] Replace citation-index emission with inline `memory_url` emission in `services/agents_service/src/agents_service/agent/tools/emit_citations.py`
-- [X] T055 [P] [US3] Adapt Gemini agent construction for agent personas and evidence-only responses in `services/agents_service/src/agents_service/agent/agent_factory.py` and `services/agents_service/src/agents_service/agent/providers/gemini.py`
-- [X] T056 [US3] Adapt agent orchestration for Discord DM context in `services/agents_service/src/agents_service/agent/orchestrator.py`
+- [X] T053 [P] [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in `services/agents_service/src/agent/tools/memory_search.py`
+- [X] T054 [P] [US3] Replace citation-index emission with inline `memory_url` emission in `services/agents_service/src/agent/tools/emit_citations.py`
+- [X] T055 [P] [US3] Adapt Gemini agent construction for agent personas and evidence-only responses in `services/agents_service/src/agent/agent_factory.py` and `services/agents_service/src/agent/providers/gemini.py`
+- [X] T056 [US3] Adapt agent orchestration for Discord DM context in `services/agents_service/src/agent/orchestrator.py`
 - [X] T057 [US3] Implement the talk-thread chat service and routing in `services/discord_service/src/talks/service.py`
 - [X] T058 [US3] Implement the Discord client subclass (DM `/talk` + thread routing) in `services/discord_service/src/bot/client.py`
 - [X] T059 [US3] Implement the memory page resolver and HTTP handler in `services/memory_service/src/api/memories_service.py` and `services/memory_service/src/api/app.py`
-- [X] T060 [US3] Add final link-validation, quote-validation, no-evidence fallback, and page-resolution enforcement in `services/discord_service/src/talks/service.py`, `services/agents_service/src/agents_service/models/citation.py`, and `services/memory_service/src/api/app.py`
+- [X] T060 [US3] Add final link-validation, quote-validation, no-evidence fallback, and page-resolution enforcement in `services/discord_service/src/talks/service.py`, `services/agents_service/src/models/citation.py`, and `services/memory_service/src/api/app.py`
 
 **Checkpoint**: User Story 3 is functional when an agent bot can answer supported questions with valid inline memory links, linked pages resolve correctly, and unsupported questions are declined without cross-agent leakage.
 
@@ -154,7 +154,7 @@
 ### Docs + Contracts
 
 - [X] T066 [P] [US4] Update system and Discord bot docs to treat Discord voice as first-class in `DESIGN.md`, `specs/003-discord-bot/spec.md`, `specs/003-discord-bot/plan.md`, and `specs/003-discord-bot/tasks.md`
-- [X] T067 [P] [US4] Reconcile voice-bridge contract drift (document the operational truth and plan the fix) in `specs/001-matrix-mvp/contracts/voice-bridge.md` and `services/agents_service/src/agents_service/api/live.py`
+- [X] T067 [P] [US4] Reconcile voice-bridge contract drift (document the operational truth and plan the fix) in `specs/001-matrix-mvp/contracts/voice-bridge.md` and `services/agents_service/src/api/live.py`
 
 ### Discord UX + Control Plane (`discord_service`, Python)
 
@@ -246,8 +246,8 @@ Task: "T047 [US3] Add unit tests for BM25-backed evidence selection in services/
 Task: "T048 [US3] Add unit tests for inline link and quote validation in services/agents_service/tests/unit/test_citation_validation.py"
 Task: "T052 [US3] Add contract and integration tests for public memory pages in services/memory_service/tests/contract/test_memory_id_contract.py and services/memory_service/tests/integration/test_memories_api.py"
 
-Task: "T053 [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in services/agents_service/src/agents_service/agent/tools/memory_search.py"
-Task: "T054 [US3] Replace citation-index emission with inline memory_url emission in services/agents_service/src/agents_service/agent/tools/emit_citations.py"
+Task: "T053 [US3] Adapt EverMemOS retrieval and BM25 reranking to the new evidence shape in services/agents_service/src/agent/tools/memory_search.py"
+Task: "T054 [US3] Replace citation-index emission with inline memory_url emission in services/agents_service/src/agent/tools/emit_citations.py"
 Task: "T059 [US3] Implement the memory page resolver and HTTP handler in services/memory_service/src/api/memories_service.py and services/memory_service/src/api/app.py"
 ```
 

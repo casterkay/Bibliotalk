@@ -3,12 +3,12 @@
 **Feature Branch**: `003-discord-bot`
 **Created**: 2026-03-07
 **Revised**: 2026-03-24
-**Status**: US1–US3 Approved (Implemented) · US4 In Progress (Gateway proxy + voice bridge wiring)
+**Status**: US1–US3 Approved (Implemented) · US4 Implemented (Gateway proxy + voice bridge + transcripts; voice grounding/citations still evolving)
 **Approved**: 2026-03-15
 **Input**:
 - System design: `DESIGN.md`
 - Gemini Live constraints: `docs/knowledge/gemini-live-api.md`
-- Operational voice WS protocol (current truth): `services/agents_service/src/agents_service/api/live.py`
+- Operational voice WS protocol (current truth): `services/agents_service/src/api/live.py`
 
 ## User Scenarios & Testing *(mandatory)*
 

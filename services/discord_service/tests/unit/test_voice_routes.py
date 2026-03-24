@@ -140,7 +140,9 @@ class _NoopTransport:
         _ = hub_channel_name
         return []
 
-    async def resolve_hub_channel_id(self, *, guild_id: str, hub_channel_name: str) -> str:
+    async def resolve_hub_channel_id(
+        self, *, guild_id: str, hub_channel_name: str
+    ) -> str:
         _ = guild_id
         _ = hub_channel_name
         return "hub"
@@ -290,7 +292,9 @@ async def test_voice_status_reports_saved_binding_without_active_bridge() -> Non
 
 
 @pytest.mark.anyio
-async def test_talk_service_voice_routes_are_scoped_by_agent_and_guild(tmp_path) -> None:
+async def test_talk_service_voice_routes_are_scoped_by_agent_and_guild(
+    tmp_path,
+) -> None:
     db = tmp_path / "voice-routes.db"
     await init_database(db)
     session_factory = get_session_factory(db)

@@ -14,7 +14,9 @@ class _FakeRateLimitError(Exception):
 
 
 class _FakeMessage:
-    def __init__(self, content: str, *, edit_failures: list[Exception] | None = None) -> None:
+    def __init__(
+        self, content: str, *, edit_failures: list[Exception] | None = None
+    ) -> None:
         self.content = content
         self.edits: list[str] = []
         self._edit_failures: deque[Exception] = deque(edit_failures or [])
@@ -64,7 +66,9 @@ class _FakeClient:
 
 
 @pytest.mark.anyio
-async def test_transcript_chunks_coalesce_with_rolling_edits_and_idle_boundary() -> None:
+async def test_transcript_chunks_coalesce_with_rolling_edits_and_idle_boundary() -> (
+    None
+):
     channel = _FakeTextChannel(11)
     publisher = VoiceTranscriptPublisher(
         client=_FakeClient({11: channel}),

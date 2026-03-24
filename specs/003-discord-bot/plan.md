@@ -15,21 +15,18 @@ Shipped (US1–US3):
 - Discord feed publishing + DM `/talk` + private thread routing (`services/discord_service/`)
 - Public memory pages served by `memory_service` (`/memories/{id}`)
 
-Implemented in current branch (US4 foundation):
-- Agent-core Live Sessions (text + voice): `services/agents_service/src/agents_service/api/live.py`
-- Gemini Live bidi audio + transcription backend: `services/agents_service/src/agents_service/live/gemini_live_backend.py`
+Implemented in current branch (US4: Discord voice):
+- Agent-core Live Sessions (text + voice): `services/agents_service/src/api/live.py`
+- Gemini Live bidi audio + transcription backend: `services/agents_service/src/live/gemini_live_backend.py`
 - Multi-platform bridge manager + Matrix bridge: `services/voip_service/src/voip/bridge_manager.js`, `services/voip_service/src/voip/matrix_livekit_bridge.js`
-- Discord voice bridge skeleton + gateway-proxy WS endpoint: `services/voip_service/src/voip/discord_bridge.js`, `services/voip_service/src/server.js`
+- Discord voice bridge + gateway-proxy WS endpoint: `services/voip_service/src/voip/discord_bridge.js`, `services/voip_service/src/server.js`
 - Discord control-plane proxy + slash commands `/voice join|leave|status`: `services/discord_service/src/bot/voice_gateway_proxy.py`, `services/discord_service/src/bot/client.py`
-- Transcript posting helper: `services/discord_service/src/bot/voice_transcripts.py`
+- Transcript posting (coalesced rolling edits): `services/discord_service/src/bot/voice_transcripts.py`
 
-## Goal (US4)
+Remaining work (US4 polish / ship-quality):
 
-Add Discord voice-channel conversations driven by Gemini Live:
-- `/voice join` → bot joins a Discord voice channel and speaks back
-- Paired transcripts posted into a configured text channel/thread
-- Citations appended as footnotes after transcript finalization (not transported over Live WS)
-- Barge-in interrupts playback immediately
+- Harden reconnect semantics (fail-closed + visible status) and add a manual test checklist for barge-in/reconnect.
+- Decide and implement the voice grounding/citations strategy (two-track vs demo-only single-track).
 
 ## Architecture Decisions (non-negotiable for Discord voice)
 
@@ -73,7 +70,7 @@ Then streams:
 - receives `output.transcription.input` / `output.transcription.output`
 - citations are appended out-of-band to finalized transcript messages based on Gemini Live tool-calling outputs
 
-Reference: `services/agents_service/src/agents_service/api/live.py`
+Reference: `services/agents_service/src/api/live.py`
 
 ### B) `voip_service` control endpoints
 

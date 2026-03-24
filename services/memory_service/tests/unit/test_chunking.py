@@ -70,4 +70,4 @@ def test_chunk_transcript_does_not_split_on_internal_punctuation() -> None:
     segments = chunk_transcript(src, lines)
 
     assert len(segments) == 1
-    assert all(re.search(r'[.!?]["\')\]’”）】]*$', s.text) for s in segments)
+    assert all(re.search(r'[.!?]["\')\]\u2019\u201D\uFF09\u3011]*$', s.text) for s in segments)
