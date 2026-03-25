@@ -4,9 +4,14 @@ services:
     working_dir: /workspace
     env_file:
       - .env
+    environment:
+      BIBLIOTALK_DB_PATH: /data/bibliotalk.db
+      UV_PROJECT_ENVIRONMENT: /data/venv-ingestion
     volumes:
       - ../..:/workspace
       - bibliotalk_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command:
       - uv
       - run
@@ -25,9 +30,13 @@ services:
       - .env
     environment:
       AGENTS_SERVICE_URL: http://agents:8009
+      BIBLIOTALK_DB_PATH: /data/bibliotalk.db
+      UV_PROJECT_ENVIRONMENT: /data/venv-agents
     volumes:
       - ../..:/workspace
       - bibliotalk_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${AGENTS_PORT:-8009}:8009"
     command:
@@ -56,6 +65,8 @@ services:
     volumes:
       - ../..:/workspace
       - voip_node_modules:/workspace/services/voip_service/node_modules
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${VOIP_PORT:-9012}:9012"
     command:
@@ -73,9 +84,13 @@ services:
     environment:
       VOIP_SERVICE_URL: http://voip:9012
       AGENTS_SERVICE_URL: http://agents:8009
+      BIBLIOTALK_DB_PATH: /data/bibliotalk.db
+      UV_PROJECT_ENVIRONMENT: /data/venv-discord
     volumes:
       - ../..:/workspace
       - bibliotalk_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command:
       - uv
       - run
@@ -94,9 +109,14 @@ services:
     working_dir: /workspace
     env_file:
       - .env
+    environment:
+      BIBLIOTALK_DB_PATH: /data/bibliotalk.db
+      UV_PROJECT_ENVIRONMENT: /data/venv-memories
     volumes:
       - ../..:/workspace
       - bibliotalk_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${MEMORIES_PORT:-8080}:${MEMORIES_PORT:-8080}"
     command:

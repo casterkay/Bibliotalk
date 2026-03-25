@@ -182,6 +182,7 @@
 │   └── voip_service
 │       ├── eslint.config.js
 │       ├── node_modules
+│       ├── package-lock.json
 │       ├── package.json
 │       ├── public
 │       ├── pyproject.toml
@@ -244,5 +245,5 @@
 │       └── tasks.md
 └── uv.lock
 
-74 directories, 171 files
+74 directories, 172 files
 

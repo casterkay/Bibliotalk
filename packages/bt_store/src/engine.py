@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from bt_common.config import get_settings
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -67,5 +68,31 @@ async def init_database(db_path: str | Path | None = None) -> None:
     from .models import Base
 
     engine = get_async_engine(db_path)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Multiple services can start concurrently and race on SQLite DDL (even with
+    # `checkfirst=True`). Use a simple file lock to serialize schema creation.
+    lock_path = resolve_database_path(db_path).with_suffix(".schema.lock")
+
+    try:
+        import fcntl  # Unix-only; safe to skip on platforms without it.
+    except Exception:  # pragma: no cover
+        fcntl = None  # type: ignore[assignment]
+
+    lock_file = lock_path.open("a+", encoding="utf-8")
+    try:
+        if fcntl is not None:  # pragma: no branch
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+
+        async with engine.begin() as conn:
+            try:
+                await conn.run_sync(Base.metadata.create_all)
+            except OperationalError as exc:
+                # If another service beat us to a table/index creation, treat it as ok.
+                msg = str(getattr(exc, "orig", exc)).lower()
+                if "already exists" not in msg:
+                    raise
+    finally:
+        try:
+            if fcntl is not None:  # pragma: no branch
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        finally:
+            lock_file.close()
