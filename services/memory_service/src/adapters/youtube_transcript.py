@@ -9,6 +9,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
+from urllib.request import Request as _UrlRequest
+from urllib.request import urlopen as _urlopen
 
 from ..domain.errors import (
     AccessRestrictedError,
@@ -46,6 +48,59 @@ class YouTubeTranscriptProvider(Protocol):
     def fetch(
         self, video_id: str, *, preferred_languages: Sequence[str] | None
     ) -> YouTubeTranscriptFetch: ...
+
+
+class YouTubeMetadataFetcher(Protocol):
+    name: str
+
+    def fetch(self, video_id: str) -> YouTubeVideoMetadata: ...
+
+
+class YouTubeOEmbedMetadataFetcher:
+    name = "oembed"
+
+    def __init__(self, *, timeout_s: float = 10.0) -> None:
+        self._timeout_s = float(timeout_s)
+
+    def fetch(self, video_id: str) -> YouTubeVideoMetadata:
+        watch_url = f"https://www.youtube.com/watch?v={video_id}"
+        oembed_url = f"https://www.youtube.com/oembed?url={watch_url}&format=json"
+
+        req = _UrlRequest(
+            oembed_url,
+            headers={
+                # Some networks block empty UA; also helps avoid “bot-like” defaults.
+                "user-agent": "Mozilla/5.0 (compatible; Bibliotalk/0.1; +https://www.bibliotalk.space)",
+                "accept": "application/json",
+            },
+        )
+        with _urlopen(req, timeout=self._timeout_s) as resp:
+            payload = resp.read().decode("utf-8", errors="replace")
+        data = json.loads(payload)
+
+        title = data.get("title")
+        author_name = data.get("author_name")
+
+        return YouTubeVideoMetadata(
+            title=(str(title) if title else None),
+            channel_name=(str(author_name) if author_name else None),
+            channel_id=None,
+            published_at=None,
+            duration_s=None,
+            webpage_url=watch_url,
+            raw_meta={
+                "oembed": {
+                    "title": title,
+                    "author_name": author_name,
+                    "author_url": data.get("author_url"),
+                    "provider_name": data.get("provider_name"),
+                    "provider_url": data.get("provider_url"),
+                    "thumbnail_url": data.get("thumbnail_url"),
+                    "thumbnail_width": data.get("thumbnail_width"),
+                    "thumbnail_height": data.get("thumbnail_height"),
+                }
+            },
+        )
 
 
 def _collapse_ws(text: str) -> str:
@@ -541,6 +596,8 @@ class YtDlpCaptionsProvider:
 
 
 class YtDlpMetadataFetcher:
+    name = "yt_dlp"
+
     def __init__(
         self,
         *,
@@ -600,6 +657,7 @@ class YouTubeTranscriptService:
         self,
         *,
         providers: Sequence[YouTubeTranscriptProvider],
+        metadata_fetcher: YouTubeMetadataFetcher | None = None,
         preferred_languages: Sequence[str] | None = None,
         allow_auto_captions: bool = True,
         yt_dlp_cookiefile: str | None = None,
@@ -610,10 +668,7 @@ class YouTubeTranscriptService:
         self._providers = list(providers)
         self._preferred_languages = list(_preferred_langs(preferred_languages)) or None
         self._allow_auto_captions = bool(allow_auto_captions)
-        self._metadata_fetcher = YtDlpMetadataFetcher(
-            cookiefile=yt_dlp_cookiefile,
-            impersonate_target=yt_dlp_impersonate_target,
-        )
+        self._metadata_fetcher = metadata_fetcher or YouTubeOEmbedMetadataFetcher()
 
     @staticmethod
     def build_default(
@@ -645,6 +700,7 @@ class YouTubeTranscriptService:
                 raise ValueError(f"unknown YouTube transcript provider: {name!r}")
         return YouTubeTranscriptService(
             providers=providers,
+            metadata_fetcher=YouTubeOEmbedMetadataFetcher(),
             preferred_languages=preferred_languages,
             allow_auto_captions=allow_auto_captions,
             yt_dlp_cookiefile=yt_dlp_cookiefile,
@@ -688,7 +744,10 @@ class YouTubeTranscriptService:
                 lines=fetch.lines,
                 language=fetch.language,
                 is_auto_captions=fetch.is_auto_captions,
-                provider_meta={**fetch.provider_meta, "metadata_provider": "yt_dlp"},
+                provider_meta={
+                    **fetch.provider_meta,
+                    "metadata_provider": getattr(self._metadata_fetcher, "name", "unknown"),
+                },
                 video_metadata=meta,
             )
 

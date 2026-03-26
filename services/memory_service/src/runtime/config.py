@@ -31,7 +31,7 @@ class IngestSettings(BaseSettings):
     emos_retries: int = Field(default=3, validation_alias="EMOS_RETRIES")
     ingest_index_path: str | None = Field(default=None, validation_alias="INGEST_INDEX_PATH")
     youtube_transcript_providers: str = Field(
-        default="yt_dlp",  # optionally: youtube_transcript_api
+        default="youtube_transcript_api,yt_dlp",
         validation_alias="BIBLIOTALK_YOUTUBE_TRANSCRIPT_PROVIDERS",
     )
     youtube_transcript_langs: str | None = Field(
@@ -44,7 +44,7 @@ class IngestSettings(BaseSettings):
         default=None, validation_alias="BIBLIOTALK_YT_DLP_COOKIEFILE"
     )
     yt_dlp_impersonate: str | None = Field(
-        default="chrome", validation_alias="BIBLIOTALK_YT_DLP_IMPERSONATE"
+        default="", validation_alias="BIBLIOTALK_YT_DLP_IMPERSONATE"
     )
     youtube_request_delay_s: float = Field(
         default=0.25, validation_alias="BIBLIOTALK_YOUTUBE_REQUEST_DELAY_S"

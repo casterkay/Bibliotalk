@@ -11,13 +11,15 @@ dependencies = [
   "aiosqlite>=0.20.0",
   "bt_common>=0.1.0",
   "bt_store>=0.1.0",
+  "feedparser>=6.0.11",
   "fastapi>=0.115.0",
   "pydantic>=2.8.0",
   "pydantic-settings>=2.4.0",
   "PyYAML>=6.0.1",
   "SQLAlchemy>=2.0.36",
   "uvicorn>=0.34.0",
-  "yt-dlp[default,curl-cffi]>=2025.2.19",
+  "youtube-transcript-api>=0.6.2",
+  "yt-dlp[default]>=2025.2.19",
 ]
 
 [project.optional-dependencies]
@@ -26,12 +28,8 @@ dev = [
   "pytest-asyncio>=0.23.8",
   "ruff>=0.6.9",
 ]
-ingest = [
-  "youtube-transcript-api>=0.6.2",
-]
-web = [
-  "feedparser>=6.0.11",
-]
+ingest = []
+web = []
 
 [tool.setuptools]
 packages = [

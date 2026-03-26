@@ -88,7 +88,7 @@ def _require_feedparser() -> Any:
         return feedparser
     except ModuleNotFoundError as exc:  # pragma: no cover
         raise UnsupportedSourceError(
-            "feedparser is not installed. Install with `pip install 'memory_service[web]'`."
+            "feedparser is not installed. Install with `pip install 'memory_service'`."
         ) from exc
 
 

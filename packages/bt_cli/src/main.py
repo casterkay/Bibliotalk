@@ -14,18 +14,6 @@ from urllib.request import urlopen as _urlopen
 import typer
 from bt_store.engine import init_database, resolve_database_path, session_scope
 from bt_store.models import Agent
-from discord_service.config import load_runtime_config as load_discord_config
-from discord_service.ops import seed_agent
-from discord_service.ops.feed import (
-    publish_pending_feeds_once,
-    republish_source_by_video,
-    retry_failed_posts_by_video,
-    source_feed_status_by_video,
-)
-from discord_service.ops.talks import close_talk_by_thread_id, list_talks
-from memory_service.api.entrypoint import run_memories_api
-from memory_service.entrypoint import run_collector
-from memory_service.ops import request_manual_ingest
 from rich.console import Console
 from rich.table import Table
 from sqlalchemy import select
@@ -341,6 +329,8 @@ def agent_seed(
 ) -> None:
     """Seed (or update) an agent, subscription, and Discord mapping."""
     try:
+        from discord_service.ops import seed_agent
+
         _run(
             seed_agent(
                 db_path=db,
@@ -395,6 +385,8 @@ def ingest_request(
 ) -> None:
     """Request a manual one-shot ingest for a YouTube video."""
     try:
+        from memory_service.ops import request_manual_ingest
+
         _run(
             request_manual_ingest(
                 db_path=db,
@@ -428,6 +420,8 @@ def collector_run(
     once: bool = typer.Option(False, "--once"),
 ) -> None:
     """Run the collector (poll subscriptions, ingest, memorize)."""
+    from memory_service.entrypoint import run_collector
+
     raise typer.Exit(
         code=int(
             _run(
@@ -486,6 +480,8 @@ def memories_run(
     log_level: str | None = typer.Option(None, "--log-level"),
 ) -> None:
     """Run the Memories HTTP API."""
+    from memory_service.api.entrypoint import run_memories_api
+
     raise typer.Exit(
         code=int(
             _run(
@@ -512,6 +508,9 @@ def feed_publish(
     json_: bool = typer.Option(False, "--json"),
 ) -> None:
     """Publish all pending feed posts (connects to Discord, publishes, exits)."""
+    from discord_service.config import load_runtime_config as load_discord_config
+    from discord_service.ops.feed import publish_pending_feeds_once
+
     config = load_discord_config(db_path=db, log_level=log_level, discord_command_guild_id=None)
     try:
         summary = _run(publish_pending_feeds_once(config, agent_slug=agent))
@@ -573,6 +572,8 @@ def feed_status(
 ) -> None:
     """Show feed publishing status for one video."""
     try:
+        from discord_service.ops.feed import source_feed_status_by_video
+
         status = _run(source_feed_status_by_video(db_path=db, agent_slug=agent, video_id=video_id))
     except Exception as exc:
         if json_:
@@ -595,6 +596,9 @@ def feed_retry_failed(
     json_: bool = typer.Option(False, "--json"),
 ) -> None:
     """Mark failed feed posts as pending and republish missing parts."""
+    from discord_service.config import load_runtime_config as load_discord_config
+    from discord_service.ops.feed import retry_failed_posts_by_video
+
     config = load_discord_config(db_path=db, log_level=None, discord_command_guild_id=None)
     try:
         summary = _run(
@@ -625,6 +629,9 @@ def feed_republish(
     json_: bool = typer.Option(False, "--json"),
 ) -> None:
     """Publish/resume feed posting for a single video (idempotent)."""
+    from discord_service.config import load_runtime_config as load_discord_config
+    from discord_service.ops.feed import republish_source_by_video
+
     config = load_discord_config(db_path=db, log_level=None, discord_command_guild_id=None)
     try:
         result = _run(
@@ -660,6 +667,8 @@ def talks_list(
 ) -> None:
     """List recent talks for a user (operator/debug helper)."""
     try:
+        from discord_service.ops.talks import list_talks
+
         rows = _run(
             list_talks(db_path=db, owner_discord_user_id=owner_discord_user_id, limit=limit)
         )
@@ -686,6 +695,8 @@ def talks_close(
 ) -> None:
     """Mark a talk thread as closed in SQLite (does not delete the Discord thread)."""
     try:
+        from discord_service.ops.talks import close_talk_by_thread_id
+
         ok = _run(close_talk_by_thread_id(db_path=db, thread_id=thread_id))
     except Exception as exc:
         if json_:
