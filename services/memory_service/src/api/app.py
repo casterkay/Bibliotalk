@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from bt_common.config import get_settings
 from bt_common.evermemos_client import EverMemOSClient
 from bt_store.engine import get_session_factory, init_database
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
 from ..adapters.rss_feed import canonicalize_http_url, extract_youtube_video_id
@@ -16,6 +16,8 @@ from ..pipeline.discovery import discover_subscription
 from ..pipeline.index import IngestionIndex
 from ..pipeline.ingest import ingest_source
 from ..runtime.reporting import configure_logging
+from .admin_auth import require_admin
+from .admin_models import CollectorRunOnceRequest
 from .config import MemoriesApiRuntimeConfig
 from .html import render_memcell_html
 from .memories_service import MemoriesService
@@ -232,7 +234,7 @@ def create_app(
         return SearchResponse(results=result_records, retrieve_method=retrieve_method)
 
     @app.post("/v1/ingest")
-    async def ingest(req: IngestRequest) -> dict:
+    async def ingest(req: IngestRequest, _: None = Depends(require_admin)) -> dict:
         try:
             canon = canonicalize_http_url(req.url)
         except AdapterError as exc:
@@ -263,7 +265,9 @@ def create_app(
         return report.model_dump()
 
     @app.post("/v1/ingest-batch", response_model=EnqueueSummary, status_code=202)
-    async def ingest_batch(req: IngestBatchRequest) -> EnqueueSummary:
+    async def ingest_batch(
+        req: IngestBatchRequest, _: None = Depends(require_admin)
+    ) -> EnqueueSummary:
         urls = []
         if req.url:
             urls.append(req.url)
@@ -320,7 +324,7 @@ def create_app(
         )
 
     @app.post("/v1/subscribe")
-    async def subscribe(req: SubscribeRequest) -> dict:
+    async def subscribe(req: SubscribeRequest, _: None = Depends(require_admin)) -> dict:
         from bt_store.models_core import Agent
         from bt_store.models_ingestion import Subscription, SubscriptionState
         from sqlalchemy import select
@@ -378,6 +382,261 @@ def create_app(
             "subscription_type": req.subscription_type,
             "subscription_url": canon,
             "poll_interval_minutes": req.poll_interval_minutes,
+        }
+
+    @app.post("/v1/admin/collector/run-once")
+    async def admin_collector_run_once(
+        body: CollectorRunOnceRequest, _: None = Depends(require_admin)
+    ) -> dict:
+        from datetime import UTC, datetime
+
+        from bt_store.models_core import Agent
+        from bt_store.models_evidence import Source
+        from bt_store.models_ingestion import SourceIngestionState, Subscription, SubscriptionState
+        from sqlalchemy import select
+
+        from ..runtime.config import load_runtime_config
+        from ..runtime.poller import CollectorPoller
+
+        now = datetime.now(tz=UTC)
+        agent_slug = (body.agent_slug or "").strip() or None
+
+        async def _snapshot_subscriptions() -> list[dict]:
+            async with session_factory() as session:
+                stmt = (
+                    select(Subscription, SubscriptionState, Agent)
+                    .join(Agent, Agent.agent_id == Subscription.agent_id)
+                    .outerjoin(
+                        SubscriptionState,
+                        SubscriptionState.subscription_id == Subscription.subscription_id,
+                    )
+                    .order_by(Agent.slug, Subscription.created_at.desc())
+                )
+                if agent_slug:
+                    stmt = stmt.where(Agent.slug == agent_slug)
+                rows = (await session.execute(stmt)).all()
+
+            out: list[dict] = []
+            for sub, state, agent in rows:
+                out.append(
+                    {
+                        "agent_slug": agent.slug,
+                        "subscription_id": str(sub.subscription_id),
+                        "subscription_url": sub.subscription_url,
+                        "subscription_type": sub.subscription_type,
+                        "content_platform": sub.content_platform,
+                        "poll_interval_minutes": sub.poll_interval_minutes,
+                        "is_active": bool(sub.is_active),
+                        "state": {
+                            "last_seen_external_id": state.last_seen_external_id if state else None,
+                            "last_published_at": state.last_published_at.isoformat()
+                            if (state and state.last_published_at)
+                            else None,
+                            "last_polled_at": state.last_polled_at.isoformat()
+                            if (state and state.last_polled_at)
+                            else None,
+                            "failure_count": int(state.failure_count) if state else 0,
+                            "next_retry_at": state.next_retry_at.isoformat()
+                            if (state and state.next_retry_at)
+                            else None,
+                            "updated_at": state.updated_at.isoformat()
+                            if (state and state.updated_at)
+                            else None,
+                        },
+                    }
+                )
+            return out
+
+        subscriptions_before = await _snapshot_subscriptions()
+
+        runtime_config = load_runtime_config(
+            db_path=str(config.db_path),
+            agent_slug=agent_slug,
+            log_level=config.log_level,
+            emos_base_url=config.emos_base_url,
+            emos_api_key=config.emos_api_key,
+            index_path=str(config.index_path),
+        )
+        poller = CollectorPoller(
+            config=runtime_config,
+            session_factory=session_factory,
+            logger=logger,
+            client=client,
+        )
+        snapshot = await poller.run_once()
+        subscriptions_after = await _snapshot_subscriptions()
+
+        async with session_factory() as session:
+            src_stmt = (
+                select(Source, SourceIngestionState, Agent)
+                .join(Agent, Agent.agent_id == Source.agent_id)
+                .outerjoin(
+                    SourceIngestionState,
+                    SourceIngestionState.source_id == Source.source_id,
+                )
+                .order_by(Source.created_at.desc())
+                .limit(200)
+            )
+            if agent_slug:
+                src_stmt = src_stmt.where(Agent.slug == agent_slug)
+            src_rows = (await session.execute(src_stmt)).all()
+
+        recent_sources: list[dict] = []
+        for source, state, agent in src_rows:
+            recent_sources.append(
+                {
+                    "agent_slug": agent.slug,
+                    "source_id": str(source.source_id),
+                    "content_platform": source.content_platform,
+                    "external_id": source.external_id,
+                    "external_url": source.external_url,
+                    "title": source.title,
+                    "published_at": source.published_at.isoformat()
+                    if source.published_at
+                    else None,
+                    "emos_group_id": source.emos_group_id,
+                    "ingestion": {
+                        "ingest_status": state.ingest_status if state else None,
+                        "failure_count": int(state.failure_count) if state else 0,
+                        "last_attempt_at": state.last_attempt_at.isoformat()
+                        if (state and state.last_attempt_at)
+                        else None,
+                        "next_retry_at": state.next_retry_at.isoformat()
+                        if (state and state.next_retry_at)
+                        else None,
+                        "skip_reason": state.skip_reason if state else None,
+                        "manual_requested_at": state.manual_requested_at.isoformat()
+                        if (state and state.manual_requested_at)
+                        else None,
+                        "updated_at": state.updated_at.isoformat()
+                        if (state and state.updated_at)
+                        else None,
+                    },
+                }
+            )
+
+        return {
+            "ok": True,
+            "requested_agent_slug": agent_slug,
+            "generated_at": now.isoformat(),
+            "poller_snapshot": {
+                "active_subscriptions": snapshot.active_subscriptions,
+                "agent_slug": snapshot.agent_slug,
+                "discovered_videos": snapshot.discovered_videos,
+                "ingested_videos": snapshot.ingested_videos,
+                "failed_subscriptions": snapshot.failed_subscriptions,
+            },
+            "subscriptions_before": subscriptions_before,
+            "subscriptions_after": subscriptions_after,
+            "recent_sources": recent_sources,
+        }
+
+    @app.delete("/v1/admin/sources/{source_id}")
+    async def admin_delete_source(source_id: str, _: None = Depends(require_admin)) -> dict:
+        from datetime import UTC, datetime
+        from uuid import UUID
+
+        from bt_common.exceptions import EMOSNotFoundError
+        from bt_store.models_core import Agent
+        from bt_store.models_evidence import Segment, Source
+        from bt_store.models_ingestion import SourceIngestionState, SourceTextBatch
+        from bt_store.models_runtime import PlatformPost
+        from sqlalchemy import delete, func, select
+
+        try:
+            source_uuid = UUID(source_id)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid source_id: {source_id}") from exc
+
+        now = datetime.now(tz=UTC)
+
+        async with session_factory() as session:
+            row = (
+                await session.execute(
+                    select(Source, Agent)
+                    .join(Agent, Agent.agent_id == Source.agent_id)
+                    .where(Source.source_id == source_uuid)
+                )
+            ).one_or_none()
+            if row is None:
+                raise HTTPException(status_code=404, detail="Source not found")
+            source, agent = row
+
+            seg_count = (
+                (
+                    await session.execute(
+                        select(func.count(Segment.segment_id)).where(
+                            Segment.source_id == source_uuid
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            ) or 0
+            batch_count = (
+                (
+                    await session.execute(
+                        select(func.count(SourceTextBatch.batch_id)).where(
+                            SourceTextBatch.source_id == source_uuid
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            ) or 0
+            post_count = (
+                (
+                    await session.execute(
+                        select(func.count(PlatformPost.post_id)).where(
+                            PlatformPost.source_id == source_uuid
+                        )
+                    )
+                )
+                .scalars()
+                .first()
+            ) or 0
+
+        emos_deleted = False
+        try:
+            await client.delete_by_group_id(source.emos_group_id, user_id=agent.slug)
+            emos_deleted = True
+        except EMOSNotFoundError:
+            emos_deleted = False
+        except Exception:
+            # Continue; local cleanup is still valuable.
+            logger.exception("admin delete_by_group_id failed group_id=%s", source.emos_group_id)
+
+        async with session_factory() as session:
+            await session.execute(delete(Segment).where(Segment.source_id == source_uuid))
+            await session.execute(
+                delete(SourceTextBatch).where(SourceTextBatch.source_id == source_uuid)
+            )
+            await session.execute(delete(PlatformPost).where(PlatformPost.source_id == source_uuid))
+
+            state = await session.get(SourceIngestionState, source_uuid)
+            if state is None:
+                state = SourceIngestionState(source_id=source_uuid)
+                session.add(state)
+            state.ingest_status = "deleted"
+            state.failure_count = 0
+            state.last_attempt_at = None
+            state.next_retry_at = None
+            state.manual_requested_at = None
+            state.skip_reason = "operator_deleted"
+            state.updated_at = now
+            await session.commit()
+
+        return {
+            "ok": True,
+            "source_id": source_id,
+            "emos_group_id": source.emos_group_id,
+            "emos_deleted": emos_deleted,
+            "deleted_local": {
+                "segments": int(seg_count),
+                "batches": int(batch_count),
+                "platform_posts": int(post_count),
+            },
+            "tombstone": {"ingest_status": "deleted", "skip_reason": "operator_deleted"},
         }
 
     return app

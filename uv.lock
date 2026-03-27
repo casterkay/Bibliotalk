@@ -19,6 +19,7 @@ members = [
     "bt-cli",
     "bt-common",
     "bt-store",
+    "bt-webui",
     "discord-service",
     "memory-service",
 ]
@@ -399,6 +400,7 @@ source = { editable = "packages/bt_cli" }
 dependencies = [
     { name = "bt-common" },
     { name = "bt-store" },
+    { name = "bt-webui" },
     { name = "discord-service" },
     { name = "memory-service" },
     { name = "rich" },
@@ -415,6 +417,7 @@ dev = [
 requires-dist = [
     { name = "bt-common", editable = "packages/bt_common" },
     { name = "bt-store", editable = "packages/bt_store" },
+    { name = "bt-webui", editable = "packages/bt_webui" },
     { name = "discord-service", editable = "services/discord_service" },
     { name = "memory-service", editable = "services/memory_service" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
@@ -489,6 +492,46 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.8" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.9" },
     { name = "sqlalchemy", specifier = ">=2.0.36" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "bt-webui"
+version = "0.1.0"
+source = { editable = "packages/bt_webui" }
+dependencies = [
+    { name = "aiosqlite" },
+    { name = "bt-common" },
+    { name = "bt-store" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "sqlalchemy" },
+    { name = "uvicorn" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiosqlite", specifier = ">=0.20.0" },
+    { name = "bt-common", editable = "packages/bt_common" },
+    { name = "bt-store", editable = "packages/bt_store" },
+    { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "httpx", specifier = ">=0.27.0" },
+    { name = "pydantic", specifier = ">=2.8.0" },
+    { name = "pydantic-settings", specifier = ">=2.4.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.8" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.9" },
+    { name = "sqlalchemy", specifier = ">=2.0.36" },
+    { name = "uvicorn", specifier = ">=0.34.0" },
 ]
 provides-extras = ["dev"]
 

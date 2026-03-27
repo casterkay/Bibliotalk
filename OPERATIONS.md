@@ -15,6 +15,7 @@ For all commands:
 - EverMemOS: `EMOS_BASE_URL`, `EMOS_API_KEY`
 - Discord: `DISCORD_TOKEN`
 - Gemini (recommended for production-quality talk replies): `GOOGLE_API_KEY`
+- Admin / operator APIs: `BIBLIOTALK_ADMIN_TOKEN`
 
 Optional:
 
@@ -94,6 +95,14 @@ uv run --package bt_cli bibliotalk feed republish --agent alan-watts --video-id 
 
 ```
 uv run --package bt_cli bibliotalk memories run --host 0.0.0.0 --port 8080
+```
+
+### 8) Run the Operator Web UI
+
+The WebUI serves a static frontend and an authenticated `/api/*` backend.
+
+```
+uv run --package bt_cli bibliotalk webui run --host 0.0.0.0 --port 8090
 ```
 
 ## Notes

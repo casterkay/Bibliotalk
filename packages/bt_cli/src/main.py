@@ -328,6 +328,10 @@ def agent_seed(
     json_: bool = typer.Option(False, "--json"),
 ) -> None:
     """Seed (or update) an agent, subscription, and Discord mapping."""
+    if not json_:
+        console.print(
+            f"Seeding `{agent}` (subscription: `{subscription_url}`, guild: `{guild_id}`, channel: `{channel_id}`)..."
+        )
     try:
         from discord_service.ops import seed_agent
 
@@ -494,6 +498,22 @@ def memories_run(
             )
         )
     )
+
+
+webui_app = typer.Typer(no_args_is_help=True, help="Operator Web UI (bt_webui).")
+app.add_typer(webui_app, name="webui")
+
+
+@webui_app.command("run")
+def webui_run(
+    host: str = typer.Option("0.0.0.0", "--host"),
+    port: int = typer.Option(8090, "--port"),
+    log_level: str | None = typer.Option(None, "--log-level"),
+) -> None:
+    """Run the operator admin panel (FastAPI serving a static UI + /api)."""
+    from bt_webui.entrypoint import run_webui
+
+    raise typer.Exit(code=int(_run(run_webui(host=host, port=port, log_level=log_level or "INFO"))))
 
 
 feed_app = typer.Typer(no_args_is_help=True, help="Discord feed operations.")

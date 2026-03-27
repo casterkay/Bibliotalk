@@ -9,6 +9,7 @@ members = [
   "packages/bt_cli",
   "packages/bt_common",
   "packages/bt_store",
+  "packages/bt_webui",
   "services/agents_service",
   "services/discord_service",
   "services/memory_service",

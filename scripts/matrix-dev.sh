@@ -511,6 +511,14 @@ EOF
 }
 
 main() {
+  # Ensure .env exists at project root, symlink if missing
+  if [[ ! -f "${PROJECT_ROOT:-.}/.env" ]]; then
+    if [[ -f "${PROJECT_ROOT:-.}/deploy/local/.env" ]]; then
+      ln -s deploy/local/.env "${PROJECT_ROOT:-.}/.env"
+      echo "Symlinked deploy/local/.env to .env at project root."
+    fi
+  fi
+
   local cmd="${1:-}"
   case "${cmd}" in
   init) cmd_init ;;
