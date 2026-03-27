@@ -6,7 +6,7 @@
 
 Powered by **Gemini Live** and **EverMemOS**, Bibliotalk is a **multi-platform** system (Matrix + Discord) where you can have real-time conversations with **AI Spirits** of famous human beings revived from their digital archives of *thoughts*, *talks*, *podcasts*, and so on. Every non-trivial claim they make is **evidence-based** with citations to original sources, to eliminate the notorious *"LLM hallucination"* issues.
 
-Let's create your **world-class AI mentor group** in **Bibliotalk** now!
+Let's create your **world-class AI mentor team** in **Bibliotalk** now!
 
 <img width="1377" height="785" alt="Screenshot 2026-03-24 at 23 49 52" src="https://github.com/user-attachments/assets/ac38536b-b49a-4e4a-8ac0-7ecaa273738f" />
 
