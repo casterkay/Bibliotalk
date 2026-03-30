@@ -17,6 +17,7 @@ from ..pipeline.index import IngestionIndex
 from ..pipeline.ingest import ingest_source
 from ..runtime.reporting import configure_logging
 from .admin_auth import require_admin
+from .admin_console import create_admin_console_router
 from .admin_models import CollectorRunOnceRequest
 from .config import MemoriesApiRuntimeConfig
 from .html import render_memcell_html
@@ -68,6 +69,11 @@ def create_app(
     @app.get("/health")
     async def health() -> dict:
         return {"status": "ok"}
+
+    app.include_router(
+        create_admin_console_router(session_factory, evermemos_client=client),
+        prefix="/v1/admin",
+    )
 
     @app.get("/memories/{memory_id}")
     async def memory_html(memory_id: str) -> HTMLResponse:

@@ -46,55 +46,23 @@
 │   │       ├── evermemos_client.py
 │   │       ├── exceptions.py
 │   │       └── logging.py
-│   ├── bt_store
-│   │   ├── alembic
-│   │   │   ├── env.py
-│   │   │   └── versions
-│   │   │       ├── 0001_initial_schema.py
-│   │   │       └── 0002_platform_routes_voice_scope.py
-│   │   ├── alembic.ini
-│   │   ├── pyproject.toml
-│   │   └── src
-│   │       ├── citations.py
-│   │       ├── engine.py
-│   │       ├── models_base.py
-│   │       ├── models_core.py
-│   │       ├── models_evidence.py
-│   │       ├── models_ingestion.py
-│   │       ├── models_runtime.py
-│   │       └── models.py
-│   └── bt_webui
+│   └── bt_store
+│       ├── alembic
+│       │   ├── env.py
+│       │   └── versions
+│       │       ├── 0001_initial_schema.py
+│       │       └── 0002_platform_routes_voice_scope.py
+│       ├── alembic.ini
 │       ├── pyproject.toml
-│       ├── README.md
-│       ├── src
-│       │   ├── api
-│       │   │   ├── agents.py
-│       │   │   ├── auth_routes.py
-│       │   │   ├── collector.py
-│       │   │   ├── delete.py
-│       │   │   ├── emos.py
-│       │   │   ├── ingest.py
-│       │   │   ├── routes.py
-│       │   │   ├── sources.py
-│       │   │   └── subscriptions.py
-│       │   ├── asgi.py
-│       │   ├── auth.py
-│       │   ├── db.py
-│       │   ├── entrypoint.py
-│       │   ├── models.py
-│       │   ├── server.py
-│       │   └── settings.py
-│       └── web
-│           ├── next-env.d.ts
-│           ├── next.config.js
-│           ├── package.json
-│           ├── postcss.config.js
-│           ├── src
-│           │   ├── app
-│           │   ├── components
-│           │   └── lib
-│           ├── tailwind.config.ts
-│           └── tsconfig.json
+│       └── src
+│           ├── citations.py
+│           ├── engine.py
+│           ├── models_base.py
+│           ├── models_core.py
+│           ├── models_evidence.py
+│           ├── models_ingestion.py
+│           ├── models_runtime.py
+│           └── models.py
 ├── pyproject.toml
 ├── README.md
 ├── ROSTER.md
@@ -127,6 +95,32 @@
 │   │       │   └── segment.py
 │   │       ├── server.py
 │   │       └── store.py
+│   ├── console_service
+│   │   ├── next-env.d.ts
+│   │   ├── next.config.js
+│   │   ├── package-lock.json
+│   │   ├── package.json
+│   │   ├── postcss.config.js
+│   │   ├── README.md
+│   │   ├── src
+│   │   │   ├── app
+│   │   │   │   ├── agents
+│   │   │   │   ├── api
+│   │   │   │   ├── collector
+│   │   │   │   ├── emos
+│   │   │   │   ├── globals.css
+│   │   │   │   ├── layout.tsx
+│   │   │   │   ├── login
+│   │   │   │   └── page.tsx
+│   │   │   ├── components
+│   │   │   │   ├── RequireAuth.tsx
+│   │   │   │   └── TopNav.tsx
+│   │   │   └── lib
+│   │   │       ├── api.ts
+│   │   │       ├── cn.ts
+│   │   │       └── server
+│   │   ├── tailwind.config.ts
+│   │   └── tsconfig.json
 │   ├── discord_service
 │   │   ├── pyproject.toml
 │   │   ├── scripts
@@ -186,6 +180,8 @@
 │   │       │   └── youtube_transcript.py
 │   │       ├── api
 │   │       │   ├── admin_auth.py
+│   │       │   ├── admin_console_models.py
+│   │       │   ├── admin_console.py
 │   │       │   ├── admin_models.py
 │   │       │   ├── app.py
 │   │       │   ├── config.py
@@ -1296,5 +1292,5 @@
 │       └── tasks.md
 └── uv.lock
 
-405 directories, 892 files
+408 directories, 885 files
 

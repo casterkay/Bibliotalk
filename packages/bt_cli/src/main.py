@@ -500,22 +500,6 @@ def memories_run(
     )
 
 
-webui_app = typer.Typer(no_args_is_help=True, help="Operator Web UI (bt_webui).")
-app.add_typer(webui_app, name="webui")
-
-
-@webui_app.command("run")
-def webui_run(
-    host: str = typer.Option("0.0.0.0", "--host"),
-    port: int = typer.Option(8090, "--port"),
-    log_level: str | None = typer.Option(None, "--log-level"),
-) -> None:
-    """Run the operator admin panel (FastAPI serving a static UI + /api)."""
-    from bt_webui.entrypoint import run_webui
-
-    raise typer.Exit(code=int(_run(run_webui(host=host, port=port, log_level=log_level or "INFO"))))
-
-
 feed_app = typer.Typer(no_args_is_help=True, help="Discord feed operations.")
 app.add_typer(feed_app, name="feed")
 

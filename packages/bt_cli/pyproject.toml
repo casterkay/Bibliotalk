@@ -10,7 +10,6 @@ requires-python = ">=3.11"
 dependencies = [
   "bt_common>=0.1.0",
   "bt_store>=0.1.0",
-  "bt_webui>=0.1.0",
   "discord_service>=0.1.0",
   "memory_service>=0.1.0",
   "typer>=0.12.3",
@@ -48,4 +47,3 @@ bt-common = { workspace = true }
 bt-store = { workspace = true }
 discord-service = { workspace = true }
 memory-service = { workspace = true }
-bt-webui = { workspace = true }

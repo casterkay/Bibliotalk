@@ -132,37 +132,29 @@ services:
       - --port
       - ${MEMORIES_PORT:-8080}
 
-  webui:
-    image: astral/uv:python3.12-trixie-slim
-    working_dir: /workspace
+  console:
+    image: node:22-bookworm
+    working_dir: /workspace/services/console_service
     env_file:
       - .env
     environment:
-      BIBLIOTALK_DB_PATH: /data/bibliotalk.db
+      NEXT_TELEMETRY_DISABLED: "1"
       MEMORIES_SERVICE_URL: http://memories:${MEMORIES_PORT:-8080}
-      UV_PROJECT_ENVIRONMENT: /data/venv-webui
     volumes:
       - ../..:/workspace
-      - bibliotalk_data:/data
+      - console_node_modules:/workspace/services/console_service/node_modules
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "${WEBUI_PORT:-8090}:8090"
+      - "${CONSOLE_PORT:-3000}:3000"
     command:
-      - uv
-      - run
-      - --package
-      - bt_cli
-      - bibliotalk
-      - webui
-      - run
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8090"
+      - sh
+      - -lc
+      - npm install && npm run dev -- -H 0.0.0.0 -p 3000
     depends_on:
       - memories
 
 volumes:
   bibliotalk_data:
   voip_node_modules:
+  console_node_modules:

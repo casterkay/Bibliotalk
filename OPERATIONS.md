@@ -97,12 +97,14 @@ uv run --package bt_cli bibliotalk feed republish --agent alan-watts --video-id 
 uv run --package bt_cli bibliotalk memories run --host 0.0.0.0 --port 8080
 ```
 
-### 8) Run the Operator Web UI
+### 8) Run the Operator Console
 
-The WebUI serves a static frontend and an authenticated `/api/*` backend.
+The operator console runs as a Next.js app (`services/console_service`) and proxies authenticated `/api/*`
+requests to backend services (primarily `memory_service`).
 
 ```
-uv run --package bt_cli bibliotalk webui run --host 0.0.0.0 --port 8090
+npm --prefix services/console_service install
+npm --prefix services/console_service run dev -- -H 0.0.0.0 -p 3000
 ```
 
 ## Notes
